@@ -3,30 +3,12 @@ package service
 import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
 )
 
-type UserRepository interface {
-	GetUserByID(ID int64) (model.User, error)
-	CreateUser(user model.User) error
-	// TODO: расширить функционал
-}
-
-type SessionRepository interface {
-	// TODO: добавить методы сессий
-}
-
-type UserService struct {
-	userRepo    UserRepository
-	sessionRepo SessionRepository
-}
-
-func NewUserService(userRepo UserRepository, sessionRepo SessionRepository) *UserService {
-	return &UserService{userRepo: userRepo, sessionRepo: sessionRepo}
-}
-
-func (s *UserService) RegisterUser(user model.User) (UserResponse, error) {
+func RegisterUser(user model.User) (UserResponse, error) {
 	// Проверяем, существует ли уже такой пользователь
-	existingUser, err := s.userRepo.GetUserByID(user.ID)
+	existingUser, err := repository.GetUserByID(user.ID)
 	if err == nil && existingUser.ID != 0 {
 		return UserResponse{
 			StatusCode: 400, // Bad Request
@@ -35,7 +17,7 @@ func (s *UserService) RegisterUser(user model.User) (UserResponse, error) {
 	}
 
 	// Создаем нового пользователя
-	err = s.userRepo.CreateUser(user)
+	err = repository.CreateUser(user)
 	if err != nil {
 		return UserResponse{
 			StatusCode: 500, // Internal Server Error
