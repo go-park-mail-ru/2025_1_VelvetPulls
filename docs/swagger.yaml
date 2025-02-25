@@ -1,6 +1,54 @@
+definitions:
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
 info:
   contact: {}
   title: Keftegram backend API
   version: "1.0"
-paths: {}
+paths:
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя по данным, переданным в запросе
+      parameters:
+      - description: Данные для регистрации пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/model.User'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Регистрация нового пользователя
+      tags:
+      - User
 swagger: "2.0"
