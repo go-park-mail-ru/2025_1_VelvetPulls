@@ -4,7 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/middleware"
+	handler "github.com/go-park-mail-ru/2025_1_VelvetPulls/handler"
+	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/middleware"
+	repository "github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
+	service "github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -20,18 +23,22 @@ func NewServer(dbConn *int) *Server {
 
 // TODO: подключиться к бд
 func (s *Server) Run(address string) error {
-	r := mux.NewRouter()
+	r := mux.NewRouter().PathPrefix("/api").Subrouter()
 
 	// Подготовка Repository
+	userRepo := repository.NewUserRepository()
 
 	// Подготовка Service
+	userService := service.NewUserService(userRepo, nil) // TODO: заменить nil на репозиторий сессии
 
 	// Подготовка Handler
+	userHandler := handler.NewUserHandler(r, userService)
 
 	// Ручки роутера
+	r.HandleFunc("/register/", userHandler.Register).Methods(http.MethodPost)
 
 	// документация Swagger
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods("GET")
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
 	// CORS
 	handlerWithCORS := middleware.CorsMiddleware(r)
