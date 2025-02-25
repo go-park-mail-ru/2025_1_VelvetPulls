@@ -3,23 +3,33 @@ package repository
 import (
 	"time"
 
-	err "github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
+	errors "github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 )
 
 var users = make(map[int64]model.User)
 
-func GetUserByID(ID int64) (model.User, error) {
-	user, exists := users[ID]
-	if !exists {
-		return model.User{}, err.ErrUserNotFound
+func GetUserByEmail(email string) (model.User, error) {
+	for _, user := range users {
+		if user.Email == email {
+			return user, nil
+		}
 	}
-	return user, nil
+	return model.User{}, errors.ErrUserNotFound
+}
+
+func GetUserByPhone(phone string) (model.User, error) {
+	for _, user := range users {
+		if user.Phone == phone {
+			return user, nil
+		}
+	}
+	return model.User{}, errors.ErrUserNotFound
 }
 
 func CreateUser(user model.User) error {
 	if _, exists := users[user.ID]; exists {
-		return err.ErrUserAlreadyExists
+		return errors.ErrUserAlreadyExists
 	}
 
 	user.CreatedAt = time.Now()
