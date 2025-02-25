@@ -4,11 +4,14 @@ import (
 	"flag"
 	"log"
 
+	_ "github.com/go-park-mail-ru/2025_1_VelvetPulls/docs"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/server"
 )
 
+// @title Keftegram backend API
+// @version 1.0
 func main() {
-	// TODO: сделать подтягивание параметорв из env
+	// TODO: сделать подтягивание параметорв из .env
 
 	// TODO: подключение бд
 	dbConn := new(int)

@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/middleware"
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // TODO: добавить объекты для подключения к бд
@@ -20,8 +22,22 @@ func NewServer(dbConn *int) *Server {
 func (s *Server) Run(address string) error {
 	r := mux.NewRouter()
 
+	// Подготовка Repository
+
+	// Подготовка Service
+
+	// Подготовка Handler
+
+	// Ручки роутера
+
+	// документация Swagger
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods("GET")
+
+	// CORS
+	handlerWithCORS := middleware.CorsMiddleware(r)
+
 	httpServer := &http.Server{
-		Handler:      r,
+		Handler:      handlerWithCORS,
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
