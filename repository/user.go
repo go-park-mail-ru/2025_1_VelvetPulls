@@ -9,6 +9,14 @@ import (
 
 var users = make(map[int64]model.User)
 
+func GetUserByUsername(username string) (model.User, error) {
+	for _, user := range users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+	return model.User{}, errors.ErrUserNotFound
+}
 func GetUserByEmail(email string) (model.User, error) {
 	for _, user := range users {
 		if user.Email == email {

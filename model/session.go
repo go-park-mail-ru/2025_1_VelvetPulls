@@ -10,3 +10,8 @@ type Session struct {
 func (s Session) IsExpired() bool {
 	return s.Expiry.Before(time.Now())
 }
+
+type AuthCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}

@@ -39,3 +39,24 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func Auth(w http.ResponseWriter, r *http.Request) {
+	var loginValues model.AuthCredentials
+
+	err := utils.ParseJSONRequest(r, &loginValues)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var newSession model.Session
+	userResponse, err := service.AuthenticateUser(loginValues, newSession)
+	if err != nil {
+		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		return
+	}
+
+	err = utils.SendJSONResponse(w, userResponse.StatusCode, userResponse.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
