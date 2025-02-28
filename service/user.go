@@ -58,6 +58,7 @@ func AuthenticateUser(values model.AuthCredentials, session model.Session) (User
 			Body:       errors.ErrUsernameTaken,
 		}, errors.ErrUserNotFound
 	}
+	//TODO делать хеширование пароля и сверять хеееееееееееееш
 	if user.Password != values.Password {
 		return UserResponse{
 			StatusCode: 400,
