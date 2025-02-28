@@ -50,3 +50,31 @@ func RegisterUser(user model.User) (UserResponse, error) {
 		Body:       user,
 	}, nil
 }
+func AuthenticateUser(values model.AuthCredentials, session model.Session) (UserResponse, error) {
+	user, err := repository.GetUserByUsername(values.Username)
+	if err != nil {
+		return UserResponse{
+			StatusCode: 400,
+			Body:       errors.ErrUsernameTaken,
+		}, errors.ErrUserNotFound
+	}
+	//TODO делать хеширование пароля и сверять хеееееееееееееш
+	if user.Password != values.Password {
+		return UserResponse{
+			StatusCode: 400,
+			Body:       errors.ErrInvalidCredentials,
+		}, errors.ErrInvalidCredentials
+	}
+	err = repository.CreateSession(values.Username, session)
+	if err != nil {
+		return UserResponse{
+			StatusCode: 500,
+			Body:       err,
+		}, err
+	}
+
+	return UserResponse{
+		StatusCode: 201,
+		Body:       session,
+	}, nil
+}
