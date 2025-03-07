@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 )
 
-var messages = []models.Message{
+var messages = []model.Message{
 	{
 		ID:        1,
 		ChatID:    1,
@@ -42,18 +42,18 @@ var messages = []models.Message{
 	},
 }
 
-func GetMessageByID(messageid int64) (models.Message, error) {
+func GetMessageByID(messageid int64) (model.Message, error) {
 	for _, message := range messages {
 		if message.ID == messageid {
 			return message, nil
 		}
 	}
 
-	return models.Message{}, apperrors.ErrMessageNotFound
+	return model.Message{}, apperrors.ErrMessageNotFound
 }
 
-func GetMessagesByChat(chatid int64) []models.Message {
-	result := make([]models.Message, 0)
+func GetMessagesByChat(chatid int64) []model.Message {
+	result := make([]model.Message, 0)
 
 	for _, message := range messages {
 		if message.ChatID == chatid {

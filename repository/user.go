@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 )
 
-var users = map[int64]models.User{
+var users = map[int64]model.User{
 	1: {
 		ID:        1,
 		FirstName: "Ruslan",
@@ -43,34 +43,34 @@ var users = map[int64]models.User{
 	},
 }
 
-func GetUserByUsername(username string) (models.User, error) {
+func GetUserByUsername(username string) (model.User, error) {
 	for _, user := range users {
 		if user.Username == username {
 			return user, nil
 		}
 	}
-	return models.User{}, apperrors.ErrUserNotFound
+	return model.User{}, apperrors.ErrUserNotFound
 }
 
-func GetUserByEmail(email string) (models.User, error) {
+func GetUserByEmail(email string) (model.User, error) {
 	for _, user := range users {
 		if user.Email == email {
 			return user, nil
 		}
 	}
-	return models.User{}, apperrors.ErrUserNotFound
+	return model.User{}, apperrors.ErrUserNotFound
 }
 
-func GetUserByPhone(phone string) (models.User, error) {
+func GetUserByPhone(phone string) (model.User, error) {
 	for _, user := range users {
 		if user.Phone == phone {
 			return user, nil
 		}
 	}
-	return models.User{}, apperrors.ErrUserNotFound
+	return model.User{}, apperrors.ErrUserNotFound
 }
 
-func CreateUser(user models.User) error {
+func CreateUser(user model.User) error {
 	if _, exists := users[user.ID]; exists {
 		return apperrors.ErrUserAlreadyExists
 	}

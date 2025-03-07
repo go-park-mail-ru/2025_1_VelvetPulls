@@ -2,11 +2,11 @@ package service
 
 import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
 )
 
-func RegisterUser(user models.User) (UserResponse, error) {
+func RegisterUser(user model.User) (UserResponse, error) {
 	// Проверяем, существует ли уже такой пользователь по Email
 	_, err := repository.GetUserByEmail(user.Email)
 	if err == nil { // Если пользователь найден, значит Email уже занят
@@ -50,7 +50,7 @@ func RegisterUser(user models.User) (UserResponse, error) {
 		Body:       user,
 	}, nil
 }
-func AuthenticateUser(values models.AuthCredentials, session models.Session) (UserResponse, error) {
+func AuthenticateUser(values model.AuthCredentials, session model.Session) (UserResponse, error) {
 	user, err := repository.GetUserByUsername(values.Username)
 	if err != nil {
 		return UserResponse{

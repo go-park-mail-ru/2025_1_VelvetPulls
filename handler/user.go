@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	models "github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
+	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
@@ -14,13 +14,13 @@ import (
 // @Tags User
 // @Accept json
 // @Produce json
-// @Param user body models.User true "Данные для регистрации пользователя"
-// @Success 201 {object} models.User
+// @Param user body model.User true "Данные для регистрации пользователя"
+// @Success 201 {object} model.User
 // @Failure 400
 // @Failure 500
 // @Router /api/register [post]
 func Register(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var user model.User
 
 	err := utils.ParseJSONRequest(r, &user)
 	if err != nil {
@@ -46,20 +46,20 @@ func Register(w http.ResponseWriter, r *http.Request) {
 // @Tags User Session
 // @Accept json
 // @Produce json
-// @Param user body models.AuthCredentials true "Данные для авторизации пользователя"
-// @Success 201 {object} models.Session
+// @Param user body model.AuthCredentials true "Данные для авторизации пользователя"
+// @Success 201 {object} model.Session
 // @Failure 400
 // @Failure 500
 // @Router /api/login [post]
 func Login(w http.ResponseWriter, r *http.Request) {
-	var loginValues models.AuthCredentials
+	var loginValues model.AuthCredentials
 
 	err := utils.ParseJSONRequest(r, &loginValues)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var newSession models.Session
+	var newSession model.Session
 	userResponse, err := service.AuthenticateUser(loginValues, newSession)
 	if err != nil {
 		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)

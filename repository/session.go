@@ -4,21 +4,21 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 )
 
-var sessions = make(map[int64]models.Session)
+var sessions = make(map[int64]model.Session)
 
-func GetSessionByID(id string) (models.Session, error) {
+func GetSessionByID(id string) (model.Session, error) {
 	for _, session := range sessions {
 		if session.ID == id {
 			return session, nil
 		}
 	}
-	return models.Session{}, apperrors.ErrSessionNotFound
+	return model.Session{}, apperrors.ErrSessionNotFound
 }
 
-func CreateSession(sessionId string, session models.Session) error {
+func CreateSession(sessionId string, session model.Session) error {
 	if _, exists := GetSessionByID(sessionId); exists == nil {
 		return apperrors.ErrSessionAlreadyExists
 	}
