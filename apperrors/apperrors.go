@@ -1,4 +1,4 @@
-package errors
+package apperrors
 
 import "errors"
 
@@ -13,4 +13,12 @@ var (
 	ErrInvalidParams        = errors.New("invalid params")
 	ErrSessionNotFound      = errors.New("session not found")
 	ErrInvalidCredentials   = errors.New("wrong password or username")
+)
+
+var (
+	ErrChatNotFound = errors.New("chat is not found")
+)
+
+var (
+	ErrMessageNotFound = errors.New("message is not found")
 )

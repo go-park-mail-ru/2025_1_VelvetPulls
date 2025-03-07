@@ -1,20 +1,20 @@
 package service
 
 import (
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/models"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
 )
 
-func RegisterUser(user model.User) (UserResponse, error) {
+func RegisterUser(user models.User) (UserResponse, error) {
 	// Проверяем, существует ли уже такой пользователь по Email
 	_, err := repository.GetUserByEmail(user.Email)
 	if err == nil { // Если пользователь найден, значит Email уже занят
 		return UserResponse{
 			StatusCode: 400,
-			Body:       errors.ErrEmailTaken,
-		}, errors.ErrEmailTaken
-	} else if err != errors.ErrUserNotFound { // Если другая ошибка (например, БД)
+			Body:       apperrors.ErrEmailTaken,
+		}, apperrors.ErrEmailTaken
+	} else if err != apperrors.ErrUserNotFound { // Если другая ошибка (например, БД)
 		return UserResponse{
 			StatusCode: 500,
 			Body:       err,
@@ -26,9 +26,9 @@ func RegisterUser(user model.User) (UserResponse, error) {
 	if err == nil {
 		return UserResponse{
 			StatusCode: 400, // Bad Request
-			Body:       errors.ErrPhoneTaken,
-		}, errors.ErrPhoneTaken
-	} else if err != errors.ErrUserNotFound {
+			Body:       apperrors.ErrPhoneTaken,
+		}, apperrors.ErrPhoneTaken
+	} else if err != apperrors.ErrUserNotFound {
 		return UserResponse{
 			StatusCode: 500,
 			Body:       err,
@@ -40,8 +40,8 @@ func RegisterUser(user model.User) (UserResponse, error) {
 	if err != nil {
 		return UserResponse{
 			StatusCode: 500,
-			Body:       errors.ErrUserCreation,
-		}, errors.ErrUserCreation
+			Body:       apperrors.ErrUserCreation,
+		}, apperrors.ErrUserCreation
 	}
 
 	// Если все прошло успешно, возвращаем успешный ответ
@@ -50,20 +50,20 @@ func RegisterUser(user model.User) (UserResponse, error) {
 		Body:       user,
 	}, nil
 }
-func AuthenticateUser(values model.AuthCredentials, session model.Session) (UserResponse, error) {
+func AuthenticateUser(values models.AuthCredentials, session models.Session) (UserResponse, error) {
 	user, err := repository.GetUserByUsername(values.Username)
 	if err != nil {
 		return UserResponse{
 			StatusCode: 400,
-			Body:       errors.ErrUsernameTaken,
-		}, errors.ErrUserNotFound
+			Body:       apperrors.ErrUsernameTaken,
+		}, apperrors.ErrUserNotFound
 	}
 	//TODO делать хеширование пароля и сверять хеееееееееееееш
 	if user.Password != values.Password {
 		return UserResponse{
 			StatusCode: 400,
-			Body:       errors.ErrInvalidCredentials,
-		}, errors.ErrInvalidCredentials
+			Body:       apperrors.ErrInvalidCredentials,
+		}, apperrors.ErrInvalidCredentials
 	}
 	err = repository.CreateSession(values.Username, session)
 	if err != nil {
