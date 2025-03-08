@@ -16,8 +16,8 @@ import (
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
 // @Success 201
-// @Failure 400
-// @Failure 500
+// @Failure 400 {string} string
+// @Failure 500 {string} string
 // @Router /api/register/ [post]
 func Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
@@ -34,14 +34,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "token",
-		Value:    userResponse.Body.(string),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	})
+	utils.SetSessionCookie(w, userResponse.Body.(string))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(userResponse.StatusCode)
@@ -50,7 +43,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 // Login авторизовывает пользователя
 // @Summary Авторизация пользователя
 // @Description Авторизовывает, аутентифицирует существующего пользователя и возвращает token
-// @Tags User Session
+// @Tags User
 // @Accept json
 // @Produce json
 // @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
@@ -73,14 +66,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "token",
-		Value:    userResponse.Body.(string),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	})
+	utils.SetSessionCookie(w, userResponse.Body.(string))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(userResponse.StatusCode)

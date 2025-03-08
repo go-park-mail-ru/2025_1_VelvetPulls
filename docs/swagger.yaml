@@ -1,4 +1,33 @@
 definitions:
+  model.Chat:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      owner_username:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/model.ChatType'
+      updated_at:
+        type: string
+    type: object
+  model.ChatType:
+    enum:
+    - dialog
+    - group
+    - channel
+    type: string
+    x-enum-varnames:
+    - ChatTypeDialog
+    - ChatTypeGroup
+    - ChatTypeChannel
   model.LoginCredentials:
     properties:
       password:
@@ -22,6 +51,38 @@ info:
   title: Keftegram backend API
   version: "1.0"
 paths:
+  /api/chats/:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список чатов пользователя, ассоциированных с текущей
+        сессией
+      parameters:
+      - default: token=xxx
+        description: token
+        in: header
+        name: Cookie
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Chat'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Получение чатов пользователя
+      tags:
+      - Chat
   /api/login/:
     post:
       consumes:
@@ -46,7 +107,7 @@ paths:
           description: Internal Server Error
       summary: Авторизация пользователя
       tags:
-      - User Session
+      - User
   /api/register/:
     post:
       consumes:
@@ -67,8 +128,12 @@ paths:
           description: Created
         "400":
           description: Bad Request
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+          schema:
+            type: string
       summary: Регистрация нового пользователя
       tags:
       - User

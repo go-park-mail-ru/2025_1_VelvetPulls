@@ -15,6 +15,53 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/chats/": {
+            "get": {
+                "description": "Возвращает список чатов пользователя, ассоциированных с текущей сессией",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Получение чатов пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "token=xxx",
+                        "description": "token",
+                        "name": "Cookie",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Chat"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/login/": {
             "post": {
                 "description": "Авторизовывает, аутентифицирует существующего пользователя и возвращает token",
@@ -25,7 +72,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "User Session"
+                    "User"
                 ],
                 "summary": "Авторизация пользователя",
                 "parameters": [
@@ -81,16 +128,64 @@ const docTemplate = `{
                         "description": "Created"
                     },
                     "400": {
-                        "description": "Bad Request"
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "500": {
-                        "description": "Internal Server Error"
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         }
     },
     "definitions": {
+        "model.Chat": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "owner_username": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/model.ChatType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ChatType": {
+            "type": "string",
+            "enum": [
+                "dialog",
+                "group",
+                "channel"
+            ],
+            "x-enum-varnames": [
+                "ChatTypeDialog",
+                "ChatTypeGroup",
+                "ChatTypeChannel"
+            ]
+        },
         "model.LoginCredentials": {
             "type": "object",
             "properties": {

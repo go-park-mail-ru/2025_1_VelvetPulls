@@ -1,32 +1,37 @@
 package handler
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strconv"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
+	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
 
+// Chats возвращает чаты пользователя по сессии
+// @Summary Получение чатов пользователя
+// @Description Возвращает список чатов пользователя, ассоциированных с текущей сессией
+// @Tags Chat
+// @Accept json
+// @Produce json
+// @Param Cookie header string  false "token" default(token=xxx)
+// @Success 200 {array} model.Chat
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/chats/ [get]
 func Chats(w http.ResponseWriter, r *http.Request) {
-	sessionId, err := r.Cookie("session_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-
-	userId, err := strconv.Atoi(sessionId.Value)
+	token, err := utils.GetSessionCookie(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	chats := repository.GetChatsWithUser(int64(userId))
-
-	result, err := json.Marshal(chats)
+	userResponse, err := service.FetchChatsBySession(token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		return
 	}
 
-	fmt.Fprint(w, result)
+	if err := utils.SendJSONResponse(w, userResponse.StatusCode, userResponse.Body); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
