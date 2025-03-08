@@ -12,6 +12,7 @@ func FetchChatsBySession(token string) (UserResponse, error) {
 			Body:       err,
 		}, err
 	}
+
 	chats, err := repository.GetChatsByUsername(session.Username)
 	if err != nil {
 		return UserResponse{
@@ -19,6 +20,7 @@ func FetchChatsBySession(token string) (UserResponse, error) {
 			Body:       err,
 		}, err
 	}
+
 	return UserResponse{
 		StatusCode: 200,
 		Body:       chats,

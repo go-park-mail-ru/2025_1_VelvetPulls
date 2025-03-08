@@ -15,13 +15,12 @@ func GetSessionBySessId(sessId string) (model.Session, error) {
 	if !exists {
 		return model.Session{}, apperrors.ErrSessionNotFound
 	}
-
 	return session, nil
 }
 
 func CreateSession(username string) (string, error) {
 	sessionId := uuid.NewString()
-	sessions[uuid.NewString()] = model.Session{
+	sessions[sessionId] = model.Session{
 		Username: username,
 		Expiry:   time.Now().Add(3 * time.Hour), // Сессия истекает через 3 часа
 	}
@@ -29,11 +28,11 @@ func CreateSession(username string) (string, error) {
 	return sessionId, nil
 }
 
-func DeleteSession(sessionID string) error {
-	if _, exists := sessions[sessionID]; !exists {
+func DeleteSession(sessionId string) error {
+	if _, exists := sessions[sessionId]; !exists {
 		return apperrors.ErrSessionNotFound
 	}
 
-	delete(sessions, sessionID)
+	delete(sessions, sessionId)
 	return nil
 }
