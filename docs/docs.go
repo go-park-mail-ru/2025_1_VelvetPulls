@@ -15,9 +15,46 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/register": {
+        "/api/login/": {
             "post": {
-                "description": "Регистрирует нового пользователя по данным, переданным в запросе",
+                "description": "Авторизовывает, аутентифицирует существующего пользователя и возвращает token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Session"
+                ],
+                "summary": "Авторизация пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для авторизации пользователя",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginCredentials"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/api/register/": {
+            "post": {
+                "description": "Регистрирует нового пользователя по данным, переданным в запросе и возвращает token",
                 "consumes": [
                     "application/json"
                 ],
@@ -35,16 +72,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.User"
+                            "$ref": "#/definitions/model.RegisterCredentials"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/model.User"
-                        }
+                        "description": "Created"
                     },
                     "400": {
                         "description": "Bad Request"
@@ -57,31 +91,27 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "model.User": {
+        "model.LoginCredentials": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "password": {
                     "type": "string"
                 },
-                "email": {
+                "username": {
                     "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "last_name": {
+                }
+            }
+        },
+        "model.RegisterCredentials": {
+            "type": "object",
+            "properties": {
+                "confirm_password": {
                     "type": "string"
                 },
                 "password": {
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string"
-                },
-                "updated_at": {
                     "type": "string"
                 },
                 "username": {

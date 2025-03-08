@@ -1,21 +1,18 @@
 definitions:
-  model.User:
+  model.LoginCredentials:
     properties:
-      created_at:
+      password:
         type: string
-      email:
+      username:
         type: string
-      first_name:
-        type: string
-      id:
-        type: integer
-      last_name:
+    type: object
+  model.RegisterCredentials:
+    properties:
+      confirm_password:
         type: string
       password:
         type: string
       phone:
-        type: string
-      updated_at:
         type: string
       username:
         type: string
@@ -25,25 +22,49 @@ info:
   title: Keftegram backend API
   version: "1.0"
 paths:
-  /api/register:
+  /api/login/:
+    post:
+      consumes:
+      - application/json
+      description: Авторизовывает, аутентифицирует существующего пользователя и возвращает
+        token
+      parameters:
+      - description: Данные для авторизации пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginCredentials'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Авторизация пользователя
+      tags:
+      - User Session
+  /api/register/:
     post:
       consumes:
       - application/json
       description: Регистрирует нового пользователя по данным, переданным в запросе
+        и возвращает token
       parameters:
       - description: Данные для регистрации пользователя
         in: body
         name: user
         required: true
         schema:
-          $ref: '#/definitions/model.User'
+          $ref: '#/definitions/model.RegisterCredentials'
       produces:
       - application/json
       responses:
         "201":
           description: Created
-          schema:
-            $ref: '#/definitions/model.User'
         "400":
           description: Bad Request
         "500":

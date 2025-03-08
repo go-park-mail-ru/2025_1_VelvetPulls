@@ -5,25 +5,35 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/google/uuid"
 )
 
-var sessions = make(map[int64]model.Session)
+var sessions = make(map[string]model.Session)
 
-func GetSessionByID(id string) (model.Session, error) {
-	for _, session := range sessions {
-		if session.ID == id {
-			return session, nil
-		}
+func GetSessionBySessId(sessId string) (model.Session, error) {
+	session, exists := sessions[sessId]
+	if !exists {
+		return model.Session{}, apperrors.ErrSessionNotFound
 	}
-	return model.Session{}, apperrors.ErrSessionNotFound
+
+	return session, nil
 }
 
-func CreateSession(sessionId string, session model.Session) error {
-	if _, exists := GetSessionByID(sessionId); exists == nil {
-		return apperrors.ErrSessionAlreadyExists
+func CreateSession(username string) (string, error) {
+	sessionId := uuid.NewString()
+	sessions[uuid.NewString()] = model.Session{
+		Username: username,
+		Expiry:   time.Now().Add(3 * time.Hour), // Сессия истекает через 3 часа
+	}
+	// Может быть ошибка, если читать из redis
+	return sessionId, nil
+}
+
+func DeleteSession(sessionID string) error {
+	if _, exists := sessions[sessionID]; !exists {
+		return apperrors.ErrSessionNotFound
 	}
 
-	session.ID = sessionId
-	session.Expiry = time.Now() //TODO поменять на другое время
+	delete(sessions, sessionID)
 	return nil
 }

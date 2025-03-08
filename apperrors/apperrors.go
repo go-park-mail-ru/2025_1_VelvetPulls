@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrUserNotFound         = errors.New("user not found")
+	ErrPasswordsDoNotMatch  = errors.New("passwords do not match")
 	ErrUsernameTaken        = errors.New("no such user with this username")
 	ErrEmailTaken           = errors.New("email already registered")
 	ErrPhoneTaken           = errors.New("phone number already registered")

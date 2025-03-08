@@ -7,9 +7,8 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 )
 
-var users = map[int64]model.User{
-	1: {
-		ID:        1,
+var users = []model.User{
+	{
 		FirstName: "Ruslan",
 		LastName:  "Novikov",
 		Username:  "ruslantus228",
@@ -19,8 +18,7 @@ var users = map[int64]model.User{
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	},
-	2: {
-		ID:        2,
+	{
 		FirstName: "Ilya",
 		LastName:  "Zeonov",
 		Username:  "ilyaaaaaaaaz",
@@ -30,8 +28,7 @@ var users = map[int64]model.User{
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	},
-	3: {
-		ID:        3,
+	{
 		FirstName: "Aleksey",
 		LastName:  "Lupenkov",
 		Username:  "lumpaumpenkov",
@@ -71,14 +68,14 @@ func GetUserByPhone(phone string) (model.User, error) {
 }
 
 func CreateUser(user model.User) error {
-	if _, exists := users[user.ID]; exists {
-		return apperrors.ErrUserAlreadyExists
+	for _, u := range users {
+		if u.Username == user.Username {
+			return apperrors.ErrUserAlreadyExists
+		}
 	}
 
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = user.CreatedAt
-	users[user.ID] = user
+	users = append(users, user)
 	return nil
 }
-
-// TODO: подумать как реализовать изменение и удаление пользователя.

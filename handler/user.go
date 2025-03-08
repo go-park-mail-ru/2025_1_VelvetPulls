@@ -10,74 +10,78 @@ import (
 
 // Register регистрирует нового пользователя
 // @Summary Регистрация нового пользователя
-// @Description Регистрирует нового пользователя по данным, переданным в запросе
+// @Description Регистрирует нового пользователя по данным, переданным в запросе и возвращает token
 // @Tags User
 // @Accept json
 // @Produce json
-// @Param user body model.User true "Данные для регистрации пользователя"
-// @Success 201 {object} model.User
+// @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
+// @Success 201
 // @Failure 400
 // @Failure 500
-// @Router /api/register [post]
+// @Router /api/register/ [post]
 func Register(w http.ResponseWriter, r *http.Request) {
-	var user model.User
+	var registerValues model.RegisterCredentials
 
-	err := utils.ParseJSONRequest(r, &user)
+	err := utils.ParseJSONRequest(r, &registerValues)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	userResponse, err := service.RegisterUser(user)
+	userResponse, err := service.RegisterUser(registerValues)
 	if err != nil {
 		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
 		return
 	}
-
-	err = utils.SendJSONResponse(w, userResponse.StatusCode, userResponse.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// Login авторизовывает пользователя
-// @Summary Авторизация пользователя
-// @Description Авторизовывает и аутентифицирует существующего пользователя, создавая новую сессию
-// @Tags User Session
-// @Accept json
-// @Produce json
-// @Param user body model.AuthCredentials true "Данные для авторизации пользователя"
-// @Success 201 {object} model.Session
-// @Failure 400
-// @Failure 500
-// @Router /api/login [post]
-func Login(w http.ResponseWriter, r *http.Request) {
-	var loginValues model.AuthCredentials
-
-	err := utils.ParseJSONRequest(r, &loginValues)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	var newSession model.Session
-	userResponse, err := service.AuthenticateUser(loginValues, newSession)
-	if err != nil {
-		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
-		return
-	}
-	sessionId := userResponse.Body.(map[string]interface{})["username"].(string)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "sessionId",
-		Value:    sessionId,
+		Name:     "token",
+		Value:    userResponse.Body.(string),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	err = utils.SendJSONResponse(w, userResponse.StatusCode, userResponse.Body)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(userResponse.StatusCode)
+}
+
+// Login авторизовывает пользователя
+// @Summary Авторизация пользователя
+// @Description Авторизовывает, аутентифицирует существующего пользователя и возвращает token
+// @Tags User Session
+// @Accept json
+// @Produce json
+// @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
+// @Success 201
+// @Failure 400
+// @Failure 500
+// @Router /api/login/ [post]
+func Login(w http.ResponseWriter, r *http.Request) {
+	var loginValues model.LoginCredentials
+
+	err := utils.ParseJSONRequest(r, &loginValues)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	userResponse, err := service.LoginUser(loginValues)
+	if err != nil {
+		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    userResponse.Body.(string),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(userResponse.StatusCode)
 }

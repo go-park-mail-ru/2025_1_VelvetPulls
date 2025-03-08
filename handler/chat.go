@@ -15,11 +15,6 @@ func Chats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	if _, err := repository.GetSessionByID(sessionId.Value); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
 	userId, err := strconv.Atoi(sessionId.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
