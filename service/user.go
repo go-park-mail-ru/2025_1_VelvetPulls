@@ -50,6 +50,7 @@ func RegisterUser(user model.User) (UserResponse, error) {
 		Body:       user,
 	}, nil
 }
+
 func AuthenticateUser(values model.AuthCredentials, session model.Session) (UserResponse, error) {
 	user, err := repository.GetUserByUsername(values.Username)
 	if err != nil {

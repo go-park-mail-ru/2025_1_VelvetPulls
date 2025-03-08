@@ -26,6 +26,9 @@ func (s *Server) Run(address string) error {
 	// Ручки роутера
 	r.HandleFunc("/register/", handler.Register).Methods(http.MethodPost)
 	r.HandleFunc("/login/", handler.Login).Methods(http.MethodPost)
+
+	r.HandleFunc("/chats/", handler.Chats).Methods(http.MethodGet)
+
 	// документация Swagger
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
