@@ -16,8 +16,8 @@ import (
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
 // @Success 201
-// @Failure 400 {string} string
-// @Failure 500 {string} string
+// @Failure 400
+// @Failure 500
 // @Router /api/register/ [post]
 func Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
@@ -36,7 +36,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	utils.SetSessionCookie(w, userResponse.Body.(string))
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(userResponse.StatusCode)
 }
 
@@ -68,6 +67,5 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	utils.SetSessionCookie(w, userResponse.Body.(string))
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(userResponse.StatusCode)
 }

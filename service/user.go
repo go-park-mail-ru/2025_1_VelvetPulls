@@ -14,7 +14,6 @@ func RegisterUser(values model.RegisterCredentials) (UserResponse, error) {
 			Body:       apperrors.ErrPasswordsDoNotMatch,
 		}, apperrors.ErrPasswordsDoNotMatch
 	}
-
 	_, err := repository.GetUserByUsername(values.Username)
 	if err == nil {
 		return UserResponse{
