@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 	"github.com/google/uuid"
 )
@@ -30,7 +31,7 @@ func CreateSession(username string) (string, error) {
 	muSession.Lock()
 	sessions[sessionId] = model.Session{
 		Username: username,
-		Expiry:   time.Now().Add(3 * time.Hour),
+		Expiry:   time.Now().Add(config.CookieDuration),
 	}
 	muSession.Unlock()
 	return sessionId, nil

@@ -6,7 +6,10 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
+
+var userPassword, _ = utils.HashAndSalt("qwerty")
 
 var (
 	users = []*model.User{
@@ -16,7 +19,7 @@ var (
 			Username:  "ruslantus228",
 			Phone:     "+79128234765",
 			Email:     "rumail@mail.ru",
-			Password:  "qwerty",
+			Password:  userPassword,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -26,7 +29,7 @@ var (
 			Username:  "ilyaaaaaaaaz",
 			Phone:     "+79476781543",
 			Email:     "zeonzeonych@mail.ru",
-			Password:  "qwerty",
+			Password:  userPassword,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -36,7 +39,7 @@ var (
 			Username:  "lumpaumpenkov",
 			Phone:     "+77777777777",
 			Email:     "seniorjunior@mail.ru",
-			Password:  "qwerty",
+			Password:  userPassword,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
