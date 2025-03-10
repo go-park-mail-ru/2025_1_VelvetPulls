@@ -14,8 +14,8 @@ var (
 	ErrUserCreation       = errors.New("user creation error")
 	ErrInvalidCredentials = errors.New("wrong password or username")
 	ErrInvalidPhoneFormat = errors.New("invalid phone format")
-	ErrInvalidPassword    = errors.New("password must be at least 8 characters long")
-	ErrInvalidUsername    = errors.New("username must be at least 3 characters long")
+	ErrInvalidPassword    = errors.New("password must be between 8 and 32 characters long")
+	ErrInvalidUsername    = errors.New("username must be between 3 and 20 characters long and can only contain letters, digits, and underscores")
 )
 
 // Ошибки, связанные с сессиями.
