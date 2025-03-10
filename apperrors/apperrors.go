@@ -6,12 +6,16 @@ import "errors"
 var (
 	ErrUserNotFound        = errors.New("user not found")
 	ErrPasswordsDoNotMatch = errors.New("passwords do not match")
-	ErrUsernameTaken       = errors.New("username already taken")
-	ErrEmailTaken          = errors.New("email already registered")
-	ErrPhoneTaken          = errors.New("phone number already registered")
-	ErrUserAlreadyExists   = errors.New("user already exists")
-	ErrUserCreation        = errors.New("user creation error")
-	ErrInvalidCredentials  = errors.New("wrong password or username")
+
+	ErrUsernameTaken      = errors.New("username already taken")
+	ErrEmailTaken         = errors.New("email already registered")
+	ErrPhoneTaken         = errors.New("phone number already registered")
+	ErrUserAlreadyExists  = errors.New("user already exists")
+	ErrUserCreation       = errors.New("user creation error")
+	ErrInvalidCredentials = errors.New("wrong password or username")
+	ErrInvalidPhoneFormat = errors.New("invalid phone format")
+	ErrInvalidPassword    = errors.New("password must be at least 8 characters long")
+	ErrInvalidUsername    = errors.New("username must be at least 3 characters long")
 )
 
 // Ошибки, связанные с сессиями.
@@ -25,13 +29,6 @@ var (
 	ErrChatNotFound      = errors.New("chat not found")
 	ErrChatAlreadyExists = errors.New("chat already exists")
 	ErrUserNotInChat     = errors.New("user is not a member of this chat")
-)
-
-// Ошибки, связанные с сообщениями.
-var (
-	ErrMessageNotFound = errors.New("message not found")
-	ErrMessageTooLong  = errors.New("message is too long")
-	ErrMessageEmpty    = errors.New("message cannot be empty")
 )
 
 // Ошибки, связанные с параметрами.

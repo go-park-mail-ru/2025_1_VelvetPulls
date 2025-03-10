@@ -13,6 +13,18 @@ func RegisterUser(values model.RegisterCredentials) (string, error) {
 		return "", apperrors.ErrPasswordsDoNotMatch
 	}
 
+	if !utils.ValidateRegistrationPassword(values.Password) {
+		return "", apperrors.ErrInvalidPassword
+	}
+
+	if !utils.ValidateRegistrationPhone(values.Phone) {
+		return "", apperrors.ErrInvalidPhoneFormat
+	}
+
+	if !utils.ValidateRegistrationUsername(values.Username) {
+		return "", apperrors.ErrInvalidUsername
+	}
+
 	if _, err := repository.GetUserByUsername(values.Username); err == nil {
 		return "", apperrors.ErrUserAlreadyExists
 	} else if err != apperrors.ErrUserNotFound {
