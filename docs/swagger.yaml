@@ -46,6 +46,14 @@ definitions:
       username:
         type: string
     type: object
+  utils.JSONResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      status:
+        type: boolean
+    type: object
 info:
   contact: {}
   title: Keftegram backend API
@@ -75,11 +83,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "500":
           description: Internal Server Error
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
       summary: Получение чатов пользователя
       tags:
       - Chat
@@ -99,12 +107,18 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
+          schema:
+            type: string
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
         "500":
           description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
       summary: Авторизация пользователя
       tags:
       - User
@@ -126,14 +140,16 @@ paths:
       responses:
         "201":
           description: Created
+          schema:
+            type: string
         "400":
           description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "500":
           description: Internal Server Error
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
       summary: Регистрация нового пользователя
       tags:
       - User
