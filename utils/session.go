@@ -22,6 +22,5 @@ func SetSessionCookie(w http.ResponseWriter, sessionID string) {
 		Path:     "/",
 		Expires:  time.Now().Add(config.CookieDuration), // Кука на 3 часа
 		HttpOnly: true,                                  // Защита от XSS
-		SameSite: http.SameSiteNoneMode,
 	})
 }
