@@ -29,12 +29,7 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 
 	// Если успех, проверим пустой срез
 	if success {
-		// Если передан пустой срез, заменим его на пустой объект
-		if s, ok := v.([]interface{}); ok && len(s) == 0 {
-			response.Data = make([]interface{}, 0) // пустой объект {}
-		} else {
-			response.Data = v
-		}
+		response.Data = v
 	} else {
 		// Ошибка
 		if err, ok := v.(error); ok {

@@ -44,12 +44,13 @@ var (
 			UpdatedAt: time.Now(),
 		},
 	}
-	muUser sync.Mutex
+	muUser sync.RWMutex // Используем RWMutex для безопасного чтения и записи
 )
 
+// Получение пользователя по имени пользователя (с безопасностью для чтения)
 func GetUserByUsername(username string) (*model.User, error) {
-	muUser.Lock()
-	defer muUser.Unlock()
+	muUser.RLock() // Чтение - блокируем только для чтения
+	defer muUser.RUnlock()
 
 	for _, user := range users {
 		if user.Username == username {
@@ -59,9 +60,10 @@ func GetUserByUsername(username string) (*model.User, error) {
 	return nil, apperrors.ErrUserNotFound
 }
 
+// Получение пользователя по email (с безопасностью для чтения)
 func GetUserByEmail(email string) (*model.User, error) {
-	muUser.Lock()
-	defer muUser.Unlock()
+	muUser.RLock() // Чтение - блокируем только для чтения
+	defer muUser.RUnlock()
 
 	for _, user := range users {
 		if user.Email == email {
@@ -71,9 +73,10 @@ func GetUserByEmail(email string) (*model.User, error) {
 	return nil, apperrors.ErrUserNotFound
 }
 
+// Получение пользователя по телефону (с безопасностью для чтения)
 func GetUserByPhone(phone string) (*model.User, error) {
-	muUser.Lock()
-	defer muUser.Unlock()
+	muUser.RLock() // Чтение - блокируем только для чтения
+	defer muUser.RUnlock()
 
 	for _, user := range users {
 		if user.Phone == phone {
@@ -83,8 +86,9 @@ func GetUserByPhone(phone string) (*model.User, error) {
 	return nil, apperrors.ErrUserNotFound
 }
 
+// Создание нового пользователя (с безопасностью для записи)
 func CreateUser(user *model.User) error {
-	muUser.Lock()
+	muUser.Lock() // Запись - блокируем для записи
 	defer muUser.Unlock()
 
 	for _, u := range users {

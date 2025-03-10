@@ -37,15 +37,15 @@ var (
 			UpdatedAt:     time.Now(),
 		},
 	}
-	muChats sync.Mutex
+	muChats sync.RWMutex // RWMutex для чтения и записи
 )
 
 // Получение чатов по имени пользователя (возвращает указатели на чаты, безопасно для конкурентного чтения)
 func GetChatsByUsername(username string) ([]*model.Chat, error) {
-	muChats.Lock()
-	defer muChats.Unlock()
+	muChats.RLock() // Блокируем только для чтения
+	defer muChats.RUnlock()
 
-	var userChats []*model.Chat
+	var userChats = make([]*model.Chat, 0)
 	for _, chat := range chats {
 		if chat.OwnerUsername == username {
 			userChats = append(userChats, chat)
@@ -57,7 +57,7 @@ func GetChatsByUsername(username string) ([]*model.Chat, error) {
 
 // Добавление нового чата (безопасно для конкурентной записи)
 func AddChat(chat *model.Chat) {
-	muChats.Lock()
+	muChats.Lock() // Блокируем для записи
 	defer muChats.Unlock()
 
 	chat.CreatedAt = time.Now()

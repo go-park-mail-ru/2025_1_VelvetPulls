@@ -12,15 +12,15 @@ import (
 
 var (
 	sessions  = make(map[string]*model.Session) // Используем указатели на модель сессии
-	muSession sync.Mutex
+	muSession sync.RWMutex                      // Используем RWMutex для безопасной работы с картой сессий
 )
 
 // Получение сессии по ее ID
 func GetSessionBySessId(sessId string) (*model.Session, error) {
-	muSession.Lock()
-	session, exists := sessions[sessId]
-	muSession.Unlock()
+	muSession.RLock() // Блокировка для чтения
+	defer muSession.RUnlock()
 
+	session, exists := sessions[sessId]
 	if !exists {
 		return nil, apperrors.ErrSessionNotFound
 	}
@@ -30,18 +30,20 @@ func GetSessionBySessId(sessId string) (*model.Session, error) {
 // Создание новой сессии
 func CreateSession(username string) (string, error) {
 	sessionId := uuid.NewString()
-	muSession.Lock()
+
+	muSession.Lock() // Блокировка для записи
+	defer muSession.Unlock()
+
 	sessions[sessionId] = &model.Session{ // Сохраняем указатель на сессию
 		Username: username,
 		Expiry:   time.Now().Add(config.CookieDuration),
 	}
-	muSession.Unlock()
 	return sessionId, nil
 }
 
 // Удаление сессии
 func DeleteSession(sessionId string) error {
-	muSession.Lock()
+	muSession.Lock() // Блокировка для записи
 	defer muSession.Unlock()
 
 	if _, exists := sessions[sessionId]; !exists {
