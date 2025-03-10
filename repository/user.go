@@ -98,9 +98,6 @@ func CreateUser(user *model.User) error {
 		if u.Phone == user.Phone {
 			return apperrors.ErrPhoneTaken
 		}
-		if u.Email == user.Email {
-			return apperrors.ErrEmailTaken
-		}
 	}
 
 	user.CreatedAt = time.Now()

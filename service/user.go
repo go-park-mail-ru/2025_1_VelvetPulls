@@ -49,7 +49,7 @@ func RegisterUser(values model.RegisterCredentials) (string, error) {
 	}
 
 	if err := repository.CreateUser(user); err != nil {
-		return "", apperrors.ErrUserCreation
+		return "", err
 	}
 
 	sessionID, err := repository.CreateSession(user.Username)
