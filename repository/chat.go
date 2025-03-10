@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	chats = []model.Chat{
+	chats = []*model.Chat{
 		{
 			OwnerUsername: "ruslantus228",
 			Type:          model.ChatTypeDialog,
@@ -40,12 +40,12 @@ var (
 	muChats sync.Mutex
 )
 
-// Получение чатов по имени пользователя (безопасно для конкурентного чтения)
-func GetChatsByUsername(username string) ([]model.Chat, error) {
+// Получение чатов по имени пользователя (возвращает указатели на чаты, безопасно для конкурентного чтения)
+func GetChatsByUsername(username string) ([]*model.Chat, error) {
 	muChats.Lock()
 	defer muChats.Unlock()
 
-	var userChats []model.Chat
+	var userChats []*model.Chat
 	for _, chat := range chats {
 		if chat.OwnerUsername == username {
 			userChats = append(userChats, chat)
@@ -56,7 +56,7 @@ func GetChatsByUsername(username string) ([]model.Chat, error) {
 }
 
 // Добавление нового чата (безопасно для конкурентной записи)
-func AddChat(chat model.Chat) {
+func AddChat(chat *model.Chat) {
 	muChats.Lock()
 	defer muChats.Unlock()
 

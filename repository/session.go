@@ -11,25 +11,27 @@ import (
 )
 
 var (
-	sessions  = make(map[string]model.Session)
+	sessions  = make(map[string]*model.Session) // Используем указатели на модель сессии
 	muSession sync.Mutex
 )
 
-func GetSessionBySessId(sessId string) (model.Session, error) {
+// Получение сессии по ее ID
+func GetSessionBySessId(sessId string) (*model.Session, error) {
 	muSession.Lock()
 	session, exists := sessions[sessId]
 	muSession.Unlock()
 
 	if !exists {
-		return model.Session{}, apperrors.ErrSessionNotFound
+		return nil, apperrors.ErrSessionNotFound
 	}
 	return session, nil
 }
 
+// Создание новой сессии
 func CreateSession(username string) (string, error) {
 	sessionId := uuid.NewString()
 	muSession.Lock()
-	sessions[sessionId] = model.Session{
+	sessions[sessionId] = &model.Session{ // Сохраняем указатель на сессию
 		Username: username,
 		Expiry:   time.Now().Add(config.CookieDuration),
 	}
@@ -37,6 +39,7 @@ func CreateSession(username string) (string, error) {
 	return sessionId, nil
 }
 
+// Удаление сессии
 func DeleteSession(sessionId string) error {
 	muSession.Lock()
 	defer muSession.Unlock()

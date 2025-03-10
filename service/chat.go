@@ -6,7 +6,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
 )
 
-func FetchChatsBySession(token string) ([]model.Chat, error) {
+func FetchChatsBySession(token string) ([]*model.Chat, error) {
 	session, err := repository.GetSessionBySessId(token)
 	if err != nil {
 		if err == apperrors.ErrSessionNotFound {
