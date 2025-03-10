@@ -2,24 +2,39 @@ package apperrors
 
 import "errors"
 
+// Ошибки, связанные с пользователями.
 var (
-	ErrUserNotFound         = errors.New("user not found")
-	ErrPasswordsDoNotMatch  = errors.New("passwords do not match")
-	ErrUsernameTaken        = errors.New("no such user with this username")
-	ErrEmailTaken           = errors.New("email already registered")
-	ErrPhoneTaken           = errors.New("phone number already registered")
-	ErrUserAlreadyExists    = errors.New("user already exists")
-	ErrSessionAlreadyExists = errors.New("session already exists")
-	ErrUserCreation         = errors.New("user creation error")
-	ErrInvalidParams        = errors.New("invalid params")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrPasswordsDoNotMatch = errors.New("passwords do not match")
+	ErrUsernameTaken       = errors.New("username already taken")
+	ErrEmailTaken          = errors.New("email already registered")
+	ErrPhoneTaken          = errors.New("phone number already registered")
+	ErrUserAlreadyExists   = errors.New("user already exists")
+	ErrUserCreation        = errors.New("user creation error")
+	ErrInvalidCredentials  = errors.New("wrong password or username")
+)
+
+// Ошибки, связанные с сессиями.
+var (
 	ErrSessionNotFound      = errors.New("session not found")
-	ErrInvalidCredentials   = errors.New("wrong password or username")
+	ErrSessionAlreadyExists = errors.New("session already exists")
 )
 
+// Ошибки, связанные с чатами.
 var (
-	ErrChatNotFound = errors.New("chat is not found")
+	ErrChatNotFound      = errors.New("chat not found")
+	ErrChatAlreadyExists = errors.New("chat already exists")
+	ErrUserNotInChat     = errors.New("user is not a member of this chat")
 )
 
+// Ошибки, связанные с сообщениями.
 var (
-	ErrMessageNotFound = errors.New("message is not found")
+	ErrMessageNotFound = errors.New("message not found")
+	ErrMessageTooLong  = errors.New("message is too long")
+	ErrMessageEmpty    = errors.New("message cannot be empty")
+)
+
+// Ошибки, связанные с параметрами.
+var (
+	ErrInvalidParams = errors.New("invalid parameters")
 )

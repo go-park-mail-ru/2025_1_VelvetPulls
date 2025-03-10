@@ -7,101 +7,62 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
 
-func RegisterUser(values model.RegisterCredentials) (UserResponse, error) {
+// RegisterUser регистрирует нового пользователя.
+func RegisterUser(values model.RegisterCredentials) (string, error) {
 	if values.Password != values.ConfirmPassword {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       apperrors.ErrPasswordsDoNotMatch,
-		}, apperrors.ErrPasswordsDoNotMatch
-	}
-	_, err := repository.GetUserByUsername(values.Username)
-	if err == nil {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       apperrors.ErrUserAlreadyExists,
-		}, apperrors.ErrUserAlreadyExists
-	} else if err != apperrors.ErrUserNotFound {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", apperrors.ErrPasswordsDoNotMatch
 	}
 
-	_, err = repository.GetUserByPhone(values.Phone)
-	if err == nil {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       apperrors.ErrPhoneTaken,
-		}, apperrors.ErrPhoneTaken
+	if _, err := repository.GetUserByUsername(values.Username); err == nil {
+		return "", apperrors.ErrUserAlreadyExists
 	} else if err != apperrors.ErrUserNotFound {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", err
+	}
+
+	if _, err := repository.GetUserByPhone(values.Phone); err == nil {
+		return "", apperrors.ErrPhoneTaken
+	} else if err != apperrors.ErrUserNotFound {
+		return "", err
 	}
 
 	hashedPassword, err := utils.HashAndSalt(values.Password)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", err
 	}
 
-	user := model.User{
+	user := &model.User{
 		Username: values.Username,
 		Password: hashedPassword,
 		Phone:    values.Phone,
 	}
 
-	err = repository.CreateUser(user)
-	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       apperrors.ErrUserCreation,
-		}, apperrors.ErrUserCreation
+	if err := repository.CreateUser(user); err != nil {
+		return "", apperrors.ErrUserCreation
 	}
 
-	sessionId, err := repository.CreateSession(user.Username)
+	sessionID, err := repository.CreateSession(user.Username)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", err
 	}
 
-	return UserResponse{
-		StatusCode: 201,
-		Body:       sessionId,
-	}, nil
+	return sessionID, nil
 }
 
-func LoginUser(values model.LoginCredentials) (UserResponse, error) {
+// LoginUser аутентифицирует пользователя и создает сессию.
+func LoginUser(values model.LoginCredentials) (string, error) {
 	user, err := repository.GetUserByUsername(values.Username)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       apperrors.ErrUsernameTaken,
-		}, apperrors.ErrUserNotFound
+		return "", apperrors.ErrUserNotFound
 	}
 
 	if !utils.ValidatePassword(user.Password, values.Password) {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       apperrors.ErrInvalidCredentials,
-		}, apperrors.ErrInvalidCredentials
+		return "", apperrors.ErrInvalidCredentials
 	}
 
-	sessionId, err := repository.CreateSession(values.Username)
+	sessionID, err := repository.CreateSession(user.Username)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", err
 	}
 
-	return UserResponse{
-		StatusCode: 201,
-		Body:       sessionId,
-	}, nil
+	return sessionID, nil
 }

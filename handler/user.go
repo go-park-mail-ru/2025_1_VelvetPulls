@@ -15,28 +15,33 @@ import (
 // @Accept json
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
-// @Success 201
-// @Failure 400
-// @Failure 500
+// @Success 201 {string} string
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
 // @Router /api/register/ [post]
 func Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
 
+	// Парсим JSON из запроса
 	err := utils.ParseJSONRequest(r, &registerValues)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
 	}
 
-	userResponse, err := service.RegisterUser(registerValues)
+	// Регистрируем пользователя
+	sessionID, err := service.RegisterUser(registerValues)
 	if err != nil {
-		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		// Отправляем ошибку в формате JSON
+		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
 	}
 
-	utils.SetSessionCookie(w, userResponse.Body.(string))
+	// Устанавливаем cookie сессии
+	utils.SetSessionCookie(w, sessionID)
 
-	w.WriteHeader(userResponse.StatusCode)
+	// Отправляем успешный ответ
+	utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true)
 }
 
 // Login авторизовывает пользователя
@@ -46,26 +51,31 @@ func Register(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
-// @Success 201
-// @Failure 400
-// @Failure 500
+// @Success 200 {string} string
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
 // @Router /api/login/ [post]
 func Login(w http.ResponseWriter, r *http.Request) {
 	var loginValues model.LoginCredentials
 
+	// Парсим JSON из запроса
 	err := utils.ParseJSONRequest(r, &loginValues)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
 	}
 
-	userResponse, err := service.LoginUser(loginValues)
+	// Авторизация пользователя
+	sessionID, err := service.LoginUser(loginValues)
 	if err != nil {
-		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		// Отправляем ошибку в формате JSON
+		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
 	}
 
-	utils.SetSessionCookie(w, userResponse.Body.(string))
+	// Устанавливаем cookie сессии
+	utils.SetSessionCookie(w, sessionID)
 
-	w.WriteHeader(userResponse.StatusCode)
+	// Отправляем успешный ответ
+	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
 }

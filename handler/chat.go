@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
-	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
 
 // Chats возвращает чаты пользователя по сессии
@@ -15,23 +15,25 @@ import (
 // @Produce json
 // @Param Cookie header string  false "token" default(token=xxx)
 // @Success 200 {array} model.Chat
-// @Failure 400 {string} string
-// @Failure 500 {string} string
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
 // @Router /api/chats/ [get]
 func Chats(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GetSessionCookie(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// Отправляем ошибку с кодом 400 (неверный токен)
+		_ = utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
 	}
 
-	userResponse, err := service.FetchChatsBySession(token)
+	// Получаем чаты по сессии
+	chats, err := service.FetchChatsBySession(token)
 	if err != nil {
-		http.Error(w, userResponse.Body.(error).Error(), userResponse.StatusCode)
+		// Ошибка при получении чатов - отдаем ошибку и код
+		_ = utils.SendJSONResponse(w, http.StatusInternalServerError, err.Error(), false)
 		return
 	}
 
-	if err := utils.SendJSONResponse(w, userResponse.StatusCode, userResponse.Body); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	// Успешный ответ
+	_ = utils.SendJSONResponse(w, http.StatusOK, chats, true)
 }
