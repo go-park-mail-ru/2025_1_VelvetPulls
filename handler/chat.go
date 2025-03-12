@@ -16,7 +16,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param Cookie header string  false "token" default(token=xxx)
-// @Success 200 {array} model.Chat
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/chats/ [get]

@@ -41,10 +41,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Chat"
-                            }
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -156,48 +153,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "model.Chat": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "members": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "owner_username": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "type": {
-                    "$ref": "#/definitions/model.ChatType"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.ChatType": {
-            "type": "string",
-            "enum": [
-                "dialog",
-                "group",
-                "channel"
-            ],
-            "x-enum-varnames": [
-                "ChatTypeDialog",
-                "ChatTypeGroup",
-                "ChatTypeChannel"
-            ]
-        },
         "model.LoginCredentials": {
             "type": "object",
             "properties": {

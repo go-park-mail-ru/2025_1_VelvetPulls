@@ -18,7 +18,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
-// @Success 201 {string} string
+// @Success 201 {string} {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/register/ [post]

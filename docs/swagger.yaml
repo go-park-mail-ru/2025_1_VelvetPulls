@@ -1,33 +1,4 @@
 definitions:
-  model.Chat:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      members:
-        items:
-          type: integer
-        type: array
-      owner_username:
-        type: string
-      title:
-        type: string
-      type:
-        $ref: '#/definitions/model.ChatType'
-      updated_at:
-        type: string
-    type: object
-  model.ChatType:
-    enum:
-    - dialog
-    - group
-    - channel
-    type: string
-    x-enum-varnames:
-    - ChatTypeDialog
-    - ChatTypeGroup
-    - ChatTypeChannel
   model.LoginCredentials:
     properties:
       password:
@@ -77,9 +48,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/model.Chat'
-            type: array
+            $ref: '#/definitions/utils.JSONResponse'
         "400":
           description: Bad Request
           schema:
