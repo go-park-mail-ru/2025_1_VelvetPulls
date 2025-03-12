@@ -5,17 +5,15 @@ import "errors"
 // Ошибки, связанные с пользователями.
 var (
 	ErrUserNotFound        = errors.New("user not found")
+	ErrUsernameTaken       = errors.New("username already taken")
+	ErrEmailTaken          = errors.New("email already registered")
+	ErrPhoneTaken          = errors.New("phone number already registered")
+	ErrUserCreation        = errors.New("user creation error")
+	ErrInvalidCredentials  = errors.New("wrong password or username")
+	ErrInvalidPhoneFormat  = errors.New("invalid phone format")
+	ErrInvalidPassword     = errors.New("password must be between 8 and 32 characters long")
+	ErrInvalidUsername     = errors.New("username must be between 3 and 20 characters long and can only contain letters, digits, and underscores")
 	ErrPasswordsDoNotMatch = errors.New("passwords do not match")
-
-	ErrUsernameTaken      = errors.New("username already taken")
-	ErrEmailTaken         = errors.New("email already registered")
-	ErrPhoneTaken         = errors.New("phone number already registered")
-	ErrUserAlreadyExists  = errors.New("user already exists")
-	ErrUserCreation       = errors.New("user creation error")
-	ErrInvalidCredentials = errors.New("wrong password or username")
-	ErrInvalidPhoneFormat = errors.New("invalid phone format")
-	ErrInvalidPassword    = errors.New("password must be between 8 and 32 characters long")
-	ErrInvalidUsername    = errors.New("username must be between 3 and 20 characters long and can only contain letters, digits, and underscores")
 )
 
 // Ошибки, связанные с сессиями.
@@ -34,4 +32,9 @@ var (
 // Ошибки, связанные с параметрами.
 var (
 	ErrInvalidParams = errors.New("invalid parameters")
+)
+
+// Ошибки, связанные с сервером.
+var (
+	ErrInternalServer = errors.New("internal server error")
 )

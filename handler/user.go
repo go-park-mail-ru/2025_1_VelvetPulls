@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
@@ -32,8 +35,21 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	// Регистрируем пользователя
 	sessionID, err := service.RegisterUser(registerValues)
 	if err != nil {
-		// Отправляем ошибку в формате JSON
-		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+		switch {
+		case errors.Is(err, apperrors.ErrPasswordsDoNotMatch),
+			errors.Is(err, apperrors.ErrInvalidPassword),
+			errors.Is(err, apperrors.ErrInvalidPhoneFormat),
+			errors.Is(err, apperrors.ErrInvalidUsername):
+			utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+
+		case errors.Is(err, apperrors.ErrUsernameTaken),
+			errors.Is(err, apperrors.ErrEmailTaken),
+			errors.Is(err, apperrors.ErrPhoneTaken):
+			utils.SendJSONResponse(w, http.StatusConflict, err.Error(), false)
+
+		default:
+			utils.SendJSONResponse(w, http.StatusInternalServerError, apperrors.ErrInternalServer, false)
+		}
 		return
 	}
 
@@ -60,6 +76,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	// Парсим JSON из запроса
 	err := utils.ParseJSONRequest(r, &loginValues)
+	fmt.Print(loginValues)
 	if err != nil {
 		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
@@ -68,8 +85,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	// Авторизация пользователя
 	sessionID, err := service.LoginUser(loginValues)
 	if err != nil {
-		// Отправляем ошибку в формате JSON
-		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+		switch {
+		case errors.Is(err, apperrors.ErrUserNotFound),
+			errors.Is(err, apperrors.ErrInvalidCredentials):
+			utils.SendJSONResponse(w, http.StatusUnauthorized, err.Error(), false)
+
+		default:
+			utils.SendJSONResponse(w, http.StatusInternalServerError, apperrors.ErrInternalServer, false)
+		}
 		return
 	}
 

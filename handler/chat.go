@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
@@ -21,19 +23,20 @@ import (
 func Chats(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GetSessionCookie(r)
 	if err != nil {
-		// Отправляем ошибку с кодом 400 (неверный токен)
-		_ = utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "invalid session token", false)
 		return
 	}
 
-	// Получаем чаты по сессии
 	chats, err := service.FetchChatsBySession(token)
 	if err != nil {
-		// Ошибка при получении чатов - отдаем ошибку и код
-		_ = utils.SendJSONResponse(w, http.StatusInternalServerError, err.Error(), false)
+		if errors.Is(err, apperrors.ErrSessionNotFound) {
+			utils.SendJSONResponse(w, http.StatusUnauthorized, "session not found", false)
+			return
+		}
+
+		utils.SendJSONResponse(w, http.StatusInternalServerError, "internal server error", false)
 		return
 	}
 
-	// Успешный ответ
-	_ = utils.SendJSONResponse(w, http.StatusOK, chats, true)
+	utils.SendJSONResponse(w, http.StatusOK, chats, true)
 }

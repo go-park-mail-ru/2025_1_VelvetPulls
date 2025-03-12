@@ -73,7 +73,7 @@ func TestLogin(t *testing.T) {
 				"field":         "gojsfullstack",
 				"another_field": "lolkekcheburek",
 			},
-			status: http.StatusBadRequest,
+			status: http.StatusUnauthorized,
 		},
 	}
 

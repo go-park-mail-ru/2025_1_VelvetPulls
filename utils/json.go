@@ -19,7 +19,7 @@ func ParseJSONRequest(r *http.Request, v interface{}) error {
 }
 
 // SendJSONResponse отправляет JSON-ответ с полем `status`.
-func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, success bool) error {
+func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, success bool) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -41,5 +41,7 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 		}
 	}
 
-	return json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// TODO: логи ко 2 рк)
+	}
 }

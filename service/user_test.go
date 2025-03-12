@@ -63,18 +63,7 @@ func TestRegisterUser(t *testing.T) {
 				Phone:           "+79251385523",
 			},
 			response: "",
-			err:      apperrors.ErrUserAlreadyExists,
-		},
-		{
-			testName: "Phone number is already taken",
-			credentials: model.RegisterCredentials{
-				Username:        "lolkekcheburek",
-				Password:        "password",
-				ConfirmPassword: "password",
-				Phone:           "+79128234765",
-			},
-			response: "",
-			err:      apperrors.ErrPhoneTaken,
+			err:      apperrors.ErrUsernameTaken,
 		},
 		{
 			testName: "Phone number is already taken",

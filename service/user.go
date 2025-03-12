@@ -26,7 +26,7 @@ func RegisterUser(values model.RegisterCredentials) (string, error) {
 	}
 
 	if _, err := repository.GetUserByUsername(values.Username); err == nil {
-		return "", apperrors.ErrUserAlreadyExists
+		return "", apperrors.ErrUsernameTaken
 	} else if err != apperrors.ErrUserNotFound {
 		return "", err
 	}
