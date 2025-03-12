@@ -1,0 +1,125 @@
+definitions:
+  model.LoginCredentials:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  model.RegisterCredentials:
+    properties:
+      confirm_password:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
+  utils.JSONResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      status:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  title: Keftegram backend API
+  version: "1.0"
+paths:
+  /api/chats/:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список чатов пользователя, ассоциированных с текущей
+        сессией
+      parameters:
+      - default: token=xxx
+        description: token
+        in: header
+        name: Cookie
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получение чатов пользователя
+      tags:
+      - Chat
+  /api/login/:
+    post:
+      consumes:
+      - application/json
+      description: Авторизовывает, аутентифицирует существующего пользователя и возвращает
+        token
+      parameters:
+      - description: Данные для авторизации пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginCredentials'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Авторизация пользователя
+      tags:
+      - User
+  /api/register/:
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя по данным, переданным в запросе
+        и возвращает token
+      parameters:
+      - description: Данные для регистрации пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/model.RegisterCredentials'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Регистрация нового пользователя
+      tags:
+      - User
+swagger: "2.0"
