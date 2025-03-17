@@ -87,7 +87,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -98,6 +98,23 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.JSONResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/logout/": {
+            "delete": {
+                "description": "Завершает текущую сессию пользователя, удаляя cookie сессии",
+                "tags": [
+                    "User"
+                ],
+                "summary": "Выход пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/utils.JSONResponse"
                         }
@@ -133,7 +150,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {

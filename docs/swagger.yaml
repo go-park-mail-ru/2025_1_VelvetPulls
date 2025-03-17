@@ -79,7 +79,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "400":
           description: Bad Request
           schema:
@@ -89,6 +89,17 @@ paths:
           schema:
             $ref: '#/definitions/utils.JSONResponse'
       summary: Авторизация пользователя
+      tags:
+      - User
+  /api/logout/:
+    delete:
+      description: Завершает текущую сессию пользователя, удаляя cookie сессии
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Выход пользователя
       tags:
       - User
   /api/register/:
@@ -110,7 +121,7 @@ paths:
         "201":
           description: Created
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "400":
           description: Bad Request
           schema:

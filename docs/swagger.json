@@ -78,7 +78,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -89,6 +89,23 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.JSONResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/logout/": {
+            "delete": {
+                "description": "Завершает текущую сессию пользователя, удаляя cookie сессии",
+                "tags": [
+                    "User"
+                ],
+                "summary": "Выход пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/utils.JSONResponse"
                         }
@@ -124,7 +141,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
