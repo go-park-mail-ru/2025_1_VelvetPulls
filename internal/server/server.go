@@ -4,12 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	a "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http/auth"
-	c "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http/chat"
+	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase/auth"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase/chat"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -37,12 +35,12 @@ func (s *Server) Run(address string) error {
 	chatRepo := repository.NewChatRepo()
 
 	// Usecase
-	authUsecase := auth.NewAuthUsecase(userRepo, sessionRepo)
-	chatUsecase := chat.NewChatUsecase(sessionRepo, chatRepo)
+	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
+	chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
 
 	// Controller
-	a.NewAuthController(r, authUsecase)
-	c.NewChatController(r, chatUsecase)
+	delivery.NewAuthController(r, authUsecase)
+	delivery.NewChatController(r, chatUsecase)
 
 	httpServer := &http.Server{
 		Handler:      middleware.CorsMiddleware(r),

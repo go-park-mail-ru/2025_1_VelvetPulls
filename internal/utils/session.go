@@ -24,3 +24,13 @@ func SetSessionCookie(w http.ResponseWriter, sessionID string) {
 		HttpOnly: true,                                  // Защита от XSS
 	})
 }
+
+func DeleteSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0), // Устанавливаем срок действия в прошлое
+		HttpOnly: true,
+	})
+}

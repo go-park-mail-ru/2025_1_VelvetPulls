@@ -1,4 +1,4 @@
-package auth
+package http
 
 import (
 	"errors"
@@ -7,8 +7,24 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	"github.com/gorilla/mux"
 )
+
+type authController struct {
+	authUsecase usecase.IAuthUsecase
+}
+
+func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
+	controller := &authController{
+		authUsecase: authUsecase,
+	}
+
+	r.HandleFunc("/register/", controller.Register).Methods(http.MethodPost)
+	r.HandleFunc("/login/", controller.Login).Methods(http.MethodPost)
+	r.HandleFunc("/logout/", controller.Logout).Methods(http.MethodPost)
+}
 
 // Register регистрирует нового пользователя
 // @Summary Регистрация нового пользователя
@@ -100,4 +116,15 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Отправляем успешный ответ
 	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
+}
+
+// Logout завершает сеанс пользователя
+// @Summary Выход пользователя
+// @Description Завершает текущую сессию пользователя, удаляя cookie сессии
+// @Tags User
+// @Success 200 {string} string
+// @Router /api/logout/ [post]
+func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
+	utils.DeleteSessionCookie(w)
+	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
 }

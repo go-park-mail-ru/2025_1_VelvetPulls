@@ -8,7 +8,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 )
 
-type UserRepoInterface interface {
+type IUserRepo interface {
 	GetUserByUsername(username string) (*model.User, error)
 	GetUserByEmail(email string) (*model.User, error)
 	GetUserByPhone(phone string) (*model.User, error)
@@ -20,7 +20,7 @@ type userRepo struct {
 	mu    sync.RWMutex // Используем RWMutex для безопасного чтения и записи
 }
 
-func NewUserRepo() UserRepoInterface {
+func NewUserRepo() IUserRepo {
 	return &userRepo{
 		users: make([]*model.User, 0),
 	}

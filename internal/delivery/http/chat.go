@@ -1,12 +1,26 @@
-package chat
+package http
 
 import (
 	"errors"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	"github.com/gorilla/mux"
 )
+
+type chatController struct {
+	chatUsecase usecase.IChatUsecase
+}
+
+func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase) {
+	controller := &chatController{
+		chatUsecase: chatUsecase,
+	}
+
+	r.HandleFunc("/chats/", controller.Chats).Methods(http.MethodGet)
+}
 
 // Chats возвращает чаты пользователя по сессии
 // @Summary Получение чатов пользователя

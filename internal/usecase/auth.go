@@ -1,4 +1,4 @@
-package auth
+package usecase
 
 import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
@@ -7,19 +7,19 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
 )
 
-type AuthUsecaseInterface interface {
+type IAuthUsecase interface {
 	RegisterUser(values model.RegisterCredentials) (string, error)
 	LoginUser(values model.LoginCredentials) (string, error)
 }
 
 // authUsecase реализует интерфейс AuthUsecase.
 type AuthUsecase struct {
-	userRepo    repository.UserRepoInterface
-	sessionRepo repository.SessionRepoInterface
+	userRepo    repository.IUserRepo
+	sessionRepo repository.ISessionRepo
 }
 
 // NewAuthUsecase создает новый экземпляр AuthUsecase.
-func NewAuthUsecase(userRepo repository.UserRepoInterface, sessionRepo repository.SessionRepoInterface) AuthUsecaseInterface {
+func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
 	return &AuthUsecase{
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,

@@ -7,9 +7,9 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 )
 
-type ChatRepoInterface interface {
+type IChatRepo interface {
 	GetChatsByUsername(username string) ([]model.Chat, error)
-	AddChat(chat *model.Chat)
+	AddChat(chat *model.Chat) error
 }
 
 type сhatRepo struct {
@@ -17,7 +17,7 @@ type сhatRepo struct {
 	mu    sync.RWMutex // Мьютекс для безопасного чтения и записи
 }
 
-func NewChatRepo() ChatRepoInterface {
+func NewChatRepo() IChatRepo {
 	return &сhatRepo{
 		chats: make([]*model.Chat, 0),
 	}
@@ -39,11 +39,12 @@ func (r *сhatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
 }
 
 // Добавление нового чата (безопасно для конкурентной записи)
-func (r *сhatRepo) AddChat(chat *model.Chat) {
+func (r *сhatRepo) AddChat(chat *model.Chat) error {
 	r.mu.Lock() // Блокируем для записи
 	defer r.mu.Unlock()
 
 	chat.CreatedAt = time.Now()
 	chat.UpdatedAt = chat.CreatedAt
 	r.chats = append(r.chats, chat)
+	return nil // TODO: обработка ошибок
 }

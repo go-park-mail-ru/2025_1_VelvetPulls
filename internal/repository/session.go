@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type SessionRepoInterface interface {
+type ISessionRepo interface {
 	GetSessionBySessId(sessId string) (*model.Session, error)
 	CreateSession(username string) (string, error)
 	DeleteSession(sessionId string) error
@@ -21,7 +21,7 @@ type sessionRepo struct {
 	mu       sync.RWMutex // Мьютекс для безопасного чтения и записи
 }
 
-func NewSessionRepo() SessionRepoInterface {
+func NewSessionRepo() ISessionRepo {
 	return &sessionRepo{
 		sessions: make(map[string]*model.Session),
 	}
