@@ -1,80 +1,80 @@
 package service
 
 import (
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
 )
 
-func RegisterUser(user model.User) (UserResponse, error) {
-	// Проверяем, существует ли уже такой пользователь по Email
-	_, err := repository.GetUserByEmail(user.Email)
-	if err == nil { // Если пользователь найден, значит Email уже занят
-		return UserResponse{
-			StatusCode: 400,
-			Body:       errors.ErrEmailTaken,
-		}, errors.ErrEmailTaken
-	} else if err != errors.ErrUserNotFound { // Если другая ошибка (например, БД)
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+// RegisterUser регистрирует нового пользователя.
+func RegisterUser(values model.RegisterCredentials) (string, error) {
+	if values.Password != values.ConfirmPassword {
+		return "", apperrors.ErrPasswordsDoNotMatch
 	}
 
-	// Проверяем, существует ли уже такой пользователь по Phone
-	_, err = repository.GetUserByPhone(user.Phone)
-	if err == nil {
-		return UserResponse{
-			StatusCode: 400, // Bad Request
-			Body:       errors.ErrPhoneTaken,
-		}, errors.ErrPhoneTaken
-	} else if err != errors.ErrUserNotFound {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+	if !utils.ValidateRegistrationPassword(values.Password) {
+		return "", apperrors.ErrInvalidPassword
 	}
 
-	// Создаем нового пользователя
-	err = repository.CreateUser(user)
+	if !utils.ValidateRegistrationPhone(values.Phone) {
+		return "", apperrors.ErrInvalidPhoneFormat
+	}
+
+	if !utils.ValidateRegistrationUsername(values.Username) {
+		return "", apperrors.ErrInvalidUsername
+	}
+
+	if _, err := repository.GetUserByUsername(values.Username); err == nil {
+		return "", apperrors.ErrUsernameTaken
+	} else if err != apperrors.ErrUserNotFound {
+		return "", err
+	}
+
+	if _, err := repository.GetUserByPhone(values.Phone); err == nil {
+		return "", apperrors.ErrPhoneTaken
+	} else if err != apperrors.ErrUserNotFound {
+		return "", err
+	}
+
+	hashedPassword, err := utils.HashAndSalt(values.Password)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       errors.ErrUserCreation,
-		}, errors.ErrUserCreation
+		return "", err
 	}
 
-	// Если все прошло успешно, возвращаем успешный ответ
-	return UserResponse{
-		StatusCode: 201,
-		Body:       user,
-	}, nil
+	user := &model.User{
+		Username: values.Username,
+		Password: hashedPassword,
+		Phone:    values.Phone,
+	}
+
+	if err := repository.CreateUser(user); err != nil {
+		return "", err
+	}
+
+	sessionID, err := repository.CreateSession(user.Username)
+	if err != nil {
+		return "", err
+	}
+
+	return sessionID, nil
 }
-func AuthenticateUser(values model.AuthCredentials, session model.Session) (UserResponse, error) {
+
+// LoginUser аутентифицирует пользователя и создает сессию.
+func LoginUser(values model.LoginCredentials) (string, error) {
 	user, err := repository.GetUserByUsername(values.Username)
 	if err != nil {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       errors.ErrUsernameTaken,
-		}, errors.ErrUserNotFound
-	}
-	//TODO делать хеширование пароля и сверять хеееееееееееееш
-	if user.Password != values.Password {
-		return UserResponse{
-			StatusCode: 400,
-			Body:       errors.ErrInvalidCredentials,
-		}, errors.ErrInvalidCredentials
-	}
-	err = repository.CreateSession(values.Username, session)
-	if err != nil {
-		return UserResponse{
-			StatusCode: 500,
-			Body:       err,
-		}, err
+		return "", apperrors.ErrUserNotFound
 	}
 
-	return UserResponse{
-		StatusCode: 201,
-		Body:       session,
-	}, nil
+	if !utils.ValidatePassword(user.Password, values.Password) {
+		return "", apperrors.ErrInvalidCredentials
+	}
+
+	sessionID, err := repository.CreateSession(user.Username)
+	if err != nil {
+		return "", err
+	}
+
+	return sessionID, nil
 }

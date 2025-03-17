@@ -1,29 +1,54 @@
 package repository
 
 import (
+	"sync"
 	"time"
 
-	errors "github.com/go-park-mail-ru/2025_1_VelvetPulls/errors"
-	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
+	"github.com/google/uuid"
 )
 
-var sessions = make(map[int64]model.Session)
+var (
+	sessions  = make(map[string]*model.Session) // Используем указатели на модель сессии
+	muSession sync.RWMutex                      // Используем RWMutex для безопасной работы с картой сессий
+)
 
-func GetSessionByID(id string) (model.Session, error) {
-	for _, session := range sessions {
-		if session.ID == id {
-			return session, nil
-		}
+// Получение сессии по ее ID
+func GetSessionBySessId(sessId string) (*model.Session, error) {
+	muSession.RLock() // Блокировка для чтения
+	defer muSession.RUnlock()
+
+	session, exists := sessions[sessId]
+	if !exists {
+		return nil, apperrors.ErrSessionNotFound
 	}
-	return model.Session{}, errors.ErrSessionNotFound
+	return session, nil
 }
 
-func CreateSession(sessionId string, session model.Session) error {
-	if _, exists := GetSessionByID(sessionId); exists == nil {
-		return errors.ErrSessionAlreadyExists
-	}
+// Создание новой сессии
+func CreateSession(username string) (string, error) {
+	sessionId := uuid.NewString()
 
-	session.ID = sessionId
-	session.Expiry = time.Now() //TODO поменять на другое время
+	muSession.Lock() // Блокировка для записи
+	defer muSession.Unlock()
+
+	sessions[sessionId] = &model.Session{ // Сохраняем указатель на сессию
+		Username: username,
+		Expiry:   time.Now().Add(config.CookieDuration),
+	}
+	return sessionId, nil
+}
+
+// Удаление сессии
+func DeleteSession(sessionId string) error {
+	muSession.Lock() // Блокировка для записи
+	defer muSession.Unlock()
+
+	if _, exists := sessions[sessionId]; !exists {
+		return apperrors.ErrSessionNotFound
+	}
+	delete(sessions, sessionId)
 	return nil
 }
