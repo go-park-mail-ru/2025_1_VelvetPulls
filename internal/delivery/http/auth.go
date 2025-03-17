@@ -23,7 +23,7 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 
 	r.HandleFunc("/register/", controller.Register).Methods(http.MethodPost)
 	r.HandleFunc("/login/", controller.Login).Methods(http.MethodPost)
-	r.HandleFunc("/logout/", controller.Logout).Methods(http.MethodPost)
+	r.HandleFunc("/logout/", controller.Logout).Methods(http.MethodDelete)
 }
 
 // Register регистрирует нового пользователя
@@ -33,7 +33,7 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 // @Accept json
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
-// @Success 201 {string} {object} utils.JSONResponse
+// @Success 201 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/register/ [post]
@@ -82,7 +82,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
-// @Success 200 {string} string
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/login/ [post]
@@ -122,8 +122,8 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // @Summary Выход пользователя
 // @Description Завершает текущую сессию пользователя, удаляя cookie сессии
 // @Tags User
-// @Success 200 {string} string
-// @Router /api/logout/ [post]
+// @Success 200 {object} utils.JSONResponse
+// @Router /api/logout/ [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	utils.DeleteSessionCookie(w)
 	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
