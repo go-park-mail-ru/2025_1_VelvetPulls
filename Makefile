@@ -1,4 +1,4 @@
-MAIN_FILE = main.go
+MAIN_FILE = cmd/main.go
 GO_CMD = go
 COVERAGE_FILE = coverage.out
 

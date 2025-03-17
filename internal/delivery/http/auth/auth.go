@@ -1,4 +1,4 @@
-package handler
+package auth
 
 import (
 	"errors"
@@ -6,9 +6,8 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
-	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/service"
-	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/utils"
+	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
 )
 
 // Register регистрирует нового пользователя
@@ -22,7 +21,7 @@ import (
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/register/ [post]
-func Register(w http.ResponseWriter, r *http.Request) {
+func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
 
 	// Парсим JSON из запроса
@@ -33,7 +32,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Регистрируем пользователя
-	sessionID, err := service.RegisterUser(registerValues)
+	sessionID, err := c.authUsecase.RegisterUser(registerValues)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrPasswordsDoNotMatch),
@@ -71,7 +70,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/login/ [post]
-func Login(w http.ResponseWriter, r *http.Request) {
+func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	var loginValues model.LoginCredentials
 
 	// Парсим JSON из запроса
@@ -83,7 +82,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Авторизация пользователя
-	sessionID, err := service.LoginUser(loginValues)
+	sessionID, err := c.authUsecase.LoginUser(loginValues)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrUserNotFound),

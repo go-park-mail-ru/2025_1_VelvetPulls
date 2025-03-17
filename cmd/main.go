@@ -5,7 +5,7 @@ import (
 	"log"
 
 	_ "github.com/go-park-mail-ru/2025_1_VelvetPulls/docs"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/server"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/server"
 )
 
 // @title Keftegram backend API
