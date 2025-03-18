@@ -9,14 +9,9 @@ all: run
 run:
 	@$(GO_CMD) run $(MAIN_FILE)
 
-.PHONY: db_init
-db_init:
-	docker-compose --env-file .env build
-
 .PHONY: clean
 clean:
 	rm $(COVERAGE_FILE)
-	docker-compose down -v
 
 .PHONY: test
 test:
