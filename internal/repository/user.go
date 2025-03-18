@@ -1,8 +1,7 @@
 package repository
 
 import (
-	"sync"
-	"time"
+	"database/sql"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
@@ -16,71 +15,69 @@ type IUserRepo interface {
 }
 
 type userRepo struct {
-	users []*model.User
-	mu    sync.RWMutex // Используем RWMutex для безопасного чтения и записи
+	db *sql.DB
 }
 
-func NewUserRepo() IUserRepo {
+func NewUserRepo(db *sql.DB) IUserRepo {
 	return &userRepo{
-		users: make([]*model.User, 0),
+		db: db,
 	}
 }
 
-// Получение пользователя по имени пользователя (с безопасностью для чтения)
 func (r *userRepo) GetUserByUsername(username string) (*model.User, error) {
-	r.mu.RLock() // Чтение - блокируем только для чтения
-	defer r.mu.RUnlock()
+	var user model.User
+	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE username = $1"
+	row := r.db.QueryRow(query, username)
 
-	for _, user := range r.users {
-		if user.Username == username {
-			return user, nil
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperrors.ErrUserNotFound
 		}
+		return nil, err
 	}
-	return nil, apperrors.ErrUserNotFound
+
+	return &user, nil
 }
 
-// Получение пользователя по email (с безопасностью для чтения)
 func (r *userRepo) GetUserByEmail(email string) (*model.User, error) {
-	r.mu.RLock() // Чтение - блокируем только для чтения
-	defer r.mu.RUnlock()
+	var user model.User
+	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE email = $1"
+	row := r.db.QueryRow(query, email)
 
-	for _, user := range r.users {
-		if user.Email == email {
-			return user, nil
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperrors.ErrUserNotFound
 		}
+		return nil, err
 	}
-	return nil, apperrors.ErrUserNotFound
+
+	return &user, nil
 }
 
-// Получение пользователя по телефону (с безопасностью для чтения)
 func (r *userRepo) GetUserByPhone(phone string) (*model.User, error) {
-	r.mu.RLock() // Чтение - блокируем только для чтения
-	defer r.mu.RUnlock()
+	var user model.User
+	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE phone = $1"
+	row := r.db.QueryRow(query, phone)
 
-	for _, user := range r.users {
-		if user.Phone == phone {
-			return user, nil
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperrors.ErrUserNotFound
 		}
+		return nil, err
 	}
-	return nil, apperrors.ErrUserNotFound
+
+	return &user, nil
 }
 
-// Создание нового пользователя (с безопасностью для записи)
 func (r *userRepo) CreateUser(user *model.User) error {
-	r.mu.Lock() // Запись - блокируем для записи
-	defer r.mu.Unlock()
-
-	for _, u := range r.users {
-		if u.Username == user.Username {
-			return apperrors.ErrUsernameTaken
-		}
-		if u.Phone == user.Phone {
-			return apperrors.ErrPhoneTaken
-		}
+	query := "INSERT INTO users (username, phone, password, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id"
+	err := r.db.QueryRow(query, user.Username, user.Phone, user.Password).Scan(&user.ID)
+	if err != nil {
+		return err
 	}
 
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = user.CreatedAt
-	r.users = append(r.users, user)
 	return nil
 }
