@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
@@ -91,7 +90,6 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Парсим JSON из запроса
 	err := utils.ParseJSONRequest(r, &loginValues)
-	fmt.Print(loginValues)
 	if err != nil {
 		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
