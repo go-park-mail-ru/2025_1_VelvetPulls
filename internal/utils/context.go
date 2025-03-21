@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type contextKey string
@@ -22,6 +22,6 @@ func GetSessionIDFromCtx(ctx context.Context) string {
 	return ctx.Value(SESSION_ID_KEY).(string)
 }
 
-func GetContextLogger(ctx context.Context) *logrus.Entry {
-	return ctx.Value(LOGGER_ID_KEY).(*logrus.Entry)
+func GetContextLogger(ctx context.Context) *zap.SugaredLogger {
+	return ctx.Value(LOGGER_ID_KEY).(*zap.SugaredLogger)
 }
