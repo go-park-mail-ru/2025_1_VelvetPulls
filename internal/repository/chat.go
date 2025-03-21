@@ -8,7 +8,7 @@ import (
 
 type IChatRepo interface {
 	GetChatsByUsername(username string) ([]model.Chat, error)
-	AddChat(chat *model.Chat) error
+	AddChat(chat *model.Chat) (int, error)
 }
 
 type chatRepo struct {
@@ -38,7 +38,12 @@ func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
 	return chats, nil
 }
 
-func (r *chatRepo) AddChat(chat *model.Chat) error {
+func (r *chatRepo) AddChat(chat *model.Chat) (int, error) {
 	query := "INSERT INTO chats (owner_username, type, title, description, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id"
-	return r.db.QueryRow(query, chat.OwnerUsername, chat.Type, chat.Title, chat.Description).Scan(&chat.ID)
+	var chatID int
+	err := r.db.QueryRow(query, chat.OwnerUsername, chat.Type, chat.Title, chat.Description).Scan(&chatID)
+	if err != nil {
+		return 0, err
+	}
+	return chatID, nil
 }

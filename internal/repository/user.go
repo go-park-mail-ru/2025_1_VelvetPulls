@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
@@ -31,7 +32,7 @@ func (r *userRepo) GetUserByUsername(username string) (*model.User, error) {
 
 	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperrors.ErrUserNotFound
 		}
 		return nil, err
@@ -47,7 +48,7 @@ func (r *userRepo) GetUserByEmail(email string) (*model.User, error) {
 
 	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperrors.ErrUserNotFound
 		}
 		return nil, err
@@ -63,7 +64,7 @@ func (r *userRepo) GetUserByPhone(phone string) (*model.User, error) {
 
 	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperrors.ErrUserNotFound
 		}
 		return nil, err

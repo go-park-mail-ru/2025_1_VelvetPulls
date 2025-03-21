@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -33,6 +34,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
+
+	if err := dbConn.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
+	}
+
 	defer dbConn.Close()
 
 	// Подключение к Redis
@@ -41,6 +47,11 @@ func main() {
 		Addr:     redisAddr,
 		Password: os.Getenv("REDIS_PASSWORD"),
 	})
+
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		log.Fatal("Failed to ping Redis:", err)
+	}
+
 	defer redisClient.Close()
 
 	// можно ввести свой порт при запуске
