@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
@@ -91,7 +90,6 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Парсим JSON из запроса
 	err := utils.ParseJSONRequest(r, &loginValues)
-	fmt.Print(loginValues)
 	if err != nil {
 		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
 		return
@@ -123,8 +121,21 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // @Description Завершает текущую сессию пользователя, удаляя cookie сессии
 // @Tags User
 // @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
 // @Router /api/logout/ [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
+	sessionId := r.Header.Get("token")
+	if sessionId == "" {
+		utils.SendJSONResponse(w, http.StatusBadRequest, apperrors.ErrSessionNotFound, false)
+		return
+	}
+
+	err := c.authUsecase.LogoutUser(sessionId)
+	if err != nil {
+		utils.SendJSONResponse(w, http.StatusInternalServerError, err, false)
+		return
+	}
 	utils.DeleteSessionCookie(w)
 	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
 }

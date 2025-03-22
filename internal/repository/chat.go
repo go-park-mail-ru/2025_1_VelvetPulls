@@ -1,50 +1,49 @@
 package repository
 
 import (
-	"sync"
-	"time"
+	"database/sql"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 )
 
 type IChatRepo interface {
 	GetChatsByUsername(username string) ([]model.Chat, error)
-	AddChat(chat *model.Chat) error
+	AddChat(chat *model.Chat) (int, error)
 }
 
-type сhatRepo struct {
-	chats []*model.Chat
-	mu    sync.RWMutex // Мьютекс для безопасного чтения и записи
+type chatRepo struct {
+	db *sql.DB
 }
 
-func NewChatRepo() IChatRepo {
-	return &сhatRepo{
-		chats: make([]*model.Chat, 0),
+func NewChatRepo(db *sql.DB) IChatRepo {
+	return &chatRepo{db: db}
+}
+
+func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
+	rows, err := r.db.Query("SELECT id, owner_username, type, title, description, created_at, updated_at FROM chats WHERE owner_username = $1", username)
+	if err != nil {
+		return nil, err
 	}
-}
+	defer rows.Close()
 
-// Получение чатов по имени пользователя (возвращает копии чатов, безопасно для конкурентного чтения)
-func (r *сhatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
-	r.mu.RLock() // Блокируем только для чтения
-	defer r.mu.RUnlock()
-
-	userChats := make([]model.Chat, 0)
-	for _, chat := range r.chats {
-		if chat.OwnerUsername == username {
-			userChats = append(userChats, *chat) // Возвращаем копию чата
+	var chats []model.Chat
+	for rows.Next() {
+		var chat model.Chat
+		if err := rows.Scan(&chat.ID, &chat.OwnerUsername, &chat.Type, &chat.Title, &chat.Description, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
+			return nil, err
 		}
+		chats = append(chats, chat)
 	}
 
-	return userChats, nil
+	return chats, nil
 }
 
-// Добавление нового чата (безопасно для конкурентной записи)
-func (r *сhatRepo) AddChat(chat *model.Chat) error {
-	r.mu.Lock() // Блокируем для записи
-	defer r.mu.Unlock()
-
-	chat.CreatedAt = time.Now()
-	chat.UpdatedAt = chat.CreatedAt
-	r.chats = append(r.chats, chat)
-	return nil // TODO: обработка ошибок
+func (r *chatRepo) AddChat(chat *model.Chat) (int, error) {
+	query := "INSERT INTO chats (owner_username, type, title, description, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id"
+	var chatID int
+	err := r.db.QueryRow(query, chat.OwnerUsername, chat.Type, chat.Title, chat.Description).Scan(&chatID)
+	if err != nil {
+		return 0, err
+	}
+	return chatID, nil
 }
