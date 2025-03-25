@@ -2,12 +2,13 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
-	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -47,8 +48,9 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Регистрируем пользователя
-	sessionID, err := c.authUsecase.RegisterUser(registerValues)
+	sessionID, err := c.authUsecase.RegisterUser(r.Context(), registerValues)
 	if err != nil {
+		fmt.Print(err)
 		switch {
 		case errors.Is(err, apperrors.ErrPasswordsDoNotMatch),
 			errors.Is(err, apperrors.ErrInvalidPassword),
@@ -96,7 +98,7 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Авторизация пользователя
-	sessionID, err := c.authUsecase.LoginUser(loginValues)
+	sessionID, err := c.authUsecase.LoginUser(r.Context(), loginValues)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrUserNotFound),
@@ -131,7 +133,7 @@ func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := c.authUsecase.LogoutUser(sessionId)
+	err := c.authUsecase.LogoutUser(r.Context(), sessionId)
 	if err != nil {
 		utils.SendJSONResponse(w, http.StatusInternalServerError, err, false)
 		return

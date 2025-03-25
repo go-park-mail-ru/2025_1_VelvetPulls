@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+// TODO: Переделать под новую структуру бд
+
 type ChatType string
 
 const (

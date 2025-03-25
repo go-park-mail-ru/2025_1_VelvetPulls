@@ -1,12 +1,14 @@
 package usecase
 
 import (
+	"context"
+
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 )
 
 type IChatUsecase interface {
-	FetchChatsBySession(token string) ([]model.Chat, error)
+	FetchChatsByUserID(ctx context.Context, token string) ([]model.Chat, error)
 }
 
 type ChatUsecase struct {
@@ -14,7 +16,6 @@ type ChatUsecase struct {
 	chatRepo    repository.IChatRepo
 }
 
-// NewChatUsecase создает новый экземпляр ChatUsecase.
 func NewChatUsecase(sessionRepo repository.ISessionRepo, chatRepo repository.IChatRepo) IChatUsecase {
 	return &ChatUsecase{
 		sessionRepo: sessionRepo,
@@ -22,14 +23,8 @@ func NewChatUsecase(sessionRepo repository.ISessionRepo, chatRepo repository.ICh
 	}
 }
 
-// FetchChatsBySession получает список чатов по токену сессии.
-func (uc *ChatUsecase) FetchChatsBySession(token string) ([]model.Chat, error) {
-	session, err := uc.sessionRepo.GetSessionBySessId(token)
-	if err != nil {
-		return nil, err
-	}
-
-	chats, err := uc.chatRepo.GetChatsByUsername(session)
+func (uc *ChatUsecase) FetchChatsByUserID(ctx context.Context, userID string) ([]model.Chat, error) {
+	chats, err := uc.chatRepo.GetChatsByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

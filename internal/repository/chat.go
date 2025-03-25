@@ -1,14 +1,15 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 )
 
+// TODO: Переделать под новую структуру бд
 type IChatRepo interface {
-	GetChatsByUsername(username string) ([]model.Chat, error)
-	AddChat(chat *model.Chat) (int, error)
+	GetChatsByUserID(ctx context.Context, username string) ([]model.Chat, error)
 }
 
 type chatRepo struct {
@@ -19,8 +20,9 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 	return &chatRepo{db: db}
 }
 
-func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
-	rows, err := r.db.Query("SELECT id, owner_username, type, title, description, created_at, updated_at FROM chats WHERE owner_username = $1", username)
+// TODO: поправить под user_id
+func (r *chatRepo) GetChatsByUserID(ctx context.Context, userID string) ([]model.Chat, error) {
+	rows, err := r.db.Query("SELECT id, owner_username, type, title, description, created_at, updated_at FROM chats WHERE owner_username = $1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -36,14 +38,4 @@ func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
 	}
 
 	return chats, nil
-}
-
-func (r *chatRepo) AddChat(chat *model.Chat) (int, error) {
-	query := "INSERT INTO chats (owner_username, type, title, description, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id"
-	var chatID int
-	err := r.db.QueryRow(query, chat.OwnerUsername, chat.Type, chat.Title, chat.Description).Scan(&chatID)
-	if err != nil {
-		return 0, err
-	}
-	return chatID, nil
 }

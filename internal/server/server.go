@@ -6,9 +6,9 @@ import (
 	"time"
 
 	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -38,16 +38,17 @@ func (s *Server) Run(address string) error {
 
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
-	userRepo := repository.NewUserRepo(s.dbConn)
+	authRepo := repository.NewauthRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
-	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
+	authUsecase := usecase.NewAuthUsecase(authRepo, sessionRepo)
 	chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
+	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
-	delivery.NewChatController(r, chatUsecase)
+	delivery.NewChatController(r, chatUsecase, sessionUsecase)
 
 	httpServer := &http.Server{
 		Handler:      middleware.CorsMiddleware(r),
