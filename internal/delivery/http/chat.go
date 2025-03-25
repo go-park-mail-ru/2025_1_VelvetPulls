@@ -37,9 +37,9 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionU
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/chats/ [get]
 func (c *chatController) Chats(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(utils.USER_ID_KEY).(string)
+	ctx := r.Context()
 
-	chats, err := c.chatUsecase.FetchChatsByUserID(r.Context(), userID)
+	chats, err := c.chatUsecase.FetchChatsByUserID(ctx)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrSessionNotFound) {
 			utils.SendJSONResponse(w, http.StatusUnauthorized, "session not found", false)

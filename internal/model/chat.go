@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // TODO: Переделать под новую структуру бд
@@ -15,12 +17,10 @@ const (
 )
 
 type Chat struct {
-	ID            int64     `json:"id"`
-	OwnerUsername string    `json:"owner_username"`
-	Type          ChatType  `json:"type"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	Members       []int64   `json:"members"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID         uuid.UUID `json:"id"`
+	AvatarPath *string   `json:"avatar_path,omitempty"`
+	Type       ChatType  `json:"type"`
+	Title      string    `json:"title"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }

@@ -7,13 +7,14 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/google/uuid"
 )
 
 type IAuthRepo interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
-	CreateUser(ctx context.Context, user *model.User) error
+	CreateUser(ctx context.Context, user *model.User) (string, error)
 }
 
 type authRepo struct {
@@ -38,7 +39,7 @@ func (r *authRepo) GetUserByUsername(ctx context.Context, username string) (*mod
 	password, 
 	created_at, 
 	updated_at 
-	FROM users 
+	FROM public.user 
 	WHERE username = $1`
 	row := r.db.QueryRow(query, username)
 
@@ -75,7 +76,7 @@ func (r *authRepo) GetUserByEmail(ctx context.Context, email string) (*model.Use
 	password, 
 	created_at, 
 	updated_at 
-	FROM users 
+	FROM public.user 
 	WHERE email = $1`
 	row := r.db.QueryRow(query, email)
 
@@ -112,7 +113,7 @@ func (r *authRepo) GetUserByPhone(ctx context.Context, phone string) (*model.Use
 	password, 
 	created_at, 
 	updated_at 
-	FROM users 
+	FROM public.user
 	WHERE phone = $1`
 	row := r.db.QueryRow(query, phone)
 
@@ -137,17 +138,18 @@ func (r *authRepo) GetUserByPhone(ctx context.Context, phone string) (*model.Use
 	return &user, nil
 }
 
-func (r *authRepo) CreateUser(ctx context.Context, user *model.User) error {
-	query := `INSERT INTO users 
+func (r *authRepo) CreateUser(ctx context.Context, user *model.User) (string, error) {
+	query := `INSERT INTO public.user 
 	(
 	username,
 	phone, 
 	password
 	) VALUES ($1, $2, $3) RETURNING id`
-	err := r.db.QueryRow(query, user.Username, user.Phone, user.Password).Scan(&user.ID)
+	var userID uuid.UUID
+	err := r.db.QueryRow(query, user.Username, user.Phone, user.Password).Scan(&userID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return userID.String(), nil
 }

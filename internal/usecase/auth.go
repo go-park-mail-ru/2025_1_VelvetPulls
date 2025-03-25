@@ -55,11 +55,12 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 		Phone:    values.Phone,
 	}
 
-	if err := uc.authRepo.CreateUser(ctx, user); err != nil {
+	userID, err := uc.authRepo.CreateUser(ctx, user)
+	if err != nil {
 		return "", err
 	}
 
-	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.Username)
+	sessionID, err := uc.sessionRepo.CreateSession(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -81,7 +82,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", apperrors.ErrInvalidCredentials
 	}
 
-	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.Username)
+	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.ID.String())
 	if err != nil {
 		return "", err
 	}

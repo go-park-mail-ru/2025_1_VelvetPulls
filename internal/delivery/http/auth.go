@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
@@ -50,7 +49,6 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	// Регистрируем пользователя
 	sessionID, err := c.authUsecase.RegisterUser(r.Context(), registerValues)
 	if err != nil {
-		fmt.Print(err)
 		switch {
 		case errors.Is(err, apperrors.ErrPasswordsDoNotMatch),
 			errors.Is(err, apperrors.ErrInvalidPassword),
