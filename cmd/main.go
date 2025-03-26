@@ -4,13 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
-	"os"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	_ "github.com/go-park-mail-ru/2025_1_VelvetPulls/docs"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/server"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
@@ -18,19 +16,10 @@ import (
 // @title Keftegram backend API
 // @version 1.0
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	config.Init()
 
 	// Подключение к БД
-	postgreAddr := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable",
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASS"),
-		os.Getenv("DATABASE_PORT"),
-		os.Getenv("DATABASE_NAME"),
-	)
-	dbConn, err := sql.Open("postgres", postgreAddr)
+	dbConn, err := sql.Open("postgres", config.GetPostgresDSN())
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -42,10 +31,9 @@ func main() {
 	defer dbConn.Close()
 
 	// Подключение к Redis
-	redisAddr := fmt.Sprintf("localhost:%s", os.Getenv("REDIS_PORT"))
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     config.GetRedisAddr(),
+		Password: config.Redis.Password,
 	})
 
 	if err := redisClient.Ping(context.Background()).Err(); err != nil {

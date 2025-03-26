@@ -39,7 +39,6 @@ func (r *chatRepo) GetChatsByUserID(ctx context.Context) ([]model.Chat, error) {
 	FROM public.chat c
 	JOIN public.user_chat uc ON c.id = uc.chat_id
 	WHERE uc.user_id = $1`
-	fmt.Print(userID)
 	ID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid userID format: %w", err)

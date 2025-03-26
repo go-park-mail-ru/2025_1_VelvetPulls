@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.chat (
 CREATE TABLE IF NOT EXISTS public.user_chat (
   user_id UUID NOT NULL,
   chat_id UUID NOT NULL,
-  user_role TEXT NOT NULL,
+  user_role TEXT NOT NULL CHECK (user_role IN ('admin', 'moderator', 'member')),
   joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, chat_id),
   FOREIGN KEY (user_id) REFERENCES public.user(id) ON DELETE CASCADE,
