@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"log"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
@@ -42,13 +41,10 @@ func main() {
 
 	defer redisClient.Close()
 
-	// можно ввести свой порт при запуске
-	addr := flag.String("addr", ":8080", "address for http server")
-
-	log.Printf("Starting server on %s", *addr)
+	log.Printf("Starting server on %s", config.PORT)
 
 	s := server.NewServer(dbConn, redisClient)
-	if err := s.Run(*addr); err != nil {
+	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

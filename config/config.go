@@ -10,6 +10,9 @@ import (
 )
 
 var (
+	PORT           = ":8080"
+	UPLOADS_DIR    = "/uploads/"
+	MAX_FILE_SIZE  = 2 * 1024 * 1024
 	CookieDuration = 3 * time.Hour
 )
 

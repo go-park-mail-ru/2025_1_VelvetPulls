@@ -38,18 +38,19 @@ func (s *Server) Run(address string) error {
 
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
-	authRepo := repository.NewauthRepo(s.dbConn)
+	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
-	authUsecase := usecase.NewAuthUsecase(authRepo, sessionRepo)
+	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
 	chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
 	delivery.NewChatController(r, chatUsecase, sessionUsecase)
-
+	delivery.NewUserController(r, userUsecase, sessionUsecase)
 	httpServer := &http.Server{
 		Handler:      middleware.CorsMiddleware(r),
 		Addr:         address,

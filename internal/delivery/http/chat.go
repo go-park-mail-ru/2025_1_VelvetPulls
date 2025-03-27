@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TODO: написать ws для получения количества сообщений и изменений чата
 type chatController struct {
 	chatUsecase    usecase.IChatUsecase
 	sessionUsecase usecase.ISessionUsecase
@@ -39,7 +40,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionU
 func (c *chatController) Chats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	chats, err := c.chatUsecase.FetchChatsByUserID(ctx)
+	chats, err := c.chatUsecase.GetChats(ctx)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrSessionNotFound) {
 			utils.SendJSONResponse(w, http.StatusUnauthorized, "session not found", false)

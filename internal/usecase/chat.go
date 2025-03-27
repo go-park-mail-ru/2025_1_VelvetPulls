@@ -8,7 +8,7 @@ import (
 )
 
 type IChatUsecase interface {
-	FetchChatsByUserID(ctx context.Context) ([]model.Chat, error)
+	GetChats(ctx context.Context) ([]model.Chat, error)
 }
 
 type ChatUsecase struct {
@@ -23,7 +23,7 @@ func NewChatUsecase(sessionRepo repository.ISessionRepo, chatRepo repository.ICh
 	}
 }
 
-func (uc *ChatUsecase) FetchChatsByUserID(ctx context.Context) ([]model.Chat, error) {
+func (uc *ChatUsecase) GetChats(ctx context.Context) ([]model.Chat, error) {
 	chats, err := uc.chatRepo.GetChatsByUserID(ctx)
 	if err != nil {
 		return nil, err

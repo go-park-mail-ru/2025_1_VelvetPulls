@@ -28,7 +28,7 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 // Register регистрирует нового пользователя
 // @Summary Регистрация нового пользователя
 // @Description Регистрирует нового пользователя по данным, переданным в запросе и возвращает token
-// @Tags User
+// @Tags Auth
 // @Accept json
 // @Produce json
 // @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
@@ -77,7 +77,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 // Login авторизовывает пользователя
 // @Summary Авторизация пользователя
 // @Description Авторизовывает, аутентифицирует существующего пользователя и возвращает token
-// @Tags User
+// @Tags Auth
 // @Accept json
 // @Produce json
 // @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
@@ -119,7 +119,7 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // Logout завершает сеанс пользователя
 // @Summary Выход пользователя
 // @Description Завершает текущую сессию пользователя, удаляя cookie сессии
-// @Tags User
+// @Tags Auth
 // @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse

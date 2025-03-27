@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: Переделать под новую структуру бд
 type IChatRepo interface {
 	GetChatsByUserID(ctx context.Context) ([]model.Chat, error)
 }

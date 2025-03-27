@@ -16,13 +16,13 @@ type IAuthUsecase interface {
 }
 
 type AuthUsecase struct {
-	authRepo    repository.IAuthRepo
+	userRepo    repository.IUserRepo
 	sessionRepo repository.ISessionRepo
 }
 
-func NewAuthUsecase(authRepo repository.IAuthRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
+func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
 	return &AuthUsecase{
-		authRepo:    authRepo,
+		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
 	}
 }
@@ -32,13 +32,13 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 		return "", err
 	}
 
-	if _, err := uc.authRepo.GetUserByUsername(ctx, values.Username); err == nil {
+	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
 		return "", apperrors.ErrUsernameTaken
 	} else if err != apperrors.ErrUserNotFound {
 		return "", err
 	}
 
-	if _, err := uc.authRepo.GetUserByPhone(ctx, values.Phone); err == nil {
+	if _, err := uc.userRepo.GetUserByPhone(ctx, values.Phone); err == nil {
 		return "", apperrors.ErrPhoneTaken
 	} else if err != apperrors.ErrUserNotFound {
 		return "", err
@@ -55,7 +55,7 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 		Phone:    values.Phone,
 	}
 
-	userID, err := uc.authRepo.CreateUser(ctx, user)
+	userID, err := uc.userRepo.CreateUser(ctx, user)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", err
 	}
 
-	user, err := uc.authRepo.GetUserByUsername(ctx, values.Username)
+	user, err := uc.userRepo.GetUserByUsername(ctx, values.Username)
 	if err != nil {
 		return "", apperrors.ErrUserNotFound
 	}
