@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
+	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
@@ -42,6 +43,10 @@ func (uc *UserUsecase) GetUserProfile(ctx context.Context, id uuid.UUID) (*model
 }
 
 func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error {
+	if err := profile.Validate(); err != nil {
+		return servererrors.ErrValidation
+	}
+
 	if profile.Avatar != nil {
 		if !utils.IsImageFile(*profile.Avatar) {
 			return utils.ErrNotImage

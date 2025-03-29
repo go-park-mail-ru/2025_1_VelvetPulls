@@ -2,47 +2,45 @@ package model
 
 import (
 	"errors"
-	"regexp"
 
 	"github.com/asaskevich/govalidator"
 )
 
-var passwordRegex = regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_\-+=]{8,32}$`)
+type Validator interface {
+	Validate() error
+}
 
 type LoginCredentials struct {
 	Username string `json:"username" valid:"required,alphanum,length(3|20)"`
-	Password string `json:"password" valid:"required,length(6|100)"`
+	Password string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 }
 
 type RegisterCredentials struct {
 	Username        string `json:"username" valid:"required,alphanum,length(3|20)"`
-	Password        string `json:"password" valid:"required,length(6|100)"`
-	ConfirmPassword string `json:"confirm_password" valid:"required,length(6|100)"`
+	Password        string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
+	ConfirmPassword string `json:"confirm_password" valid:"required,length(8|32)"`
 	Phone           string `json:"phone" valid:"required,numeric,length(10|15)"`
 }
 
 func (lc *LoginCredentials) Validate() error {
-	_, err := govalidator.ValidateStruct(lc)
-	if err != nil {
+	if _, err := govalidator.ValidateStruct(lc); err != nil {
+		if errs, ok := err.(govalidator.Errors); ok {
+			return errors.New(errs.Error())
+		}
 		return err
 	}
-
 	return nil
 }
 
 func (rc *RegisterCredentials) Validate() error {
-	_, err := govalidator.ValidateStruct(rc)
-	if err != nil {
+	if _, err := govalidator.ValidateStruct(rc); err != nil {
+		if errs, ok := err.(govalidator.Errors); ok {
+			return errors.New(errs.Error())
+		}
 		return err
 	}
-
-	if !passwordRegex.MatchString(rc.Password) {
-		return errors.New("password must contain at least one special character, one letter, and one digit")
-	}
-
 	if rc.Password != rc.ConfirmPassword {
 		return errors.New("passwords do not match")
 	}
-
 	return nil
 }

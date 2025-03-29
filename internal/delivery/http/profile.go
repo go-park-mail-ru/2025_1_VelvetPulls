@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
@@ -40,13 +41,14 @@ func NewUserController(r *mux.Router, userUsecase usecase.IUserUsecase, sessionU
 func (c *userController) GetSelfProfile(w http.ResponseWriter, r *http.Request) {
 	userID, err := uuid.Parse(utils.GetUserIDFromCtx(r.Context()))
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid userID format", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false)
 		return
 	}
 
 	profile, err := c.userUsecase.GetUserProfile(r.Context(), userID)
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusInternalServerError, err.Error(), false)
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
 
@@ -68,13 +70,14 @@ func (c *userController) GetProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID, err := uuid.Parse(vars["user_id"])
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid userID format", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false)
 		return
 	}
 
 	profile, err := c.userUsecase.GetUserProfile(r.Context(), userID)
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusInternalServerError, err.Error(), false)
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
 
@@ -87,7 +90,6 @@ func (c *userController) GetProfile(w http.ResponseWriter, r *http.Request) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Param user_id path string true "ID пользователя"
 // @Param profile body model.UserProfile true "Данные профиля"
 // @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
@@ -97,26 +99,27 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	userID, err := uuid.Parse(utils.GetUserIDFromCtx(ctx))
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid userID format", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false)
 		return
 	}
-	var profile model.UpdateUserProfile
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Unable to parse form", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Request too large or malformed", false)
 		return
 	}
+
+	var profile model.UpdateUserProfile
 	profile.ID = userID
 
 	jsonString := r.FormValue("profile_data")
 	if err := json.Unmarshal([]byte(jsonString), &profile); err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid JSON format in profile_data", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid profile data format", false)
 		return
 	}
 
 	avatar, _, err := r.FormFile("avatar")
 	if err != nil && err != http.ErrMissingFile {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Failed to get avatar file", false)
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid avatar file", false)
 		return
 	}
 	defer func() {
@@ -130,7 +133,8 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := c.userUsecase.UpdateUserProfile(ctx, &profile); err != nil {
-		utils.SendJSONResponse(w, http.StatusInternalServerError, err.Error(), false)
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
 

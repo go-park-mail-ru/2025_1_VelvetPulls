@@ -13,8 +13,11 @@ import (
 )
 
 var (
-	ErrNotImage    = errors.New("file is not a valid image")
-	imageMimeTypes = map[string]bool{
+	ErrNotImage      = errors.New("file is not a valid image")
+	ErrSavingImage   = errors.New("failed to save image")
+	ErrUpdatingImage = errors.New("failed to update image")
+	ErrDeletingImage = errors.New("failed to delete image")
+	imageMimeTypes   = map[string]bool{
 		"image/jpeg": true,
 		"image/png":  true,
 		"image/gif":  true,
@@ -28,17 +31,16 @@ func SavePhoto(file multipart.File, folderName string) (string, error) {
 	}
 
 	filenameUUID := uuid.New()
-
 	path := config.UPLOAD_DIR + folderName + "/" + filenameUUID.String() + ".png"
+
 	dst, err := os.Create(path)
 	if err != nil {
-		return "", err
+		return "", ErrSavingImage
 	}
 	defer dst.Close()
 
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		return "", err
+	if _, err = io.Copy(dst, file); err != nil {
+		return "", ErrSavingImage
 	}
 
 	return path, nil
@@ -47,43 +49,35 @@ func SavePhoto(file multipart.File, folderName string) (string, error) {
 func RewritePhoto(file multipart.File, photoURL string) error {
 	dst, err := os.Create(photoURL)
 	if err != nil {
-		return err
+		return ErrUpdatingImage
 	}
 	defer dst.Close()
 
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		return err
+	if _, err = io.Copy(dst, file); err != nil {
+		return ErrUpdatingImage
 	}
 
 	return nil
 }
 
 func RemovePhoto(photoURL string) error {
-	err := os.Remove(photoURL)
-	if err != nil {
-		return err
+	if err := os.Remove(photoURL); err != nil {
+		return ErrDeletingImage
 	}
-
 	return nil
 }
 
 func IsImageFile(file multipart.File) bool {
-	// Читаем первые 512 байт для определения MIME-типа
 	buffer := make([]byte, 512)
-	_, err := file.Read(buffer)
-	if err != nil && err != io.EOF {
+	if _, err := file.Read(buffer); err != nil && err != io.EOF {
 		return false
 	}
 
-	// Определяем MIME-тип
 	mimeType := http.DetectContentType(buffer)
 
-	// Сбрасываем позицию чтения
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return false
 	}
 
-	// Проверяем, что это изображение
 	return imageMimeTypes[strings.ToLower(mimeType)]
 }

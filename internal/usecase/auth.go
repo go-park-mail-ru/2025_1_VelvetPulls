@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
+	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 )
 
@@ -29,20 +29,20 @@ func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessi
 
 func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCredentials) (string, error) {
 	if err := values.Validate(); err != nil {
-		return "", err
+		return "", servererrors.ErrValidation
 	}
 
 	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
-		return "", apperrors.ErrUsernameTaken
+		return "", ErrUsernameIsTaken
 	}
 
 	if _, err := uc.userRepo.GetUserByPhone(ctx, values.Phone); err == nil {
-		return "", apperrors.ErrPhoneTaken
+		return "", ErrPhoneIsTaken
 	}
 
 	hashedPassword, err := utils.HashAndSalt(values.Password)
 	if err != nil {
-		return "", err
+		return "", ErrHashPassword
 	}
 
 	user := &model.User{
@@ -66,16 +66,16 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 
 func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredentials) (string, error) {
 	if err := values.Validate(); err != nil {
-		return "", err
+		return "", servererrors.ErrValidation
 	}
 
 	user, err := uc.userRepo.GetUserByUsername(ctx, values.Username)
 	if err != nil {
-		return "", apperrors.ErrUserNotFound
+		return "", ErrInvalidUsername
 	}
 
 	if !utils.CheckPassword(user.Password, values.Password) {
-		return "", apperrors.ErrInvalidCredentials
+		return "", ErrInvalidPassword
 	}
 
 	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.ID.String())

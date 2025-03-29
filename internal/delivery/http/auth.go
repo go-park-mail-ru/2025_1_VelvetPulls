@@ -1,10 +1,9 @@
 package http
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
+	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -38,38 +37,19 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
 
-	// Парсим JSON из запроса
-	err := utils.ParseJSONRequest(r, &registerValues)
-	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+	if err := utils.ParseJSONRequest(r, &registerValues); err != nil {
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
 		return
 	}
 
-	// Регистрируем пользователя
 	sessionID, err := c.authUsecase.RegisterUser(r.Context(), registerValues)
 	if err != nil {
-		switch {
-		case errors.Is(err, apperrors.ErrPasswordsDoNotMatch),
-			errors.Is(err, apperrors.ErrInvalidPassword),
-			errors.Is(err, apperrors.ErrInvalidPhoneFormat),
-			errors.Is(err, apperrors.ErrInvalidUsername):
-			utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
-
-		case errors.Is(err, apperrors.ErrUsernameTaken),
-			errors.Is(err, apperrors.ErrEmailTaken),
-			errors.Is(err, apperrors.ErrPhoneTaken):
-			utils.SendJSONResponse(w, http.StatusConflict, err.Error(), false)
-
-		default:
-			utils.SendJSONResponse(w, http.StatusInternalServerError, apperrors.ErrInternalServer, false)
-		}
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
 
-	// Устанавливаем cookie сессии
 	utils.SetSessionCookie(w, sessionID)
-
-	// Отправляем успешный ответ
 	utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true)
 }
 
@@ -87,31 +67,19 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	var loginValues model.LoginCredentials
 
-	// Парсим JSON из запроса
-	err := utils.ParseJSONRequest(r, &loginValues)
-	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, err.Error(), false)
+	if err := utils.ParseJSONRequest(r, &loginValues); err != nil {
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
 		return
 	}
 
-	// Авторизация пользователя
 	sessionID, err := c.authUsecase.LoginUser(r.Context(), loginValues)
 	if err != nil {
-		switch {
-		case errors.Is(err, apperrors.ErrUserNotFound),
-			errors.Is(err, apperrors.ErrInvalidCredentials):
-			utils.SendJSONResponse(w, http.StatusUnauthorized, err.Error(), false)
-
-		default:
-			utils.SendJSONResponse(w, http.StatusInternalServerError, apperrors.ErrInternalServer, false)
-		}
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
 
-	// Устанавливаем cookie сессии
 	utils.SetSessionCookie(w, sessionID)
-
-	// Отправляем успешный ответ
 	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
 }
 
@@ -124,17 +92,18 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/logout [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
-	sessionId := r.Header.Get("token")
-	if sessionId == "" {
-		utils.SendJSONResponse(w, http.StatusBadRequest, apperrors.ErrSessionNotFound, false)
+	sessionId, err := utils.GetSessionCookie(r)
+	if err != nil {
+		utils.SendJSONResponse(w, http.StatusBadRequest, "Unauthorized", false)
 		return
 	}
 
-	err := c.authUsecase.LogoutUser(r.Context(), sessionId)
-	if err != nil {
-		utils.SendJSONResponse(w, http.StatusInternalServerError, err, false)
+	if err := c.authUsecase.LogoutUser(r.Context(), sessionId); err != nil {
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, code, err.Error(), false)
 		return
 	}
+
 	utils.DeleteSessionCookie(w)
 	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
 }

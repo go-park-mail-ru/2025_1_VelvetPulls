@@ -26,251 +26,139 @@ type userRepo struct {
 }
 
 func NewUserRepo(db *sql.DB) IUserRepo {
-	return &userRepo{
-		db: db,
+	return &userRepo{db: db}
+}
+
+func (r *userRepo) getUserByField(ctx context.Context, field, value string) (*model.User, error) {
+	if value == "" {
+		return nil, ErrEmptyField
 	}
+
+	var user model.User
+	query := fmt.Sprintf(`SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`, field)
+	row := r.db.QueryRowContext(ctx, query, value)
+
+	err := row.Scan(
+		&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, ErrDatabaseOperation
+	}
+	return &user, nil
 }
 
 func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
-	var user model.User
-	query := `SELECT 
-	id, 
-	first_name, 
-	last_name, 
-	username, 
-	phone, 
-	email, 
-	password, 
-	created_at, 
-	updated_at 
-	FROM public.user 
-	WHERE username = $1`
-	row := r.db.QueryRow(query, username)
-
-	err := row.Scan(
-		&user.ID,
-		&user.FirstName,
-		&user.LastName,
-		&user.Username,
-		&user.Phone,
-		&user.Email,
-		&user.Password,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-
-	return &user, nil
+	return r.getUserByField(ctx, "username", username)
 }
 
 func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	var user model.User
-	query := `SELECT 
-	id, 
-	first_name, 
-	last_name, 
-	username, 
-	phone, 
-	email, 
-	password, 
-	created_at, 
-	updated_at 
-	FROM public.user 
-	WHERE email = $1`
-	row := r.db.QueryRow(query, email)
-
-	err := row.Scan(
-		&user.ID,
-		&user.FirstName,
-		&user.LastName,
-		&user.Username,
-		&user.Phone,
-		&user.Email,
-		&user.Password,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-
-	return &user, nil
+	return r.getUserByField(ctx, "email", email)
 }
 
 func (r *userRepo) GetUserByPhone(ctx context.Context, phone string) (*model.User, error) {
-	var user model.User
-	query := `SELECT 
-	id, 
-	first_name, 
-	last_name, 
-	username, 
-	phone, 
-	email,
-	password, 
-	created_at, 
-	updated_at 
-	FROM public.user
-	WHERE phone = $1`
-	row := r.db.QueryRow(query, phone)
-
-	err := row.Scan(
-		&user.ID,
-		&user.FirstName,
-		&user.LastName,
-		&user.Username,
-		&user.Phone,
-		&user.Email,
-		&user.Password,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-
-	return &user, nil
+	return r.getUserByField(ctx, "phone", phone)
 }
 
 func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
-	var user model.User
-	query := `SELECT 
-	id, 
-	avatar_path,
-	first_name, 
-	last_name, 
-	username, 
-	phone, 
-	email,
-	password, 
-	created_at, 
-	updated_at 
-	FROM public.user
-	WHERE id = $1`
-	row := r.db.QueryRowContext(ctx, query, id)
-
-	err := row.Scan(
-		&user.ID,
-		&user.AvatarPath,
-		&user.FirstName,
-		&user.LastName,
-		&user.Username,
-		&user.Phone,
-		&user.Email,
-		&user.Password,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
+	if id == uuid.Nil {
+		return nil, ErrInvalidUUID
 	}
-
-	return &user, nil
+	return r.getUserByField(ctx, "id", id.String())
 }
 
 func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, error) {
-	query := `INSERT INTO public.user 
-	(
-	username,
-	phone, 
-	password
-	) VALUES ($1, $2, $3) RETURNING id`
-	var userID uuid.UUID
-	err := r.db.QueryRow(query, user.Username, user.Phone, user.Password).Scan(&userID)
-	if err != nil {
-		return "", err
+	if user == nil {
+		return "", ErrEmptyField
+	}
+	if user.Username == "" || user.Phone == "" || user.Password == "" {
+		return "", ErrEmptyField
 	}
 
+	query := `INSERT INTO public.user (username, phone, password) VALUES ($1, $2, $3) RETURNING id`
+	var userID uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return "", ErrRecordAlreadyExists
+		}
+		return "", ErrDatabaseOperation
+	}
 	return userID.String(), nil
 }
 
 func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (*string, *string, error) {
-	var (
-		queryBuilder strings.Builder
-		args         []interface{}
-		argIndex     = 1
-		avatarOldURL *string
-		avatarNewURL *string
-		updates      []string
-	)
+	if profile == nil {
+		return nil, nil, ErrEmptyField
+	}
+	if profile.ID == uuid.Nil {
+		return nil, nil, ErrInvalidUUID
+	}
 
-	// Получаем старый путь аватарки если нужно
+	var updates []string
+	var args []interface{}
+	argIndex := 1
+	var avatarOldURL, avatarNewURL *string
+
 	if profile.Avatar != nil {
-		err := r.db.QueryRowContext(ctx,
-			"SELECT avatar_path FROM public.user WHERE id = $1",
-			profile.ID,
-		).Scan(&avatarOldURL)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, nil, fmt.Errorf("failed to get old avatar path: %w", err)
+		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&avatarOldURL)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, ErrDatabaseOperation
 		}
-	}
 
-	// Формируем части запроса
-	if profile.FirstName != nil {
-		updates = append(updates, fmt.Sprintf("first_name = $%d", argIndex))
-		args = append(args, *profile.FirstName)
-		argIndex++
-	}
-	if profile.LastName != nil {
-		updates = append(updates, fmt.Sprintf("last_name = $%d", argIndex))
-		args = append(args, *profile.LastName)
-		argIndex++
-	}
-	if profile.Username != nil {
-		updates = append(updates, fmt.Sprintf("username = $%d", argIndex))
-		args = append(args, *profile.Username)
-		argIndex++
-	}
-	if profile.Phone != nil {
-		updates = append(updates, fmt.Sprintf("phone = $%d", argIndex))
-		args = append(args, *profile.Phone)
-		argIndex++
-	}
-	if profile.Email != nil {
-		updates = append(updates, fmt.Sprintf("email = $%d", argIndex))
-		args = append(args, *profile.Email)
-		argIndex++
-	}
-	if profile.Avatar != nil {
-		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
 		avatarNewURL = new(string)
 		*avatarNewURL = "./uploads/avatar/" + uuid.New().String() + ".png"
+		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
 		args = append(args, *avatarNewURL)
 		argIndex++
 	}
 
-	// Если нет полей для обновления
+	fields := map[string]*string{
+		"first_name": profile.FirstName,
+		"last_name":  profile.LastName,
+		"username":   profile.Username,
+		"phone":      profile.Phone,
+		"email":      profile.Email,
+	}
+
+	for field, value := range fields {
+		if value != nil {
+			if *value == "" {
+				return nil, nil, ErrEmptyField
+			}
+			updates = append(updates, fmt.Sprintf("%s = $%d", field, argIndex))
+			args = append(args, *value)
+			argIndex++
+		}
+	}
+
 	if len(updates) == 0 {
 		return nil, nil, nil
 	}
 
-	// Добавляем updated_at
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
 	argIndex++
 
-	// Формируем итоговый запрос
-	queryBuilder.WriteString("UPDATE public.user SET ")
-	queryBuilder.WriteString(strings.Join(updates, ", "))
-	queryBuilder.WriteString(fmt.Sprintf(" WHERE id = $%d", argIndex))
+	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
 	args = append(args, profile.ID)
 
-	_, err := r.db.ExecContext(ctx, queryBuilder.String(), args...)
+	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("update failed: %w", err)
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return nil, nil, ErrRecordAlreadyExists
+		}
+		return nil, nil, ErrDatabaseOperation
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return nil, nil, ErrDatabaseOperation
+	}
+	if rowsAffected == 0 {
+		return nil, nil, ErrUpdateFailed
 	}
 
 	return avatarNewURL, avatarOldURL, nil
