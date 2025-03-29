@@ -1,27 +1,25 @@
 package usecase
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 )
 
 type IAuthUsecase interface {
-	RegisterUser(values model.RegisterCredentials) (string, error)
-	LoginUser(values model.LoginCredentials) (string, error)
-	LogoutUser(sessionId string) error
+	RegisterUser(ctx context.Context, values model.RegisterCredentials) (string, error)
+	LoginUser(ctx context.Context, values model.LoginCredentials) (string, error)
+	LogoutUser(ctx context.Context, sessionId string) error
 }
 
-// authUsecase реализует интерфейс AuthUsecase.
 type AuthUsecase struct {
 	userRepo    repository.IUserRepo
 	sessionRepo repository.ISessionRepo
 }
 
-// NewAuthUsecase создает новый экземпляр AuthUsecase.
 func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
 	return &AuthUsecase{
 		userRepo:    userRepo,
@@ -29,49 +27,22 @@ func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessi
 	}
 }
 
-func parseRegisterCredentials(values model.RegisterCredentials) error {
-	if values.Password != values.ConfirmPassword {
-		return apperrors.ErrPasswordsDoNotMatch
+func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCredentials) (string, error) {
+	if err := values.Validate(); err != nil {
+		return "", servererrors.ErrValidation
 	}
 
-	if !utils.ValidateRegistrationPassword(values.Password) {
-		return apperrors.ErrInvalidPassword
+	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
+		return "", ErrUsernameIsTaken
 	}
 
-	if !utils.ValidateRegistrationPhone(values.Phone) {
-		return apperrors.ErrInvalidPhoneFormat
-	}
-
-	if !utils.ValidateRegistrationUsername(values.Username) {
-		return apperrors.ErrInvalidUsername
-	}
-
-	return nil
-}
-
-// RegisterUser регистрирует нового пользователя.
-func (uc *AuthUsecase) RegisterUser(values model.RegisterCredentials) (string, error) {
-	if err := parseRegisterCredentials(values); err != nil {
-		return "", err
-	}
-
-	if _, err := uc.userRepo.GetUserByUsername(values.Username); err == nil {
-		fmt.Print(err)
-		return "", apperrors.ErrUsernameTaken
-	} else if err != apperrors.ErrUserNotFound {
-		fmt.Print(err)
-		return "", err
-	}
-
-	if _, err := uc.userRepo.GetUserByPhone(values.Phone); err == nil {
-		return "", apperrors.ErrPhoneTaken
-	} else if err != apperrors.ErrUserNotFound {
-		return "", err
+	if _, err := uc.userRepo.GetUserByPhone(ctx, values.Phone); err == nil {
+		return "", ErrPhoneIsTaken
 	}
 
 	hashedPassword, err := utils.HashAndSalt(values.Password)
 	if err != nil {
-		return "", err
+		return "", ErrHashPassword
 	}
 
 	user := &model.User{
@@ -80,31 +51,12 @@ func (uc *AuthUsecase) RegisterUser(values model.RegisterCredentials) (string, e
 		Phone:    values.Phone,
 	}
 
-	if err := uc.userRepo.CreateUser(user); err != nil {
-		return "", err
-	}
-
-	sessionID, err := uc.sessionRepo.CreateSession(user.Username)
+	userID, err := uc.userRepo.CreateUser(ctx, user)
 	if err != nil {
 		return "", err
 	}
 
-	return sessionID, nil
-}
-
-// LoginUser аутентифицирует пользователя и создает сессию.
-func (uc *AuthUsecase) LoginUser(values model.LoginCredentials) (string, error) {
-	user, err := uc.userRepo.GetUserByUsername(values.Username)
-	fmt.Print(user)
-	if err != nil {
-		return "", apperrors.ErrUserNotFound
-	}
-
-	if !utils.ValidatePassword(user.Password, values.Password) {
-		return "", apperrors.ErrInvalidCredentials
-	}
-
-	sessionID, err := uc.sessionRepo.CreateSession(user.Username)
+	sessionID, err := uc.sessionRepo.CreateSession(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -112,10 +64,28 @@ func (uc *AuthUsecase) LoginUser(values model.LoginCredentials) (string, error) 
 	return sessionID, nil
 }
 
-func (uc *AuthUsecase) LogoutUser(sessionId string) error {
-	err := uc.sessionRepo.DeleteSession(sessionId)
-	if err != nil {
-		return err
+func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredentials) (string, error) {
+	if err := values.Validate(); err != nil {
+		return "", servererrors.ErrValidation
 	}
-	return nil
+
+	user, err := uc.userRepo.GetUserByUsername(ctx, values.Username)
+	if err != nil {
+		return "", ErrInvalidUsername
+	}
+
+	if !utils.CheckPassword(user.Password, values.Password) {
+		return "", ErrInvalidPassword
+	}
+
+	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.ID.String())
+	if err != nil {
+		return "", err
+	}
+
+	return sessionID, nil
+}
+
+func (uc *AuthUsecase) LogoutUser(ctx context.Context, sessionId string) error {
+	return uc.sessionRepo.DeleteSession(ctx, sessionId)
 }

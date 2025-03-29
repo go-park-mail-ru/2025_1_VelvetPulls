@@ -1,14 +1,17 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/google/uuid"
 )
 
 type IChatRepo interface {
-	GetChatsByUsername(username string) ([]model.Chat, error)
-	AddChat(chat *model.Chat) (int, error)
+	GetChatsByUserID(ctx context.Context) ([]model.Chat, error)
 }
 
 type chatRepo struct {
@@ -19,8 +22,28 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 	return &chatRepo{db: db}
 }
 
-func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
-	rows, err := r.db.Query("SELECT id, owner_username, type, title, description, created_at, updated_at FROM chats WHERE owner_username = $1", username)
+func (r *chatRepo) GetChatsByUserID(ctx context.Context) ([]model.Chat, error) {
+	userID, ok := ctx.Value(utils.USER_ID_KEY).(string)
+	if !ok || userID == "" {
+		return nil, fmt.Errorf("user_id not found in context")
+	}
+
+	query := `SELECT 
+		c.id, 
+		c.avatar_path, 
+		c.type, 
+		c.title,
+		c.created_at, 
+		c.updated_at 
+	FROM public.chat c
+	JOIN public.user_chat uc ON c.id = uc.chat_id
+	WHERE uc.user_id = $1`
+	ID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid userID format: %w", err)
+	}
+
+	rows, err := r.db.Query(query, ID)
 	if err != nil {
 		return nil, err
 	}
@@ -29,21 +52,18 @@ func (r *chatRepo) GetChatsByUsername(username string) ([]model.Chat, error) {
 	var chats []model.Chat
 	for rows.Next() {
 		var chat model.Chat
-		if err := rows.Scan(&chat.ID, &chat.OwnerUsername, &chat.Type, &chat.Title, &chat.Description, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
+		if err := rows.Scan(
+			&chat.ID,
+			&chat.AvatarPath,
+			&chat.Type,
+			&chat.Title,
+			&chat.CreatedAt,
+			&chat.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		chats = append(chats, chat)
 	}
 
 	return chats, nil
-}
-
-func (r *chatRepo) AddChat(chat *model.Chat) (int, error) {
-	query := "INSERT INTO chats (owner_username, type, title, description, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id"
-	var chatID int
-	err := r.db.QueryRow(query, chat.OwnerUsername, chat.Type, chat.Title, chat.Description).Scan(&chatID)
-	if err != nil {
-		return 0, err
-	}
-	return chatID, nil
 }

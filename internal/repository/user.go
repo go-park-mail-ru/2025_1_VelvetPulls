@@ -1,18 +1,24 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/google/uuid"
 )
 
 type IUserRepo interface {
-	GetUserByUsername(username string) (*model.User, error)
-	GetUserByEmail(email string) (*model.User, error)
-	GetUserByPhone(phone string) (*model.User, error)
-	CreateUser(user *model.User) error
+	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+	CreateUser(ctx context.Context, user *model.User) (string, error)
+	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (*string, *string, error)
 }
 
 type userRepo struct {
@@ -20,65 +26,140 @@ type userRepo struct {
 }
 
 func NewUserRepo(db *sql.DB) IUserRepo {
-	return &userRepo{
-		db: db,
-	}
+	return &userRepo{db: db}
 }
 
-func (r *userRepo) GetUserByUsername(username string) (*model.User, error) {
-	var user model.User
-	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE username = $1"
-	row := r.db.QueryRow(query, username)
-
-	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperrors.ErrUserNotFound
-		}
-		return nil, err
+func (r *userRepo) getUserByField(ctx context.Context, field, value string) (*model.User, error) {
+	if value == "" {
+		return nil, ErrEmptyField
 	}
 
+	var user model.User
+	query := fmt.Sprintf(`SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`, field)
+	row := r.db.QueryRowContext(ctx, query, value)
+
+	err := row.Scan(
+		&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, ErrDatabaseOperation
+	}
 	return &user, nil
 }
 
-func (r *userRepo) GetUserByEmail(email string) (*model.User, error) {
-	var user model.User
-	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE email = $1"
-	row := r.db.QueryRow(query, email)
-
-	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperrors.ErrUserNotFound
-		}
-		return nil, err
-	}
-
-	return &user, nil
+func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+	return r.getUserByField(ctx, "username", username)
 }
 
-func (r *userRepo) GetUserByPhone(phone string) (*model.User, error) {
-	var user model.User
-	query := "SELECT id, first_name, last_name, username, phone, email, password, created_at, updated_at FROM users WHERE phone = $1"
-	row := r.db.QueryRow(query, phone)
-
-	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperrors.ErrUserNotFound
-		}
-		return nil, err
-	}
-
-	return &user, nil
+func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	return r.getUserByField(ctx, "email", email)
 }
 
-func (r *userRepo) CreateUser(user *model.User) error {
-	query := "INSERT INTO users (username, phone, password, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id"
-	err := r.db.QueryRow(query, user.Username, user.Phone, user.Password).Scan(&user.ID)
-	if err != nil {
-		return err
+func (r *userRepo) GetUserByPhone(ctx context.Context, phone string) (*model.User, error) {
+	return r.getUserByField(ctx, "phone", phone)
+}
+
+func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	if id == uuid.Nil {
+		return nil, ErrInvalidUUID
+	}
+	return r.getUserByField(ctx, "id", id.String())
+}
+
+func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, error) {
+	if user == nil {
+		return "", ErrEmptyField
+	}
+	if user.Username == "" || user.Phone == "" || user.Password == "" {
+		return "", ErrEmptyField
 	}
 
-	return nil
+	query := `INSERT INTO public.user (username, phone, password) VALUES ($1, $2, $3) RETURNING id`
+	var userID uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return "", ErrRecordAlreadyExists
+		}
+		return "", ErrDatabaseOperation
+	}
+	return userID.String(), nil
+}
+
+func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (*string, *string, error) {
+	if profile == nil {
+		return nil, nil, ErrEmptyField
+	}
+	if profile.ID == uuid.Nil {
+		return nil, nil, ErrInvalidUUID
+	}
+
+	var updates []string
+	var args []interface{}
+	argIndex := 1
+	var avatarOldURL, avatarNewURL *string
+
+	if profile.Avatar != nil {
+		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&avatarOldURL)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, ErrDatabaseOperation
+		}
+
+		avatarNewURL = new(string)
+		*avatarNewURL = "./uploads/avatar/" + uuid.New().String() + ".png"
+		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
+		args = append(args, *avatarNewURL)
+		argIndex++
+	}
+
+	fields := map[string]*string{
+		"first_name": profile.FirstName,
+		"last_name":  profile.LastName,
+		"username":   profile.Username,
+		"phone":      profile.Phone,
+		"email":      profile.Email,
+	}
+
+	for field, value := range fields {
+		if value != nil {
+			if *value == "" {
+				return nil, nil, ErrEmptyField
+			}
+			updates = append(updates, fmt.Sprintf("%s = $%d", field, argIndex))
+			args = append(args, *value)
+			argIndex++
+		}
+	}
+
+	if len(updates) == 0 {
+		return nil, nil, nil
+	}
+
+	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
+	args = append(args, profile.ID)
+
+	res, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return nil, nil, ErrRecordAlreadyExists
+		}
+		return nil, nil, ErrDatabaseOperation
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return nil, nil, ErrDatabaseOperation
+	}
+	if rowsAffected == 0 {
+		return nil, nil, ErrUpdateFailed
+	}
+
+	return avatarNewURL, avatarOldURL, nil
 }

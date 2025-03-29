@@ -7,10 +7,10 @@ import (
 	"time"
 
 	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -57,15 +57,19 @@ func (s *Server) Run(address string) error {
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
-	chatRepo := repository.NewChatRepo(s.dbConn)
+	// chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
-	chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
+	// chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
+	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
-	delivery.NewChatController(r, chatUsecase)
+	// delivery.NewChatController(r, chatUsecase, sessionUsecase)
+	delivery.NewUserController(r, userUsecase, sessionUsecase)
+	delivery.NewUploadsController(r)
 
 	r.Use(middleware.CorsMiddleware)
 	r.Use(middleware.RequestIDMiddleware)
