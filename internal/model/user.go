@@ -1,18 +1,20 @@
 package model
 
 import (
-	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type User struct {
-	ID        int64          `json:"id"`
-	FirstName sql.NullString `json:"first_name"`
-	LastName  sql.NullString `json:"last_name"`
-	Username  string         `json:"username"`
-	Phone     string         `json:"phone"`
-	Email     sql.NullString `json:"email"`
-	Password  string         `json:"password"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID         uuid.UUID `json:"id"`
+	AvatarPath *string   `json:"avatar_path"`
+	FirstName  *string   `json:"first_name"`
+	LastName   *string   `json:"last_name"`
+	Username   string    `json:"username"`
+	Phone      string    `json:"phone"`
+	Email      *string   `json:"email"`
+	Password   string    `json:"password"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
