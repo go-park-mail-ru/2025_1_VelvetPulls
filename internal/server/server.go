@@ -51,6 +51,8 @@ func (s *Server) Run(address string) error {
 	delivery.NewAuthController(r, authUsecase)
 	delivery.NewChatController(r, chatUsecase, sessionUsecase)
 	delivery.NewUserController(r, userUsecase, sessionUsecase)
+	delivery.NewUploadsController(r)
+
 	httpServer := &http.Server{
 		Handler:      middleware.CorsMiddleware(r),
 		Addr:         address,

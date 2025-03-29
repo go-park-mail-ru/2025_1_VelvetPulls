@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
@@ -45,5 +46,12 @@ func (r *sessionRepo) CreateSession(ctx context.Context, userID string) (string,
 }
 
 func (r *sessionRepo) DeleteSession(ctx context.Context, sessionId string) error {
+	exists, err := r.redisClient.Exists(ctx, sessionId).Result()
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return errors.New("session not found")
+	}
 	return r.redisClient.Del(ctx, sessionId).Err()
 }

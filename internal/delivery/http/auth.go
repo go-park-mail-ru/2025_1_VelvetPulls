@@ -19,10 +19,9 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 	controller := &authController{
 		authUsecase: authUsecase,
 	}
-
-	r.HandleFunc("/register/", controller.Register).Methods(http.MethodPost)
-	r.HandleFunc("/login/", controller.Login).Methods(http.MethodPost)
-	r.HandleFunc("/logout/", controller.Logout).Methods(http.MethodDelete)
+	r.Handle("/register", http.HandlerFunc(controller.Register)).Methods(http.MethodPost)
+	r.Handle("/login", http.HandlerFunc(controller.Login)).Methods(http.MethodPost)
+	r.Handle("/logout", http.HandlerFunc(controller.Logout)).Methods(http.MethodDelete)
 }
 
 // Register регистрирует нового пользователя
@@ -35,7 +34,7 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 // @Success 201 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
-// @Router /api/register/ [post]
+// @Router /api/register [post]
 func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	var registerValues model.RegisterCredentials
 
@@ -84,7 +83,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
-// @Router /api/login/ [post]
+// @Router /api/login [post]
 func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	var loginValues model.LoginCredentials
 
@@ -123,7 +122,7 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
-// @Router /api/logout/ [delete]
+// @Router /api/logout [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	sessionId := r.Header.Get("token")
 	if sessionId == "" {

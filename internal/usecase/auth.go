@@ -34,14 +34,10 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 
 	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
 		return "", apperrors.ErrUsernameTaken
-	} else if err != apperrors.ErrUserNotFound {
-		return "", err
 	}
 
 	if _, err := uc.userRepo.GetUserByPhone(ctx, values.Phone); err == nil {
 		return "", apperrors.ErrPhoneTaken
-	} else if err != apperrors.ErrUserNotFound {
-		return "", err
 	}
 
 	hashedPassword, err := utils.HashAndSalt(values.Password)
@@ -78,7 +74,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", apperrors.ErrUserNotFound
 	}
 
-	if !utils.ValidatePassword(user.Password, values.Password) {
+	if !utils.CheckPassword(user.Password, values.Password) {
 		return "", apperrors.ErrInvalidCredentials
 	}
 

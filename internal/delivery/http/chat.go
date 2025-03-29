@@ -23,7 +23,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionU
 		sessionUsecase: sessionUsecase,
 	}
 
-	r.Handle("/chats/", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.Chats))).Methods(http.MethodGet)
+	r.Handle("/chats", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.Chats))).Methods(http.MethodGet)
 }
 
 // Chats возвращает чаты пользователя по сессии

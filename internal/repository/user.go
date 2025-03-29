@@ -16,11 +16,9 @@ type IUserRepo interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
-	GetAvatarPathByUserID(ctx context.Context, userID string) (string, error)
-	UpdateAvatarPathByUserID(ctx context.Context, userID string, avatarPath string) error
-	GetUserByID(ctx context.Context, id string) (*model.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	CreateUser(ctx context.Context, user *model.User) (string, error)
-	UpdateUser(ctx context.Context, user *model.User) error
+	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (*string, *string, error)
 }
 
 type userRepo struct {
@@ -61,7 +59,6 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*mod
 		&user.UpdatedAt,
 	)
 	if err != nil {
-		fmt.Print(err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
@@ -145,7 +142,7 @@ func (r *userRepo) GetUserByPhone(ctx context.Context, phone string) (*model.Use
 	return &user, nil
 }
 
-func (r *userRepo) GetUserByID(ctx context.Context, id string) (*model.User, error) {
+func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	var user model.User
 	query := `SELECT 
 	id, 
@@ -200,92 +197,81 @@ func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, er
 	return userID.String(), nil
 }
 
-func (r *userRepo) UpdateUser(ctx context.Context, user *model.User) error {
+func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (*string, *string, error) {
 	var (
 		queryBuilder strings.Builder
 		args         []interface{}
 		argIndex     = 1
+		avatarOldURL *string
+		avatarNewURL *string
+		updates      []string
 	)
 
-	queryBuilder.WriteString("UPDATE public.user SET ")
-
-	if user.FirstName != nil {
-		queryBuilder.WriteString(fmt.Sprintf("first_name = $%d, ", argIndex))
-		args = append(args, user.FirstName)
-		argIndex++
-	}
-	if user.LastName != nil {
-		queryBuilder.WriteString(fmt.Sprintf("last_name = $%d, ", argIndex))
-		args = append(args, user.LastName)
-		argIndex++
-	}
-	if user.Username != "" {
-		queryBuilder.WriteString(fmt.Sprintf("username = $%d, ", argIndex))
-		args = append(args, user.Username)
-		argIndex++
-	}
-	if user.Phone != "" {
-		queryBuilder.WriteString(fmt.Sprintf("phone = $%d, ", argIndex))
-		args = append(args, user.Phone)
-		argIndex++
-	}
-	if user.Email != nil {
-		queryBuilder.WriteString(fmt.Sprintf("email = $%d, ", argIndex))
-		args = append(args, user.Email)
-		argIndex++
+	// Получаем старый путь аватарки если нужно
+	if profile.Avatar != nil {
+		err := r.db.QueryRowContext(ctx,
+			"SELECT avatar_path FROM public.user WHERE id = $1",
+			profile.ID,
+		).Scan(&avatarOldURL)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, fmt.Errorf("failed to get old avatar path: %w", err)
+		}
 	}
 
-	queryBuilder.WriteString(fmt.Sprintf("updated_at = $%d ", argIndex))
+	// Формируем части запроса
+	if profile.FirstName != nil {
+		updates = append(updates, fmt.Sprintf("first_name = $%d", argIndex))
+		args = append(args, *profile.FirstName)
+		argIndex++
+	}
+	if profile.LastName != nil {
+		updates = append(updates, fmt.Sprintf("last_name = $%d", argIndex))
+		args = append(args, *profile.LastName)
+		argIndex++
+	}
+	if profile.Username != nil {
+		updates = append(updates, fmt.Sprintf("username = $%d", argIndex))
+		args = append(args, *profile.Username)
+		argIndex++
+	}
+	if profile.Phone != nil {
+		updates = append(updates, fmt.Sprintf("phone = $%d", argIndex))
+		args = append(args, *profile.Phone)
+		argIndex++
+	}
+	if profile.Email != nil {
+		updates = append(updates, fmt.Sprintf("email = $%d", argIndex))
+		args = append(args, *profile.Email)
+		argIndex++
+	}
+	if profile.Avatar != nil {
+		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
+		avatarNewURL = new(string)
+		*avatarNewURL = "./uploads/avatar/" + uuid.New().String() + ".png"
+		args = append(args, *avatarNewURL)
+		argIndex++
+	}
+
+	// Если нет полей для обновления
+	if len(updates) == 0 {
+		return nil, nil, nil
+	}
+
+	// Добавляем updated_at
+	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
 	argIndex++
 
-	queryBuilder.WriteString(fmt.Sprintf("WHERE id = $%d", argIndex))
-	args = append(args, user.ID)
+	// Формируем итоговый запрос
+	queryBuilder.WriteString("UPDATE public.user SET ")
+	queryBuilder.WriteString(strings.Join(updates, ", "))
+	queryBuilder.WriteString(fmt.Sprintf(" WHERE id = $%d", argIndex))
+	args = append(args, profile.ID)
 
 	_, err := r.db.ExecContext(ctx, queryBuilder.String(), args...)
-	return err
-}
-
-func (r *userRepo) GetAvatarPathByUserID(ctx context.Context, userID string) (string, error) {
-	var avatarPath sql.NullString
-	query := `SELECT avatar_path 
-	FROM public.user 
-	WHERE id = $1`
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&avatarPath)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", ErrUserNotFound
-		}
-		return "", err
+		return nil, nil, fmt.Errorf("update failed: %w", err)
 	}
 
-	if !avatarPath.Valid {
-		return "", ErrAvatarNotFound
-	}
-
-	return avatarPath.String, nil
-}
-
-func (r *userRepo) UpdateAvatarPathByUserID(ctx context.Context, userID string, avatarPath string) error {
-
-	query := `UPDATE public.user 
-	SET 
-	avatar_path = $1, 
-	updated_at = $2 
-	WHERE id = $3`
-	result, err := r.db.ExecContext(ctx, query, avatarPath, time.Now(), userID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ErrUserNotFound
-	}
-
-	return nil
+	return avatarNewURL, avatarOldURL, nil
 }
