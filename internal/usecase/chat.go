@@ -29,7 +29,7 @@ func (uc *ChatUsecase) FetchChatsBySession(token string) ([]model.Chat, error) {
 		return nil, err
 	}
 
-	chats, err := uc.chatRepo.GetChatsByUsername(session.Username)
+	chats, err := uc.chatRepo.GetChatsByUsername(session)
 	if err != nil {
 		return nil, err
 	}

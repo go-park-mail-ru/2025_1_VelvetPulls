@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"fmt"
+
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
@@ -10,6 +12,7 @@ import (
 type IAuthUsecase interface {
 	RegisterUser(values model.RegisterCredentials) (string, error)
 	LoginUser(values model.LoginCredentials) (string, error)
+	LogoutUser(sessionId string) error
 }
 
 // authUsecase реализует интерфейс AuthUsecase.
@@ -53,8 +56,10 @@ func (uc *AuthUsecase) RegisterUser(values model.RegisterCredentials) (string, e
 	}
 
 	if _, err := uc.userRepo.GetUserByUsername(values.Username); err == nil {
+		fmt.Print(err)
 		return "", apperrors.ErrUsernameTaken
 	} else if err != apperrors.ErrUserNotFound {
+		fmt.Print(err)
 		return "", err
 	}
 
@@ -90,6 +95,7 @@ func (uc *AuthUsecase) RegisterUser(values model.RegisterCredentials) (string, e
 // LoginUser аутентифицирует пользователя и создает сессию.
 func (uc *AuthUsecase) LoginUser(values model.LoginCredentials) (string, error) {
 	user, err := uc.userRepo.GetUserByUsername(values.Username)
+	fmt.Print(user)
 	if err != nil {
 		return "", apperrors.ErrUserNotFound
 	}
@@ -104,4 +110,12 @@ func (uc *AuthUsecase) LoginUser(values model.LoginCredentials) (string, error) 
 	}
 
 	return sessionID, nil
+}
+
+func (uc *AuthUsecase) LogoutUser(sessionId string) error {
+	err := uc.sessionRepo.DeleteSession(sessionId)
+	if err != nil {
+		return err
+	}
+	return nil
 }

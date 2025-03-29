@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 	"os"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
 	"github.com/gorilla/mux"
+	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -25,13 +27,18 @@ func setupLogger() (*os.File, error) {
 	return logFile, nil
 }
 
-// TODO: добавить объекты для подключения к бд
-type Server struct {
-	dbConn *int
+type IServer interface {
+	Run(address string) error
 }
 
-func NewServer(dbConn *int) *Server {
-	return &Server{dbConn: dbConn}
+// TODO: добавить объекты для подключения к бд
+type Server struct {
+	dbConn      *sql.DB
+	redisClient *redis.Client
+}
+
+func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
+	return &Server{dbConn: dbConn, redisClient: redisClient}
 }
 
 // TODO: подключиться к бд
@@ -48,9 +55,9 @@ func (s *Server) Run(address string) error {
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
 	// Repository
-	sessionRepo := repository.NewSessionRepo()
-	userRepo := repository.NewUserRepo()
-	chatRepo := repository.NewChatRepo()
+	sessionRepo := repository.NewSessionRepo(s.redisClient)
+	userRepo := repository.NewUserRepo(s.dbConn)
+	chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)

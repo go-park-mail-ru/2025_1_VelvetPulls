@@ -1,74 +1,52 @@
 package repository
 
 import (
-	"sync"
-	"time"
+	"context"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/apperrors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type ISessionRepo interface {
-	GetSessionBySessId(sessId string) (*model.Session, error)
+	GetSessionBySessId(sessId string) (string, error)
 	CreateSession(username string) (string, error)
 	DeleteSession(sessionId string) error
 }
 
 type sessionRepo struct {
-	sessions map[string]*model.Session
-	mu       sync.RWMutex // Мьютекс для безопасного чтения и записи
+	redisClient *redis.Client
 }
 
-func NewSessionRepo() ISessionRepo {
-	return &sessionRepo{
-		sessions: make(map[string]*model.Session),
-	}
+func NewSessionRepo(redisClient *redis.Client) ISessionRepo {
+	return &sessionRepo{redisClient: redisClient}
 }
 
-// Получение сессии по ее ID
-func (r *sessionRepo) GetSessionBySessId(sessId string) (*model.Session, error) {
-	r.mu.RLock() // Блокировка для чтения
-	defer r.mu.RUnlock()
+func (r *sessionRepo) GetSessionBySessId(sessId string) (string, error) {
+	ctx := context.Background()
 
-	session, exists := r.sessions[sessId]
-	if !exists {
-		return nil, apperrors.ErrSessionNotFound
+	username, err := r.redisClient.Get(ctx, sessId).Result()
+	if err == redis.Nil {
+		return "", apperrors.ErrSessionNotFound
+	} else if err != nil {
+		return "", err
 	}
 
-	// Возвращаем копию сессии, чтобы избежать гонок данных
-	sessionCopy := *session
-	return &sessionCopy, nil
+	return username, nil
 }
 
-// Создание новой сессии
 func (r *sessionRepo) CreateSession(username string) (string, error) {
-	r.mu.Lock() // Блокировка для записи
-	defer r.mu.Unlock()
-
 	sessionId := uuid.NewString()
 
-	// Проверяем, существует ли уже сессия с таким ID (хотя это маловероятно для UUID)
-	if _, exists := r.sessions[sessionId]; exists {
-		return "", apperrors.ErrSessionAlreadyExists
+	err := r.redisClient.Set(context.Background(), sessionId, username, config.CookieDuration).Err()
+	if err != nil {
+		return "", err
 	}
 
-	r.sessions[sessionId] = &model.Session{
-		Username: username,
-		Expiry:   time.Now().Add(config.CookieDuration),
-	}
 	return sessionId, nil
 }
 
-// Удаление сессии
 func (r *sessionRepo) DeleteSession(sessionId string) error {
-	r.mu.Lock() // Блокировка для записи
-	defer r.mu.Unlock()
-
-	if _, exists := r.sessions[sessionId]; !exists {
-		return apperrors.ErrSessionNotFound
-	}
-	delete(r.sessions, sessionId)
-	return nil
+	return r.redisClient.Del(context.Background(), sessionId).Err()
 }
