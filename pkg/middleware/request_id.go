@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
 

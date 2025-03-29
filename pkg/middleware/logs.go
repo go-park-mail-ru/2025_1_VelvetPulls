@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"go.uber.org/zap"
 )
 

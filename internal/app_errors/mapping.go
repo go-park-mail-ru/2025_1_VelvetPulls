@@ -12,13 +12,13 @@ import (
 var errToCode = map[error]int{
 	// HTTP errors
 	servererrors.ErrInvalidRequestData: http.StatusBadRequest, // 400
-	servererrors.ErrValidation:         http.StatusBadRequest,
+	servererrors.ErrValidation:         http.StatusBadRequest, // 400
 	// Usecase errors
-	usecase.ErrUsernameIsTaken: http.StatusConflict,            // 409 - Конфликт, имя пользователя занято
-	usecase.ErrPhoneIsTaken:    http.StatusConflict,            // 409 - Конфликт, телефон занят
-	usecase.ErrHashPassword:    http.StatusInternalServerError, // 500 - Ошибка сервера при хешировании
-	usecase.ErrInvalidUsername: http.StatusBadRequest,          // 400 - Некорректное имя пользователя
-	usecase.ErrInvalidPassword: http.StatusBadRequest,          // 400 - Некорректный пароль
+	usecase.ErrUsernameIsTaken: http.StatusConflict,            // 409
+	usecase.ErrPhoneIsTaken:    http.StatusConflict,            // 409
+	usecase.ErrHashPassword:    http.StatusInternalServerError, // 500
+	usecase.ErrInvalidUsername: http.StatusBadRequest,          // 400
+	usecase.ErrInvalidPassword: http.StatusBadRequest,          // 400
 
 	// Repository errors
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
