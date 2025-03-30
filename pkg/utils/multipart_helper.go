@@ -2,10 +2,12 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
@@ -47,6 +49,12 @@ func SavePhoto(file multipart.File, folderName string) (string, error) {
 }
 
 func RewritePhoto(file multipart.File, photoURL string) error {
+	dir := filepath.Dir(photoURL)
+
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
 	dst, err := os.Create(photoURL)
 	if err != nil {
 		return ErrUpdatingImage

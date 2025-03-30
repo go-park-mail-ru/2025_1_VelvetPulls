@@ -52,19 +52,21 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, profile *model.Upd
 			return utils.ErrNotImage
 		}
 	}
+
 	avatarNewURL, avatarOldURL, err := uc.userRepo.UpdateUser(ctx, profile)
 	if err != nil {
 		return err
 	}
 
-	if avatarNewURL != nil && profile.Avatar != nil {
-		if err := utils.RewritePhoto(*profile.Avatar, *avatarNewURL); err != nil {
+	// Если есть новый аватар, сохраняем его и удаляем старый
+	if avatarNewURL != "" && profile.Avatar != nil {
+		if err := utils.RewritePhoto(*profile.Avatar, avatarNewURL); err != nil {
 			return err
 		}
-		if avatarOldURL != nil {
+		if avatarOldURL != "" {
 			go func() {
-				if err := utils.RemovePhoto(*avatarOldURL); err != nil {
-					// TODO: log
+				if err := utils.RemovePhoto(avatarOldURL); err != nil {
+					// TODO: log error
 				}
 			}()
 		}

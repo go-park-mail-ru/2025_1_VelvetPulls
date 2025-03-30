@@ -29,7 +29,7 @@ type UpdateUserProfile struct {
 
 func (up *UpdateUserProfile) Validate() error {
 	if up.FirstName == nil && up.LastName == nil && up.Username == nil &&
-		up.Phone == nil && up.Email == nil {
+		up.Phone == nil && up.Email == nil && up.Avatar == nil {
 		return errors.New("at least one field must be provided for update")
 	}
 

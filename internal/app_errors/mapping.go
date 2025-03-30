@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 )
 
 var errToCode = map[error]int{
@@ -28,6 +29,11 @@ var errToCode = map[error]int{
 	repository.ErrInvalidUUID:         http.StatusBadRequest,          // 400
 	repository.ErrEmptyField:          http.StatusBadRequest,          // 400
 	repository.ErrDatabaseOperation:   http.StatusInternalServerError, // 500
+
+	utils.ErrNotImage:      http.StatusBadRequest,          // 400
+	utils.ErrSavingImage:   http.StatusInternalServerError, // 500
+	utils.ErrUpdatingImage: http.StatusInternalServerError, // 500
+	utils.ErrDeletingImage: http.StatusInternalServerError, // 500
 }
 
 func GetErrAndCodeToSend(err error) (int, error) {

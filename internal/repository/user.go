@@ -18,7 +18,7 @@ type IUserRepo interface {
 	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	CreateUser(ctx context.Context, user *model.User) (string, error)
-	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (*string, *string, error)
+	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (string, string, error)
 }
 
 type userRepo struct {
@@ -89,32 +89,40 @@ func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, er
 	return userID.String(), nil
 }
 
-func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (*string, *string, error) {
+func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (string, string, error) {
 	if profile == nil {
-		return nil, nil, ErrEmptyField
+		return "", "", ErrEmptyField
 	}
 	if profile.ID == uuid.Nil {
-		return nil, nil, ErrInvalidUUID
+		return "", "", ErrInvalidUUID
 	}
 
 	var updates []string
 	var args []interface{}
 	argIndex := 1
-	var avatarOldURL, avatarNewURL *string
+	var avatarOldURL, avatarNewURL string
 
+	// Обработка нового аватара
 	if profile.Avatar != nil {
 		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&avatarOldURL)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, ErrDatabaseOperation
+			return "", "", ErrDatabaseOperation
 		}
 
-		avatarNewURL = new(string)
-		*avatarNewURL = "./uploads/avatar/" + uuid.New().String() + ".png"
+		currentDate := time.Now()
+		year := currentDate.Year()
+		month := currentDate.Month()
+		day := currentDate.Day()
+
+		// Формируем путь для нового аватара
+		avatarDir := fmt.Sprintf("./uploads/avatar/%d/%02d/%02d/", year, month, day)
+		avatarNewURL = avatarDir + uuid.New().String() + ".png"
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
-		args = append(args, *avatarNewURL)
+		args = append(args, avatarNewURL)
 		argIndex++
 	}
 
+	// Обработка остальных полей
 	fields := map[string]*string{
 		"first_name": profile.FirstName,
 		"last_name":  profile.LastName,
@@ -126,7 +134,7 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	for field, value := range fields {
 		if value != nil {
 			if *value == "" {
-				return nil, nil, ErrEmptyField
+				return "", "", ErrEmptyField
 			}
 			updates = append(updates, fmt.Sprintf("%s = $%d", field, argIndex))
 			args = append(args, *value)
@@ -134,31 +142,36 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		}
 	}
 
+	// Если нет обновлений, возвращаем пустые строки
 	if len(updates) == 0 {
-		return nil, nil, nil
+		return "", "", nil
 	}
 
+	// Добавляем время обновления
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
 	argIndex++
 
+	// Строим запрос на обновление
 	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
 	args = append(args, profile.ID)
 
+	// Выполняем запрос
 	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			return nil, nil, ErrRecordAlreadyExists
+			return "", "", ErrRecordAlreadyExists
 		}
-		return nil, nil, ErrDatabaseOperation
+		return "", "", ErrDatabaseOperation
 	}
 
+	// Проверяем количество измененных строк
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return nil, nil, ErrDatabaseOperation
+		return "", "", ErrDatabaseOperation
 	}
 	if rowsAffected == 0 {
-		return nil, nil, ErrUpdateFailed
+		return "", "", ErrUpdateFailed
 	}
 
 	return avatarNewURL, avatarOldURL, nil
