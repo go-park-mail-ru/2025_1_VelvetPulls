@@ -29,9 +29,9 @@ func NewUploadsController(r *mux.Router) {
 // @Router /uploads/{folder}/{name} [get]
 func (d *uploadsController) GetImage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+
 	folder := vars["folder"]
 	name := vars["name"]
-
 	imagePath := "./uploads/" + folder + "/" + name
 	http.ServeFile(w, r, imagePath)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/google/uuid"
 )
 
 func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.Handler {
@@ -17,9 +18,15 @@ func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.H
 				return
 			}
 
-			userID, err := sessionUC.CheckLogin(r.Context(), token)
+			userIDString, err := sessionUC.CheckLogin(r.Context(), token)
 			if err != nil {
 				utils.SendJSONResponse(w, http.StatusUnauthorized, "Invalid session", false)
+				return
+			}
+
+			userID, err := uuid.Parse(userIDString)
+			if err != nil {
+				utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false)
 				return
 			}
 

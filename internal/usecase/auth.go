@@ -6,6 +6,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"go.uber.org/zap"
 )
 
 type IAuthUsecase interface {
@@ -27,7 +28,11 @@ func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessi
 }
 
 func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCredentials) (string, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Registering new user")
+
 	if err := values.Validate(); err != nil {
+		logger.Error("Validation failed", zap.Error(err))
 		return "", err
 	}
 
@@ -41,6 +46,7 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 
 	hashedPassword, err := utils.HashAndSalt(values.Password)
 	if err != nil {
+		logger.Error("Error hashing password")
 		return "", ErrHashPassword
 	}
 
@@ -59,12 +65,14 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 	if err != nil {
 		return "", err
 	}
-
 	return sessionID, nil
 }
 
 func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredentials) (string, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("User login attempt")
 	if err := values.Validate(); err != nil {
+		logger.Error("Validation failed", zap.Error(err))
 		return "", err
 	}
 
@@ -74,6 +82,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 	}
 
 	if !utils.CheckPassword(user.Password, values.Password) {
+		logger.Error("Invalid password")
 		return "", ErrInvalidPassword
 	}
 
@@ -86,5 +95,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 }
 
 func (uc *AuthUsecase) LogoutUser(ctx context.Context, sessionId string) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("User logout")
 	return uc.sessionRepo.DeleteSession(ctx, sessionId)
 }

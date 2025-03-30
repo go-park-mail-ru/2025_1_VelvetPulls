@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -19,7 +20,7 @@ func ParseJSONRequest(r *http.Request, v interface{}) error {
 }
 
 // SendJSONResponse отправляет JSON-ответ с полем `status`.
-func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, success bool) {
+func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, success bool) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -41,7 +42,9 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 		}
 	}
 
+	// Если ошибка при кодировании в JSON, вернем ошибку
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// TODO: логи ко 2 рк)
+		return errors.New("failed to encode JSON response: " + err.Error())
 	}
+	return nil
 }

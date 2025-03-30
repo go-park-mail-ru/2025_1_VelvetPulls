@@ -5,9 +5,10 @@ import (
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type authController struct {
@@ -35,22 +36,32 @@ func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/register [post]
 func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
-	var registerValues model.RegisterCredentials
+	logger := utils.GetLoggerFromCtx(r.Context())
 
+	var registerValues model.RegisterCredentials
 	if err := utils.ParseJSONRequest(r, &registerValues); err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
+		logger.Warn("Invalid request data", zap.Error(err))
+		if err := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	sessionID, err := c.authUsecase.RegisterUser(r.Context(), registerValues)
 	if err != nil {
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		utils.SendJSONResponse(w, code, err.Error(), false)
+		code, errMsg := apperrors.GetErrAndCodeToSend(err)
+		logger.Error("Registration failed", zap.String("error", errMsg.Error()))
+		if err := utils.SendJSONResponse(w, code, errMsg, false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	utils.SetSessionCookie(w, sessionID)
-	utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true)
+	logger.Info("User registered successfully")
+	if err := utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true); err != nil {
+		logger.Error("Failed to send JSON response", zap.Error(err))
+	}
 }
 
 // Login авторизовывает пользователя
@@ -65,22 +76,32 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/login [post]
 func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
-	var loginValues model.LoginCredentials
+	logger := utils.GetLoggerFromCtx(r.Context())
 
+	var loginValues model.LoginCredentials
 	if err := utils.ParseJSONRequest(r, &loginValues); err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
+		logger.Warn("Invalid request data", zap.Error(err))
+		if err := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	sessionID, err := c.authUsecase.LoginUser(r.Context(), loginValues)
 	if err != nil {
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		utils.SendJSONResponse(w, code, err.Error(), false)
+		code, errMsg := apperrors.GetErrAndCodeToSend(err)
+		logger.Error("Login failed", zap.String("error", errMsg.Error()))
+		if err := utils.SendJSONResponse(w, code, errMsg, false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	utils.SetSessionCookie(w, sessionID)
-	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
+	logger.Info("User logged in successfully")
+	if err := utils.SendJSONResponse(w, http.StatusOK, "Login successful", true); err != nil {
+		logger.Error("Failed to send JSON response", zap.Error(err))
+	}
 }
 
 // Logout завершает сеанс пользователя
@@ -92,18 +113,29 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/logout [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
 	sessionId, err := utils.GetSessionCookie(r)
 	if err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Unauthorized", false)
+		logger.Warn("Unauthorized logout attempt")
+		if err := utils.SendJSONResponse(w, http.StatusBadRequest, "Unauthorized", false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	if err := c.authUsecase.LogoutUser(r.Context(), sessionId); err != nil {
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		utils.SendJSONResponse(w, code, err.Error(), false)
+		code, errMsg := apperrors.GetErrAndCodeToSend(err)
+		logger.Error("Logout failed", zap.String("error", errMsg.Error()))
+		if err := utils.SendJSONResponse(w, code, errMsg, false); err != nil {
+			logger.Error("Failed to send JSON response", zap.Error(err))
+		}
 		return
 	}
 
 	utils.DeleteSessionCookie(w)
-	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
+	logger.Info("User logged out successfully")
+	if err := utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true); err != nil {
+		logger.Error("Failed to send JSON response", zap.Error(err))
+	}
 }

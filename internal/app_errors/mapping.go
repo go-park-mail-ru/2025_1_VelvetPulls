@@ -2,7 +2,6 @@ package apperrors
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
@@ -40,7 +39,6 @@ var errToCode = map[error]int{
 
 func GetErrAndCodeToSend(err error) (int, error) {
 	var source error
-	fmt.Print(err)
 	for err != nil {
 		if errors.Is(err, model.ErrValidation) {
 			return http.StatusBadRequest, err

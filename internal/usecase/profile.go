@@ -25,10 +25,15 @@ func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
 }
 
 func (uc *UserUsecase) GetUserProfile(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Fetching user profile")
+
 	user, err := uc.userRepo.GetUserByID(ctx, id)
 	if err != nil {
+		logger.Error("Error fetching user profile")
 		return nil, err
 	}
+
 	profile := &model.GetUserProfile{
 		FirstName:  user.FirstName,
 		LastName:   user.LastName,
@@ -42,30 +47,37 @@ func (uc *UserUsecase) GetUserProfile(ctx context.Context, id uuid.UUID) (*model
 }
 
 func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Updating user profile")
+
 	if err := profile.Validate(); err != nil {
+		logger.Error("Validation failed")
 		return err
 	}
 
 	if profile.Avatar != nil {
 		if !utils.IsImageFile(*profile.Avatar) {
+			logger.Error("Invalid avatar file type")
 			return utils.ErrNotImage
 		}
 	}
 
 	avatarNewURL, avatarOldURL, err := uc.userRepo.UpdateUser(ctx, profile)
 	if err != nil {
+		logger.Error("Error updating user profile")
 		return err
 	}
 
 	// Если есть новый аватар, сохраняем его и удаляем старый
 	if avatarNewURL != "" && profile.Avatar != nil {
 		if err := utils.RewritePhoto(*profile.Avatar, avatarNewURL); err != nil {
+			logger.Error("Error rewriting photo")
 			return err
 		}
 		if avatarOldURL != "" {
 			go func() {
 				if err := utils.RemovePhoto(avatarOldURL); err != nil {
-					// TODO: log error
+					logger.Error("Error removing old avatar")
 				}
 			}()
 		}

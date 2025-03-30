@@ -15,10 +15,20 @@ type responseWriter struct {
 	body   string
 }
 
+func (rw *responseWriter) WriteHeader(statusCode int) {
+	rw.status = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (rw *responseWriter) Write(p []byte) (int, error) {
+	rw.body += string(p)
+	return rw.ResponseWriter.Write(p)
+}
+
 func AccessLogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		wrappedWriter := &responseWriter{ResponseWriter: w}
+		wrappedWriter := &responseWriter{ResponseWriter: w, status: http.StatusOK} // По умолчанию 200
 
 		requestID := utils.GetRequestIDFromCtx(r.Context())
 
@@ -31,15 +41,18 @@ func AccessLogMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), utils.LOGGER_ID_KEY, contextLogger)
 		next.ServeHTTP(wrappedWriter, r.WithContext(ctx))
 
-		contextLogger.Info("HTTP Request",
-			zap.Int("status", wrappedWriter.status),
-			zap.Duration("execution_time", time.Since(start)),
-		)
-
-		if wrappedWriter.body != "" {
-			contextLogger.Error(wrappedWriter.body)
+		contentType := w.Header().Get("Content-Type")
+		if contentType == "application/json" {
+			contextLogger.Info("HTTP Request completed",
+				zap.Int("status", wrappedWriter.status),
+				zap.Duration("execution_time", time.Since(start)),
+				zap.String("body", wrappedWriter.body),
+			)
 		} else {
-			contextLogger.Info("HTTP Request completed successfully")
+			contextLogger.Info("HTTP Request completed",
+				zap.Int("status", wrappedWriter.status),
+				zap.Duration("execution_time", time.Since(start)),
+			)
 		}
 	})
 }

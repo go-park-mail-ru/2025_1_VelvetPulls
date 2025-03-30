@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -23,20 +24,28 @@ func NewSessionRepo(redisClient *redis.Client) ISessionRepo {
 }
 
 func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessId string) (string, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Getting user ID by session token")
+
 	userID, err := r.redisClient.Get(ctx, sessId).Result()
 	if err == redis.Nil {
+		logger.Error("Session not found")
 		return "", ErrSessionNotFound
 	} else if err != nil {
+		logger.Error("Error during Redis operation")
 		return "", ErrDatabaseOperation
 	}
 	return userID, nil
 }
-
 func (r *sessionRepo) CreateSession(ctx context.Context, userID string) (string, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Creating new session")
+
 	sessionId := uuid.NewString()
 
 	err := r.redisClient.Set(ctx, sessionId, userID, config.CookieDuration).Err()
 	if err != nil {
+		logger.Error("Error creating session in Redis")
 		return "", ErrDatabaseOperation
 	}
 
@@ -44,17 +53,25 @@ func (r *sessionRepo) CreateSession(ctx context.Context, userID string) (string,
 }
 
 func (r *sessionRepo) DeleteSession(ctx context.Context, sessionId string) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Deleting session")
+
 	exists, err := r.redisClient.Exists(ctx, sessionId).Result()
 	if err != nil {
+		logger.Error("Error checking if session exists")
 		return ErrDatabaseOperation
 	}
+
 	if exists == 0 {
+		logger.Error("Session not found")
 		return ErrSessionNotFound
 	}
 
 	err = r.redisClient.Del(ctx, sessionId).Err()
 	if err != nil {
+		logger.Error("Error deleting session in Redis")
 		return ErrDatabaseOperation
 	}
+
 	return nil
 }
