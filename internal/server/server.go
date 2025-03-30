@@ -55,6 +55,7 @@ func (s *Server) Run(address string) error {
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
+	contactRepo := repository.NewContactRepo(s.dbConn)
 	// chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
@@ -62,19 +63,20 @@ func (s *Server) Run(address string) error {
 	// chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
+	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
 	// delivery.NewChatController(r, chatUsecase, sessionUsecase)
 	delivery.NewUserController(r, userUsecase, sessionUsecase)
+	delivery.NewContactController(r, contactUsecase, sessionUsecase)
 	delivery.NewUploadsController(r)
 
-	r.Use(middleware.CorsMiddleware)
 	r.Use(middleware.RequestIDMiddleware)
 	r.Use(middleware.AccessLogMiddleware)
 
 	httpServer := &http.Server{
-		Handler:      r,
+		Handler:      middleware.CorsMiddleware(r),
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,

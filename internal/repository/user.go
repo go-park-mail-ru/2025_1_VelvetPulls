@@ -96,6 +96,7 @@ func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, er
 	var userID uuid.UUID
 	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&userID)
 	if err != nil {
+		fmt.Print(err)
 		if strings.Contains(err.Error(), "duplicate key value") {
 			logger.Warn("User with the same username or phone already exists")
 			return "", ErrRecordAlreadyExists
