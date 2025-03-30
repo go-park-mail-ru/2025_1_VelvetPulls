@@ -2,8 +2,10 @@ package apperrors
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
@@ -13,7 +15,7 @@ import (
 var errToCode = map[error]int{
 	// HTTP errors
 	servererrors.ErrInvalidRequestData: http.StatusBadRequest, // 400
-	servererrors.ErrValidation:         http.StatusBadRequest, // 400
+
 	// Usecase errors
 	usecase.ErrUsernameIsTaken: http.StatusConflict,            // 409
 	usecase.ErrPhoneIsTaken:    http.StatusConflict,            // 409
@@ -38,7 +40,11 @@ var errToCode = map[error]int{
 
 func GetErrAndCodeToSend(err error) (int, error) {
 	var source error
+	fmt.Print(err)
 	for err != nil {
+		if errors.Is(err, model.ErrValidation) {
+			return http.StatusBadRequest, err
+		}
 		source = err
 		err = errors.Unwrap(err)
 	}
@@ -47,6 +53,5 @@ func GetErrAndCodeToSend(err error) (int, error) {
 	if !ok {
 		return http.StatusInternalServerError, servererrors.ErrInternalServer
 	}
-
 	return code, source
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
-	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 )
 
@@ -29,7 +28,7 @@ func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessi
 
 func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCredentials) (string, error) {
 	if err := values.Validate(); err != nil {
-		return "", servererrors.ErrValidation
+		return "", err
 	}
 
 	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
@@ -66,7 +65,7 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 
 func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredentials) (string, error) {
 	if err := values.Validate(); err != nil {
-		return "", servererrors.ErrValidation
+		return "", err
 	}
 
 	user, err := uc.userRepo.GetUserByUsername(ctx, values.Username)

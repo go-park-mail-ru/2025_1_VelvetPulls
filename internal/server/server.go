@@ -31,7 +31,6 @@ type IServer interface {
 	Run(address string) error
 }
 
-// TODO: добавить объекты для подключения к бд
 type Server struct {
 	dbConn      *sql.DB
 	redisClient *redis.Client
@@ -41,7 +40,6 @@ func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
 	return &Server{dbConn: dbConn, redisClient: redisClient}
 }
 
-// TODO: подключиться к бд
 func (s *Server) Run(address string) error {
 	logFile, err := setupLogger()
 	if err != nil {

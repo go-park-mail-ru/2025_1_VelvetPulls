@@ -25,9 +25,9 @@ type RegisterCredentials struct {
 func (lc *LoginCredentials) Validate() error {
 	if _, err := govalidator.ValidateStruct(lc); err != nil {
 		if errs, ok := err.(govalidator.Errors); ok {
-			return errors.New(errs.Error())
+			return errors.Join(ErrValidation, errors.New(errs.Error()))
 		}
-		return err
+		return errors.Join(ErrValidation, err)
 	}
 	return nil
 }
@@ -35,12 +35,12 @@ func (lc *LoginCredentials) Validate() error {
 func (rc *RegisterCredentials) Validate() error {
 	if _, err := govalidator.ValidateStruct(rc); err != nil {
 		if errs, ok := err.(govalidator.Errors); ok {
-			return errors.New(errs.Error())
+			return errors.Join(ErrValidation, errors.New(errs.Error()))
 		}
-		return err
+		return errors.Join(ErrValidation, err)
 	}
 	if rc.Password != rc.ConfirmPassword {
-		return errors.New("passwords do not match")
+		return errors.Join(ErrValidation, errors.New("passwords do not match"))
 	}
 	return nil
 }

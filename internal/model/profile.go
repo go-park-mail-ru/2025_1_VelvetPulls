@@ -30,14 +30,14 @@ type UpdateUserProfile struct {
 func (up *UpdateUserProfile) Validate() error {
 	if up.FirstName == nil && up.LastName == nil && up.Username == nil &&
 		up.Phone == nil && up.Email == nil && up.Avatar == nil {
-		return errors.New("at least one field must be provided for update")
+		return errors.Join(ErrValidation, errors.New("at least one field must be provided for update"))
 	}
 
 	if _, err := govalidator.ValidateStruct(up); err != nil {
 		if errs, ok := err.(govalidator.Errors); ok {
-			return errors.New(errs.Error())
+			return errors.Join(ErrValidation, errors.New(errs.Error()))
 		}
-		return err
+		return errors.Join(ErrValidation, err)
 	}
 
 	return nil
