@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
@@ -103,7 +104,7 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
+	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
 		utils.SendJSONResponse(w, http.StatusBadRequest, "Request too large or malformed", false)
 		return
 	}
