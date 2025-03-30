@@ -113,9 +113,11 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 	profile.ID = userID
 
 	jsonString := r.FormValue("profile_data")
-	if err := json.Unmarshal([]byte(jsonString), &profile); err != nil {
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid profile data format", false)
-		return
+	if jsonString != "" {
+		if err := json.Unmarshal([]byte(jsonString), &profile); err != nil {
+			utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid profile data format", false)
+			return
+		}
 	}
 
 	avatar, _, err := r.FormFile("avatar")
