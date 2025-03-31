@@ -21,6 +21,7 @@ var errToCode = map[error]int{
 	usecase.ErrHashPassword:    http.StatusInternalServerError, // 500
 	usecase.ErrInvalidUsername: http.StatusBadRequest,          // 400
 	usecase.ErrInvalidPassword: http.StatusBadRequest,          // 400
+	usecase.ErrSelfContact:     http.StatusBadRequest,          // 400
 
 	// Repository errors
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
@@ -30,6 +31,7 @@ var errToCode = map[error]int{
 	repository.ErrInvalidUUID:         http.StatusBadRequest,          // 400
 	repository.ErrEmptyField:          http.StatusBadRequest,          // 400
 	repository.ErrDatabaseOperation:   http.StatusInternalServerError, // 500
+	repository.ErrDatabaseScan:        http.StatusInternalServerError, // 500
 
 	utils.ErrNotImage:      http.StatusBadRequest,          // 400
 	utils.ErrSavingImage:   http.StatusInternalServerError, // 500

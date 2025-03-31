@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
@@ -44,7 +45,8 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 	contacts, err := c.contactUsecase.GetUserContacts(r.Context(), userID)
 	if err != nil {
 		logger.Error("Failed to get contacts", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusInternalServerError, "Failed to get contacts", false); sendErr != nil {
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
 		}
 		return
@@ -83,6 +85,14 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.ID); err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
 		if sendErr := utils.SendJSONResponse(w, http.StatusInternalServerError, "Failed to add contact", false); sendErr != nil {
+			logger.Error("Failed to send error response", zap.Error(sendErr))
+		}
+		return
+	}
+	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.ID); err != nil {
+		logger.Error("Failed to get contacts", zap.Error(err))
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
 		}
 		return
