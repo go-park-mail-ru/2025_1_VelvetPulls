@@ -10,4 +10,5 @@ var (
 	ErrInvalidUUID         = errors.New("invalid UUID format")
 	ErrEmptyField          = errors.New("empty required field")
 	ErrDatabaseOperation   = errors.New("database operation failed")
+	ErrDatabaseScan        = errors.New("failed to scan database row")
 )
