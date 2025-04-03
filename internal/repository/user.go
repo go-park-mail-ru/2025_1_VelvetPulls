@@ -125,7 +125,12 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	// Обработка нового аватара
 	if profile.Avatar != nil {
 		logger.Info("Updating avatar")
-		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&avatarOldURL)
+		var oldUrl *string
+		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&oldUrl)
+		if oldUrl != nil {
+			avatarOldURL = *oldUrl
+		}
+		fmt.Println(err)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path")
 			return "", "", ErrDatabaseOperation
