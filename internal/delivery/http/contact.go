@@ -84,13 +84,6 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.ID); err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusInternalServerError, "Failed to add contact", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
-		return
-	}
-	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.ID); err != nil {
-		logger.Error("Failed to get contacts", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)
 		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
@@ -130,7 +123,8 @@ func (c *contactController) DeleteContact(w http.ResponseWriter, r *http.Request
 
 	if err := c.contactUsecase.RemoveUserContact(r.Context(), userID, contact.ID); err != nil {
 		logger.Error("Failed to delete contact", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusInternalServerError, "Failed to delete contact", false); sendErr != nil {
+		code, err := apperrors.GetErrAndCodeToSend(err)
+		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
 		}
 		return

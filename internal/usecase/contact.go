@@ -10,7 +10,7 @@ import (
 )
 
 type IContactUsecase interface {
-	GetUserContacts(ctx context.Context, userID uuid.UUID) (*[]model.Contact, error)
+	GetUserContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error)
 	AddUserContact(ctx context.Context, userID, contactID uuid.UUID) error
 	RemoveUserContact(ctx context.Context, userID, contactID uuid.UUID) error
 }
@@ -22,7 +22,7 @@ func NewContactUsecase(contactRepo repository.IContactRepo) IContactUsecase {
 	return &ContactUsecase{contactRepo: contactRepo}
 }
 
-func (uc *ContactUsecase) GetUserContacts(ctx context.Context, userID uuid.UUID) (*[]model.Contact, error) {
+func (uc *ContactUsecase) GetUserContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Fetching contacts")
 	return uc.contactRepo.GetContacts(ctx, userID)

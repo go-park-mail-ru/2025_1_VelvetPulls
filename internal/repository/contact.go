@@ -10,7 +10,7 @@ import (
 )
 
 type IContactRepo interface {
-	GetContacts(ctx context.Context, userID uuid.UUID) (*[]model.Contact, error)
+	GetContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error)
 	AddContact(ctx context.Context, userID, contactID uuid.UUID) error
 	DeleteContact(ctx context.Context, userID, contactID uuid.UUID) error
 }
@@ -23,7 +23,7 @@ func NewContactRepo(db *sql.DB) IContactRepo {
 	return &contactRepo{db: db}
 }
 
-func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) (*[]model.Contact, error) {
+func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Fetching contacts")
 
@@ -55,7 +55,7 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) (*[]mod
 		return nil, ErrDatabaseOperation
 	}
 
-	return &contacts, nil
+	return contacts, nil
 }
 
 func (r *contactRepo) AddContact(ctx context.Context, userID, contactID uuid.UUID) error {
