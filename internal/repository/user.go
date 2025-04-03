@@ -130,7 +130,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		if oldUrl != nil {
 			avatarOldURL = *oldUrl
 		}
-		fmt.Println(err)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path")
 			return "", "", ErrDatabaseOperation
