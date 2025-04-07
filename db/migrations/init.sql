@@ -4,7 +4,7 @@ CREATE SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TYPE chat_type AS ENUM ('dialog', 'group', 'channel');
-CREATE TYPE user_type AS ENUM ('admin', 'moderator', 'member');
+CREATE TYPE user_type AS ENUM ('owner', 'member');
 CREATE TYPE reaction_type AS ENUM ('like', 'dislike');
 
 CREATE TABLE IF NOT EXISTS public.user (
