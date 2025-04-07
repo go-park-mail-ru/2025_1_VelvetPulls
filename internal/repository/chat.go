@@ -30,7 +30,7 @@ type chatRepository struct {
 	db *sql.DB
 }
 
-func NewchatRepository(db *sql.DB) IChatRepo {
+func NewChatRepo(db *sql.DB) IChatRepo {
 	return &chatRepository{db: db}
 }
 
