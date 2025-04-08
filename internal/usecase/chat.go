@@ -80,13 +80,11 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 	// Создаем чат в репозитории
 	chatID, _, err := uc.chatRepo.CreateChat(ctx, chat)
 	if err != nil {
-		fmt.Println(err)
 		return nil, fmt.Errorf("failed to create chat: %w", err)
 	}
 
 	// Добавляем создателя чата
 	if err := uc.chatRepo.AddUserToChat(ctx, userID, "owner", chatID); err != nil {
-		fmt.Println(err)
 		return nil, fmt.Errorf("failed to add owner to chat: %w", err)
 	}
 
@@ -96,32 +94,27 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error) {
 	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chat.ID)
 	if err != nil {
-		fmt.Print(err)
 		return nil, err
 	}
 
 	if role != "owner" {
-		fmt.Print(err)
 		return nil, fmt.Errorf("only chat owner can delete users")
 	}
 
 	if chat.Avatar != nil {
 		if !utils.IsImageFile(*chat.Avatar) {
-			fmt.Print(err)
 			return nil, utils.ErrNotImage
 		}
 	}
 
 	avatarNewURL, avatarOldURL, err := uc.chatRepo.UpdateChat(ctx, chat)
 	if err != nil {
-		fmt.Print(err)
 		return nil, err
 	}
 
 	// Если есть новый аватар, сохраняем его и удаляем старый
 	if avatarNewURL != "" && chat.Avatar != nil {
 		if err := utils.RewritePhoto(*chat.Avatar, avatarNewURL); err != nil {
-			fmt.Print(err)
 			// logger.Error("Error rewriting photo")
 			return nil, err
 		}
@@ -143,7 +136,7 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID uuid.UUID, chatID 
 		return err
 	}
 	if role != "owner" {
-		return fmt.Errorf("only chat owner can delete users")
+		return fmt.Errorf("only chat owner can delete chat")
 	}
 
 	return uc.chatRepo.DeleteChat(ctx, chatID)
@@ -174,7 +167,7 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 	if err != nil {
 		return nil, err
 	}
-	if role == "owner" {
+	if role != "owner" {
 		return nil, fmt.Errorf("only chat owner can delete users")
 	}
 

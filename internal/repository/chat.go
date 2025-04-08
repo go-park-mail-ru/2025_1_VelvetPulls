@@ -260,8 +260,8 @@ func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID
 func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID) ([]model.UserInChat, error) {
 	var users []model.UserInChat
 	query := `SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role
-			  FROM user u
-			  JOIN user_chat uc ON u.id = uc.user_id
+			  FROM public.user u
+			  JOIN public.user_chat uc ON u.id = uc.user_id
 			  WHERE uc.chat_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, chatID)
 	if err != nil {
