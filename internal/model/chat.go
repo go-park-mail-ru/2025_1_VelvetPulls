@@ -18,7 +18,6 @@ type Chat struct {
 }
 
 type CreateChat struct {
-	ID     uuid.UUID       `json:"id" valid:"-"`
 	Avatar *multipart.File `json:"-" valid:"-"`
 	Type   string          `json:"type" valid:"in(dialog|group|channel),required"`
 	Title  string          `json:"title" valid:"required~Title is required,length(1|100)"`

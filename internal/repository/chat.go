@@ -154,12 +154,16 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	if update.Avatar != nil {
 		logger.Info("Updating chat avatar")
 
+		var oldUrl *string
 		// Get current avatar path
 		err := r.db.QueryRowContext(ctx,
 			"SELECT avatar_path FROM public.chat WHERE id = $1",
 			update.ID,
-		).Scan(&avatarOldURL)
+		).Scan(&oldUrl)
 
+		if oldUrl != nil {
+			avatarOldURL = *oldUrl
+		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path")
 			return "", "", ErrDatabaseOperation
