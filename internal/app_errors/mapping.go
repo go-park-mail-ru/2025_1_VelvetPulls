@@ -16,11 +16,23 @@ var errToCode = map[error]int{
 	servererrors.ErrInvalidRequestData: http.StatusBadRequest, // 400
 
 	// Usecase errors
-	usecase.ErrUsernameIsTaken: http.StatusConflict,            // 409
-	usecase.ErrPhoneIsTaken:    http.StatusConflict,            // 409
-	usecase.ErrHashPassword:    http.StatusInternalServerError, // 500
-	usecase.ErrInvalidUsername: http.StatusBadRequest,          // 400
-	usecase.ErrInvalidPassword: http.StatusBadRequest,          // 400
+	usecase.ErrUsernameIsTaken:         http.StatusConflict,            // 409
+	usecase.ErrPhoneIsTaken:            http.StatusConflict,            // 409
+	usecase.ErrHashPassword:            http.StatusInternalServerError, // 500
+	usecase.ErrInvalidUsername:         http.StatusBadRequest,          // 400
+	usecase.ErrInvalidPassword:         http.StatusBadRequest,          // 400
+	usecase.ErrPermissionDenied:        http.StatusForbidden,
+	usecase.ErrDialogUpdateForbidden:   http.StatusBadRequest,
+	usecase.ErrOnlyOwnerCanModify:      http.StatusForbidden,
+	usecase.ErrDialogAddUsers:          http.StatusBadRequest,
+	usecase.ErrDialogDeleteUsers:       http.StatusBadRequest,
+	usecase.ErrChatCreationFailed:      http.StatusInternalServerError,
+	usecase.ErrAddOwnerToDialog:        http.StatusInternalServerError,
+	usecase.ErrAddParticipantToDialog:  http.StatusInternalServerError,
+	usecase.ErrAddOwnerToGroup:         http.StatusInternalServerError,
+	usecase.ErrOnlyOwnerCanDelete:      http.StatusForbidden,
+	usecase.ErrOnlyOwnerCanAddUsers:    http.StatusForbidden,
+	usecase.ErrOnlyOwnerCanDeleteUsers: http.StatusForbidden,
 
 	// Repository errors
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404

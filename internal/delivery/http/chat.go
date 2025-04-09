@@ -90,12 +90,25 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var chatData model.CreateChat
+	var requestData model.CreateChatRequest
 	jsonString := r.FormValue("chat_data")
 	if jsonString != "" {
-		if err := json.Unmarshal([]byte(jsonString), &chatData); err != nil {
+		if err := json.Unmarshal([]byte(jsonString), &requestData); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
 			if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat data format", false); sendErr != nil {
+				logger.Error("Failed to send error response", zap.Error(sendErr))
+			}
+			return
+		}
+	}
+
+	var dialogUserUUID uuid.UUID
+	if requestData.Type == "dialog" {
+		var err error
+		dialogUserUUID, err = uuid.Parse(requestData.DialogUser)
+		if err != nil {
+			logger.Error("Invalid dialog user ID format", zap.String("dialog_user", requestData.DialogUser), zap.Error(err))
+			if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid dialog user ID format", false); sendErr != nil {
 				logger.Error("Failed to send error response", zap.Error(sendErr))
 			}
 			return
@@ -117,6 +130,13 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+
+	chatData := model.CreateChat{
+		Type:       requestData.Type,
+		Title:      requestData.Title,
+		DialogUser: dialogUserUUID,
+		Avatar:     nil,
+	}
 
 	if avatar != nil {
 		chatData.Avatar = &avatar

@@ -17,10 +17,17 @@ type Chat struct {
 	UpdatedAt  string    `json:"updated_at"`
 }
 
+type CreateChatRequest struct {
+	Type       string `json:"type" valid:"in(dialog|group|channel),required"`
+	Title      string `json:"title" valid:"required~Title is required,length(1|100)"`
+	DialogUser string `json:"dialog_user,omitempty" valid:"-"`
+}
+
 type CreateChat struct {
-	Avatar *multipart.File `json:"-" valid:"-"`
-	Type   string          `json:"type" valid:"in(dialog|group|channel),required"`
-	Title  string          `json:"title" valid:"required~Title is required,length(1|100)"`
+	Avatar     *multipart.File `json:"-" valid:"-"`
+	Type       string          `json:"type" valid:"in(dialog|group|channel),required"`
+	Title      string          `json:"title" valid:"required~Title is required,length(1|100)"`
+	DialogUser uuid.UUID       `json:"-" valid:"-"`
 }
 
 type UpdateChat struct {
@@ -54,58 +61,51 @@ type DeletedUsersFromChat struct {
 	DeletedUsers []uuid.UUID `json:"deleted_users" valid:"required"`
 }
 
-// Validate проверяет валидность структуры Chat
 func (c *Chat) Validate() error {
 	if _, err := govalidator.ValidateStruct(c); err != nil {
-		return errors.New("invalid chat data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid chat data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры CreateChat
 func (c *CreateChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(c); err != nil {
-		return errors.New("invalid create chat data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid create chat data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры UpdateChat
 func (u *UpdateChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(u); err != nil {
-		return errors.New("invalid update chat data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid update chat data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры ChatInfo
 func (c *ChatInfo) Validate() error {
 	if _, err := govalidator.ValidateStruct(c); err != nil {
-		return errors.New("invalid chat info data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid chat info data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры UserInChat
 func (u *UserInChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(u); err != nil {
-		return errors.New("invalid user in chat data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid user in chat data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры AddedUsersIntoChat
 func (a *AddedUsersIntoChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(a); err != nil {
-		return errors.New("invalid added users data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid added users data: "+err.Error()))
 	}
 	return nil
 }
 
-// Validate проверяет валидность структуры DeletedUsersFromChat
 func (d *DeletedUsersFromChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(d); err != nil {
-		return errors.New("invalid deleted users data: " + err.Error())
+		return errors.Join(ErrValidation, errors.New("invalid deleted users data: "+err.Error()))
 	}
 	return nil
 }
