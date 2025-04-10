@@ -36,7 +36,7 @@ func NewUserController(r *mux.Router, userUsecase usecase.IUserUsecase, sessionU
 // @Description Возвращает профиль текущего пользователя, основываясь на ID из контекста сессии
 // @Tags User
 // @Produce json
-// @Success 200 {object} model.UserProfile
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /profile [get]
@@ -66,7 +66,7 @@ func (c *userController) GetSelfProfile(w http.ResponseWriter, r *http.Request) 
 // @Tags User
 // @Produce json
 // @Param user_id path string true "ID пользователя"
-// @Success 200 {object} model.UserProfile
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 404 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
@@ -105,7 +105,7 @@ func (c *userController) GetProfile(w http.ResponseWriter, r *http.Request) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Param profile body model.UserProfile true "Данные профиля"
+// @Param profile body model.UpdateUserProfile true "Данные профиля"
 // @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
