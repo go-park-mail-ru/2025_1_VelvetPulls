@@ -117,21 +117,32 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		return "", "", ErrInvalidUUID
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to start transaction")
+		return "", "", ErrDatabaseOperation
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
 	var updates []string
 	var args []interface{}
 	argIndex := 1
 	var avatarOldURL, avatarNewURL string
 
-	// Обработка нового аватара
 	if profile.Avatar != nil {
 		logger.Info("Updating avatar")
-		err := r.db.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1", profile.ID).Scan(&avatarOldURL)
+		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&avatarOldURL)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path")
 			return "", "", ErrDatabaseOperation
 		}
 
-		// Формируем путь для нового аватара
 		avatarDir := "./uploads/avatar/"
 		avatarNewURL = avatarDir + uuid.New().String() + ".png"
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
@@ -139,7 +150,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		argIndex++
 	}
 
-	// Обработка остальных полей
 	fields := map[string]*string{
 		"first_name": profile.FirstName,
 		"last_name":  profile.LastName,
@@ -160,23 +170,19 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		}
 	}
 
-	// Если нет обновлений, возвращаем пустые строки
 	if len(updates) == 0 {
 		return "", "", nil
 	}
 
-	// Добавляем время обновления
 	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
 	argIndex++
 
-	// Строим запрос на обновление
 	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
 	args = append(args, profile.ID)
 
-	// Выполняем запрос
-	logger.Info("Executing update query")
-	res, err := r.db.ExecContext(ctx, query, args...)
+	logger.Info("Executing update query inside transaction")
+	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
 			logger.Warn("Attempt to update to existing values")
@@ -186,7 +192,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		return "", "", ErrDatabaseOperation
 	}
 
-	// Проверяем количество измененных строк
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		logger.Error("Failed to get affected rows count")

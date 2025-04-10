@@ -125,6 +125,19 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 		return "", "", ErrInvalidUUID
 	}
 
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to start transaction")
+		return "", "", ErrDatabaseOperation
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
 	var updates []string
 	var args []interface{}
 	argIndex := 1
@@ -134,22 +147,21 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 		logger.Info("Updating chat avatar")
 
 		var oldUrl *string
-		err := r.db.QueryRowContext(ctx,
-			"SELECT avatar_path FROM public.chat WHERE id = $1",
+		err = tx.QueryRowContext(ctx,
+			"SELECT avatar_path FROM public.chat WHERE id = $1 FOR UPDATE",
 			update.ID,
 		).Scan(&oldUrl)
-
-		if oldUrl != nil {
-			avatarOldURL = *oldUrl
-		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path")
 			return "", "", ErrDatabaseOperation
 		}
+		if oldUrl != nil {
+			avatarOldURL = *oldUrl
+		}
 
 		avatarDir := "./uploads/chats/"
-
 		avatarNewURL = avatarDir + uuid.New().String() + ".png"
+
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
 		args = append(args, avatarNewURL)
 		argIndex++
@@ -180,8 +192,8 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	)
 	args = append(args, update.ID)
 
-	logger.Info("Executing chat update query")
-	res, err := r.db.ExecContext(ctx, query, args...)
+	logger.Info("Executing chat update query inside transaction")
+	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
 			logger.Warn("Attempt to update to existing values")
