@@ -55,19 +55,18 @@ func (s *Server) Run(address string) error {
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
-	contactRepo := repository.NewContactRepo(s.dbConn)
-	// chatRepo := repository.NewChatRepo(s.dbConn)
+	chatRepo := repository.NewChatRepo(s.dbConn)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
-	// chatUsecase := usecase.NewChatUsecase(sessionRepo, chatRepo)
+	chatUsecase := usecase.NewChatUsecase(chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
-	// delivery.NewChatController(r, chatUsecase, sessionUsecase)
+	delivery.NewChatController(r, chatUsecase, sessionUsecase)
 	delivery.NewUserController(r, userUsecase, sessionUsecase)
 	delivery.NewContactController(r, contactUsecase, sessionUsecase)
 	delivery.NewUploadsController(r)
