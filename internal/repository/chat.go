@@ -127,16 +127,9 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		logger.Error("Failed to start transaction")
+		logger.Error("Failed to start transaction", zap.Error(err))
 		return "", "", ErrDatabaseOperation
 	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
 
 	var updates []string
 	var args []interface{}
@@ -145,14 +138,17 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 
 	if update.Avatar != nil {
 		logger.Info("Updating chat avatar")
-
 		var oldUrl *string
-		err = tx.QueryRowContext(ctx,
+		err := tx.QueryRowContext(ctx,
 			"SELECT avatar_path FROM public.chat WHERE id = $1 FOR UPDATE",
 			update.ID,
 		).Scan(&oldUrl)
+
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			logger.Error("Failed to get current avatar path")
+			logger.Error("Failed to get current avatar path", zap.Error(err))
+			if rbErr := tx.Rollback(); rbErr != nil {
+				logger.Error("Rollback failed", zap.Error(rbErr))
+			}
 			return "", "", ErrDatabaseOperation
 		}
 		if oldUrl != nil {
@@ -161,7 +157,6 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 
 		avatarDir := "./uploads/chats/"
 		avatarNewURL = avatarDir + uuid.New().String() + ".png"
-
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
 		args = append(args, avatarNewURL)
 		argIndex++
@@ -170,6 +165,9 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	if update.Title != nil {
 		if *update.Title == "" {
 			logger.Warn("Chat title cannot be empty")
+			if rbErr := tx.Rollback(); rbErr != nil {
+				logger.Error("Rollback failed", zap.Error(rbErr))
+			}
 			return "", "", ErrEmptyField
 		}
 		updates = append(updates, fmt.Sprintf("title = $%d", argIndex))
@@ -178,6 +176,9 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	}
 
 	if len(updates) == 0 {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", nil
 	}
 
@@ -196,21 +197,38 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			logger.Warn("Attempt to update to existing values")
+			logger.Warn("Attempt to update to existing values", zap.Error(err))
+			if rbErr := tx.Rollback(); rbErr != nil {
+				logger.Error("Rollback failed", zap.Error(rbErr))
+			}
 			return "", "", ErrRecordAlreadyExists
 		}
-		logger.Error("Database operation failed")
+		logger.Error("Database operation failed", zap.Error(err))
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrDatabaseOperation
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get affected rows count")
+		logger.Error("Failed to get affected rows count", zap.Error(err))
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrDatabaseOperation
 	}
 	if rowsAffected == 0 {
 		logger.Warn("No rows affected, update failed")
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrUpdateFailed
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.Error("Failed to commit transaction", zap.Error(err))
+		return "", "", ErrDatabaseOperation
 	}
 
 	return avatarNewURL, avatarOldURL, nil

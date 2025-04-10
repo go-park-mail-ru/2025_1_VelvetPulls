@@ -119,16 +119,9 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		logger.Error("Failed to start transaction")
+		logger.Error("Failed to start transaction", zap.Error(err))
 		return "", "", ErrDatabaseOperation
 	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
 
 	var updates []string
 	var args []interface{}
@@ -139,7 +132,10 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		logger.Info("Updating avatar")
 		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&avatarOldURL)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			logger.Error("Failed to get current avatar path")
+			logger.Error("Failed to get current avatar path", zap.Error(err))
+			if rbErr := tx.Rollback(); rbErr != nil {
+				logger.Error("Rollback failed", zap.Error(rbErr))
+			}
 			return "", "", ErrDatabaseOperation
 		}
 
@@ -162,6 +158,9 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		if value != nil {
 			if *value == "" {
 				logger.Warn("Field value is empty")
+				if rbErr := tx.Rollback(); rbErr != nil {
+					logger.Error("Rollback failed", zap.Error(rbErr))
+				}
 				return "", "", ErrEmptyField
 			}
 			updates = append(updates, fmt.Sprintf("%s = $%d", field, argIndex))
@@ -171,6 +170,9 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	}
 
 	if len(updates) == 0 {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", nil
 	}
 
@@ -185,21 +187,38 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			logger.Warn("Attempt to update to existing values")
+			logger.Warn("Attempt to update to existing values", zap.Error(err))
+			if rbErr := tx.Rollback(); rbErr != nil {
+				logger.Error("Rollback failed", zap.Error(rbErr))
+			}
 			return "", "", ErrRecordAlreadyExists
 		}
-		logger.Error("Database operation failed")
+		logger.Error("Database operation failed", zap.Error(err))
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrDatabaseOperation
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get affected rows count")
+		logger.Error("Failed to get affected rows count", zap.Error(err))
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrDatabaseOperation
 	}
 	if rowsAffected == 0 {
 		logger.Warn("No rows affected, update failed")
+		if rbErr := tx.Rollback(); rbErr != nil {
+			logger.Error("Rollback failed", zap.Error(rbErr))
+		}
 		return "", "", ErrUpdateFailed
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.Error("Failed to commit transaction", zap.Error(err))
+		return "", "", ErrDatabaseOperation
 	}
 
 	return avatarNewURL, avatarOldURL, nil
