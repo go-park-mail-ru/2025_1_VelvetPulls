@@ -62,11 +62,13 @@ func (s *Server) Run(address string) error {
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
+	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controller
 	delivery.NewAuthController(r, authUsecase)
 	delivery.NewChatController(r, chatUsecase, sessionUsecase)
 	delivery.NewUserController(r, userUsecase, sessionUsecase)
+	delivery.NewContactController(r, contactUsecase, sessionUsecase)
 	delivery.NewUploadsController(r)
 
 	r.Use(middleware.RequestIDMiddleware)
