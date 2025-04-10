@@ -8,6 +8,7 @@ var (
 	ErrHashPassword    = errors.New("failed to hash password")
 	ErrInvalidUsername = errors.New("invalid username")
 	ErrInvalidPassword = errors.New("invalid password")
+	ErrSelfContact     = errors.New("cannot add yourself as a contact")
 
 	ErrPermissionDenied        = errors.New("permission denied")
 	ErrDialogUpdateForbidden   = errors.New("cannot update a dialog")

@@ -56,6 +56,7 @@ func (s *Server) Run(address string) error {
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
+	contactRepo := repository.NewContactRepo(s.dbConn)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)

@@ -21,6 +21,7 @@ var errToCode = map[error]int{
 	usecase.ErrHashPassword:            http.StatusInternalServerError, // 500
 	usecase.ErrInvalidUsername:         http.StatusBadRequest,          // 400
 	usecase.ErrInvalidPassword:         http.StatusBadRequest,          // 400
+	usecase.ErrSelfContact:             http.StatusBadRequest,          // 400
 	usecase.ErrPermissionDenied:        http.StatusForbidden,
 	usecase.ErrDialogUpdateForbidden:   http.StatusBadRequest,
 	usecase.ErrOnlyOwnerCanModify:      http.StatusForbidden,
