@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -12,8 +13,8 @@ import (
 
 type IContactRepo interface {
 	GetContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error)
-	AddContact(ctx context.Context, userID, contactID uuid.UUID) error
-	DeleteContact(ctx context.Context, userID, contactID uuid.UUID) error
+	AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error
+	DeleteContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error
 }
 
 type contactRepo struct {
@@ -74,15 +75,35 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	return contacts, nil
 }
 
-func (r *contactRepo) AddContact(ctx context.Context, userID, contactID uuid.UUID) error {
+func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Adding contact",
+	logger.Info("Adding contact by username",
 		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
+		zap.String("contactUsername", contactUsername),
 	)
 
+	var contactID uuid.UUID
+	err := r.db.QueryRowContext(ctx,
+		"SELECT id FROM public.user WHERE username = $1",
+		contactUsername,
+	).Scan(&contactID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Warn("Contact user not found", zap.String("username", contactUsername))
+			return ErrUserNotFound
+		}
+		logger.Error("Failed to fetch contact ID", zap.Error(err))
+		return ErrDatabaseOperation
+	}
+
+	// Самозапрещаем: нельзя добавить самого себя
+	if userID == contactID {
+		logger.Warn("User attempted to add themselves as a contact")
+		return ErrSelfContact
+	}
+
 	query := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-	logger.Debug("Executing query",
+	logger.Debug("Executing insert",
 		zap.String("query", query),
 		zap.String("userID", userID.String()),
 		zap.String("contactID", contactID.String()),
@@ -90,48 +111,48 @@ func (r *contactRepo) AddContact(ctx context.Context, userID, contactID uuid.UUI
 
 	res, err := r.db.ExecContext(ctx, query, userID, contactID)
 	if err != nil {
-		logger.Error("Failed to add contact",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-			zap.Error(err),
-		)
+		logger.Error("Failed to insert contact", zap.Error(err))
 		return ErrDatabaseOperation
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get affected rows",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-			zap.Error(err),
-		)
+		logger.Error("Failed to check affected rows", zap.Error(err))
 		return ErrDatabaseOperation
 	}
 
 	if rowsAffected == 0 {
-		logger.Warn("Contact already exists",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-		)
+		logger.Info("Contact already exists")
 	} else {
-		logger.Info("Successfully added contact",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-		)
+		logger.Info("Contact successfully added")
 	}
 
 	return nil
 }
 
-func (r *contactRepo) DeleteContact(ctx context.Context, userID, contactID uuid.UUID) error {
+func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Deleting contact",
+	logger.Info("Deleting contact by username",
 		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
+		zap.String("contactUsername", contactUsername),
 	)
 
+	var contactID uuid.UUID
+	err := r.db.QueryRowContext(ctx,
+		"SELECT id FROM public.user WHERE username = $1",
+		contactUsername,
+	).Scan(&contactID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Warn("Contact user not found", zap.String("username", contactUsername))
+			return ErrUserNotFound
+		}
+		logger.Error("Failed to fetch contact ID", zap.Error(err))
+		return ErrDatabaseOperation
+	}
+
 	query := `DELETE FROM public.contact WHERE user_id = $1 AND contact_id = $2`
-	logger.Debug("Executing query",
+	logger.Debug("Executing delete",
 		zap.String("query", query),
 		zap.String("userID", userID.String()),
 		zap.String("contactID", contactID.String()),
@@ -139,33 +160,25 @@ func (r *contactRepo) DeleteContact(ctx context.Context, userID, contactID uuid.
 
 	res, err := r.db.ExecContext(ctx, query, userID, contactID)
 	if err != nil {
-		logger.Error("Failed to delete contact",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-			zap.Error(err),
-		)
+		logger.Error("Failed to delete contact", zap.Error(err))
 		return ErrDatabaseOperation
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get affected rows",
-			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
-			zap.Error(err),
-		)
+		logger.Error("Failed to check affected rows", zap.Error(err))
 		return ErrDatabaseOperation
 	}
 
 	if rowsAffected == 0 {
 		logger.Warn("Contact not found for deletion",
 			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
+			zap.String("contactUsername", contactUsername),
 		)
 	} else {
 		logger.Info("Successfully deleted contact",
 			zap.String("userID", userID.String()),
-			zap.String("contactID", contactID.String()),
+			zap.String("contactUsername", contactUsername),
 		)
 	}
 

@@ -11,8 +11,8 @@ import (
 
 type IContactUsecase interface {
 	GetUserContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error)
-	AddUserContact(ctx context.Context, userID, contactID uuid.UUID) error
-	RemoveUserContact(ctx context.Context, userID, contactID uuid.UUID) error
+	AddUserContact(ctx context.Context, userID uuid.UUID, contactUsername string) error
+	RemoveUserContact(ctx context.Context, userID uuid.UUID, contactUsername string) error
 }
 type ContactUsecase struct {
 	contactRepo repository.IContactRepo
@@ -28,18 +28,14 @@ func (uc *ContactUsecase) GetUserContacts(ctx context.Context, userID uuid.UUID)
 	return uc.contactRepo.GetContacts(ctx, userID)
 }
 
-func (uc *ContactUsecase) AddUserContact(ctx context.Context, userID, contactID uuid.UUID) error {
+func (uc *ContactUsecase) AddUserContact(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Adding contact")
-	if userID == contactID {
-		logger.Error("Error can't add self to contacts")
-		return ErrSelfContact
-	}
-	return uc.contactRepo.AddContact(ctx, userID, contactID)
+	return uc.contactRepo.AddContactByUsername(ctx, userID, contactUsername)
 }
 
-func (uc *ContactUsecase) RemoveUserContact(ctx context.Context, userID, contactID uuid.UUID) error {
+func (uc *ContactUsecase) RemoveUserContact(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Removing contact")
-	return uc.contactRepo.DeleteContact(ctx, userID, contactID)
+	return uc.contactRepo.DeleteContactByUsername(ctx, userID, contactUsername)
 }

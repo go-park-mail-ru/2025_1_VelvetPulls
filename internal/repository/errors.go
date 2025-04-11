@@ -6,6 +6,7 @@ var (
 	ErrSessionNotFound     = errors.New("session not found")
 	ErrInvalidInput        = errors.New("invalid input")
 	ErrUserNotFound        = errors.New("user not found")
+	ErrSelfContact         = errors.New("cannot add yourself as a contact")
 	ErrRecordAlreadyExists = errors.New("record already exists")
 	ErrUpdateFailed        = errors.New("update failed")
 	ErrInvalidUUID         = errors.New("invalid UUID format")

@@ -82,7 +82,7 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.ID); err != nil {
+	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username); err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)
 		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
@@ -121,7 +121,7 @@ func (c *contactController) DeleteContact(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := c.contactUsecase.RemoveUserContact(r.Context(), userID, contact.ID); err != nil {
+	if err := c.contactUsecase.RemoveUserContact(r.Context(), userID, contact.Username); err != nil {
 		logger.Error("Failed to delete contact", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)
 		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
