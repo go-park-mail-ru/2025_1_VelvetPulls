@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS public.user (
     phone TEXT UNIQUE NOT NULL CHECK (phone ~ '^[0-9]{10,15}$'),
     email TEXT UNIQUE CHECK (email IS NULL OR (LENGTH(email) <= 255 AND email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')),
     password TEXT NOT NULL CHECK (LENGTH(password) >= 8 AND LENGTH(password) <= 72),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (updated_at >= created_at AND updated_at <= CURRENT_TIMESTAMP)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 );
 
 CREATE TABLE IF NOT EXISTS public.chat (
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS public.chat (
     avatar_path TEXT CHECK (avatar_path IS NULL OR (LENGTH(avatar_path) > 0 AND LENGTH(avatar_path) <= 255)),
     type chat_type NOT NULL,
     title TEXT NOT NULL CHECK (LENGTH(title) > 0 AND LENGTH(title) <= 100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (updated_at >= created_at AND updated_at <= CURRENT_TIMESTAMP)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS public.user_chat (
