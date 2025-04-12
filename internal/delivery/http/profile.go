@@ -146,6 +146,7 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	}
+
 	defer func() {
 		if avatar != nil {
 			if err := avatar.Close(); err != nil {
