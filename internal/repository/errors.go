@@ -9,6 +9,7 @@ var (
 	ErrSelfContact         = errors.New("cannot add yourself as a contact")
 	ErrRecordAlreadyExists = errors.New("record already exists")
 	ErrUpdateFailed        = errors.New("update failed")
+	ErrChatNotFound        = errors.New("chat not found")
 	ErrInvalidUUID         = errors.New("invalid UUID format")
 	ErrEmptyField          = errors.New("empty required field")
 	ErrDatabaseOperation   = errors.New("database operation failed")

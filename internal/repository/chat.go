@@ -65,7 +65,7 @@ func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*mo
 	row := r.db.QueryRowContext(ctx, query, chatID)
 	if err := row.Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, ErrChatNotFound
 		}
 		return nil, err
 	}

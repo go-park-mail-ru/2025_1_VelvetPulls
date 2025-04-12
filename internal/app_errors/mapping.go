@@ -38,6 +38,7 @@ var errToCode = map[error]int{
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
 	repository.ErrSelfContact:         http.StatusBadRequest,          // 400
 	repository.ErrUserNotFound:        http.StatusNotFound,            // 404
+	repository.ErrChatNotFound:        http.StatusNotFound,            // 404
 	repository.ErrRecordAlreadyExists: http.StatusConflict,            // 409
 	repository.ErrUpdateFailed:        http.StatusInternalServerError, // 500
 	repository.ErrInvalidUUID:         http.StatusBadRequest,          // 400
