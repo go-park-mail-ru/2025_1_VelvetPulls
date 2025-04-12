@@ -37,11 +37,12 @@ type UpdateChat struct {
 }
 
 type ChatInfo struct {
-	ID         uuid.UUID `json:"id" valid:"uuid"`
-	AvatarPath *string   `json:"avatar_path"`
-	Type       string    `json:"type" valid:"in(dialog|group|channel)"`
-	Title      string    `json:"title" valid:"length(1|100)"`
-	CountUsers int       `json:"count_users" valid:"range(0|5000)"`
+	ID         uuid.UUID    `json:"id" valid:"uuid"`
+	AvatarPath *string      `json:"avatar_path"`
+	Type       string       `json:"type" valid:"in(dialog|group|channel)"`
+	Title      string       `json:"title" valid:"length(1|100)"`
+	CountUsers int          `json:"count_users" valid:"range(0|5000)"`
+	Users      []UserInChat `json:"users"`
 }
 
 type UserInChat struct {

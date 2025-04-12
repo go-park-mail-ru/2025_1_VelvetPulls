@@ -102,6 +102,7 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 		Type:       chat.Type,
 		Title:      chat.Title,
 		CountUsers: len(users),
+		Users:      users,
 	}, nil
 }
 
@@ -202,10 +203,6 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *m
 		zap.String("userID", userID.String()),
 		zap.String("chatID", chat.ID.String()))
 
-	if err := chat.Validate(); err != nil {
-		logger.Warn("Chat validation failed", zap.Error(err))
-		return nil, err
-	}
 	chatFromDB, err := uc.chatRepo.GetChatByID(ctx, chat.ID)
 	if err != nil {
 		logger.Error("Failed to get chat from DB", zap.Error(err))
