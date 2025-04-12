@@ -16,8 +16,8 @@ type IChatUsecase interface {
 	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChat) (*model.ChatInfo, error)
 	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error)
 	DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
-	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, userIDs []uuid.UUID, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
-	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, userIDsDelete []uuid.UUID, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
+	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
+	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
 }
 
 type ChatUsecase struct {
@@ -140,9 +140,8 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 						zap.Error(err))
 					continue
 				}
-
 				for _, u := range users {
-					if u.ID == chat.DialogUser {
+					if u.Username == chat.DialogUser {
 						logger.Info("Existing dialog found, returning it")
 						return uc.GetChatInfo(ctx, userID, userChat.ID)
 					}
@@ -160,12 +159,12 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 	logger.Info("Chat created, adding users", zap.String("chatID", chatID.String()))
 	switch chat.Type {
 	case "dialog":
-		if err := uc.chatRepo.AddUserToChat(ctx, userID, "owner", chatID); err != nil {
+		if err := uc.chatRepo.AddUserToChatByID(ctx, userID, "owner", chatID); err != nil {
 			logger.Error("Failed to add owner to dialog", zap.Error(err))
 			return nil, ErrAddOwnerToDialog
 		}
 
-		if err := uc.chatRepo.AddUserToChat(ctx, chat.DialogUser, "owner", chatID); err != nil {
+		if err := uc.chatRepo.AddUserToChatByUsername(ctx, chat.DialogUser, "owner", chatID); err != nil {
 			logger.Error("Failed to add participant to dialog", zap.Error(err))
 			return nil, ErrAddParticipantToDialog
 		}
@@ -185,7 +184,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 			}
 		}
 
-		if err := uc.chatRepo.AddUserToChat(ctx, userID, "owner", chatID); err != nil {
+		if err := uc.chatRepo.AddUserToChatByID(ctx, userID, "owner", chatID); err != nil {
 			logger.Error("Failed to add owner to group", zap.Error(err))
 			return nil, ErrAddOwnerToGroup
 		}
@@ -203,6 +202,10 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *m
 		zap.String("userID", userID.String()),
 		zap.String("chatID", chat.ID.String()))
 
+	if err := chat.Validate(); err != nil {
+		logger.Warn("Chat validation failed", zap.Error(err))
+		return nil, err
+	}
 	chatFromDB, err := uc.chatRepo.GetChatByID(ctx, chat.ID)
 	if err != nil {
 		logger.Error("Failed to get chat from DB", zap.Error(err))
@@ -284,12 +287,12 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID uuid.UUID, chatID 
 	return nil
 }
 
-func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, userIDs []uuid.UUID, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
+func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Adding users to chat",
 		zap.String("userID", userID.String()),
 		zap.String("chatID", chatID.String()),
-		zap.Int("usersCount", len(userIDs)))
+		zap.Int("usersCount", len(usernames)))
 
 	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
@@ -313,17 +316,17 @@ func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, u
 		return nil, ErrOnlyOwnerCanAddUsers
 	}
 
-	var added, notAdded []uuid.UUID
-	for _, uid := range userIDs {
-		if err := uc.chatRepo.AddUserToChat(ctx, uid, "member", chatID); err != nil {
+	var added, notAdded []string
+	for _, username := range usernames {
+		if err := uc.chatRepo.AddUserToChatByUsername(ctx, username, "member", chatID); err != nil {
 			logger.Warn("Failed to add user to chat",
-				zap.String("targetUserID", uid.String()),
+				zap.String("targetUser", username),
 				zap.Error(err))
-			notAdded = append(notAdded, uid)
+			notAdded = append(notAdded, username)
 		} else {
 			logger.Info("User added to chat",
-				zap.String("targetUserID", uid.String()))
-			added = append(added, uid)
+				zap.String("targetUser", username))
+			added = append(added, username)
 		}
 	}
 
@@ -333,12 +336,12 @@ func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, u
 	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
 }
 
-func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, userIDsDelete []uuid.UUID, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
+func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Deleting users from chat",
 		zap.String("userID", userID.String()),
 		zap.String("chatID", chatID.String()),
-		zap.Int("usersCount", len(userIDsDelete)))
+		zap.Int("usersCount", len(usernamesDelete)))
 
 	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
@@ -362,15 +365,15 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 		return nil, ErrOnlyOwnerCanDeleteUsers
 	}
 
-	var deleted []uuid.UUID
-	for _, uid := range userIDsDelete {
-		if err := uc.chatRepo.RemoveUserFormChat(ctx, uid, chatID); err == nil {
+	var deleted []string
+	for _, username := range usernamesDelete {
+		if err := uc.chatRepo.RemoveUserFromChatByUsername(ctx, username, chatID); err == nil {
 			logger.Info("User removed from chat",
-				zap.String("targetUserID", uid.String()))
-			deleted = append(deleted, uid)
+				zap.String("targetUserID", username))
+			deleted = append(deleted, username)
 		} else {
 			logger.Warn("Failed to remove user from chat",
-				zap.String("targetUserID", uid.String()),
+				zap.String("targetUserID", username),
 				zap.Error(err))
 		}
 	}

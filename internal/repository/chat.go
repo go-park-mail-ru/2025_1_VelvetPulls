@@ -20,10 +20,11 @@ type IChatRepo interface {
 	CreateChat(ctx context.Context, create *model.CreateChat) (uuid.UUID, string, error)
 	UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error)
 	DeleteChat(ctx context.Context, chatID uuid.UUID) error
-	AddUserToChat(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
+	AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
+	AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
 	GetUsersFromChat(ctx context.Context, chatId uuid.UUID) ([]model.UserInChat, error)
-	RemoveUserFormChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
+	RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error
 }
 
 type chatRepository struct {
@@ -240,10 +241,27 @@ func (r *chatRepository) DeleteChat(ctx context.Context, chatID uuid.UUID) error
 	return err
 }
 
-func (r *chatRepository) AddUserToChat(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
+func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
 	query := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`
 	_, err := r.db.ExecContext(ctx, query, userID, chatID, userRole)
 	return err
+}
+
+func (r *chatRepository) AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error {
+	var userID uuid.UUID
+	query := `SELECT id FROM public.user WHERE username = $1`
+	err := r.db.QueryRowContext(ctx, query, username).Scan(&userID)
+	if err != nil {
+		return err
+	}
+
+	insertQuery := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`
+	_, err = r.db.ExecContext(ctx, insertQuery, userID, chatID, userRole)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error) {
@@ -281,12 +299,23 @@ func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID)
 	return users, nil
 }
 
-func (r *chatRepository) RemoveUserFormChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
-	query := `DELETE FROM user_chat WHERE user_id = $1 AND chat_id = $2`
-	_, err := r.db.ExecContext(ctx, query, userID, chatID)
-	return err
-}
+func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error {
+	var userID uuid.UUID
+	queryUser := `SELECT id FROM public.user WHERE username = $1`
 
+	err := r.db.QueryRowContext(ctx, queryUser, username).Scan(&userID)
+	if err != nil {
+		return err
+	}
+
+	query := `DELETE FROM user_chat WHERE user_id = $1 AND chat_id = $2`
+	_, err = r.db.ExecContext(ctx, query, userID, chatID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func (r *chatRepository) GetProfileAvatarAndName(ctx context.Context, userID uuid.UUID) (string, string, error) {
 	query := `SELECT avatar_path, username FROM public.user WHERE id = $1`
 	row := r.db.QueryRowContext(ctx, query, userID)
