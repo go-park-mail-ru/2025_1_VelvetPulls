@@ -12,7 +12,7 @@ type uploadsController struct {
 func NewUploadsController(r *mux.Router) {
 	controller := &uploadsController{}
 
-	r.HandleFunc("/uploads/{folder}/{name}", controller.GetImage).Methods(http.MethodGet)
+	r.HandleFunc("/{folder}/{name}", controller.GetImage).Methods(http.MethodGet)
 }
 
 // GetImage отправляет клиенту файл из папки загрузок.
