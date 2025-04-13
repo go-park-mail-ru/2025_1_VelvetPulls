@@ -36,3 +36,30 @@ func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.H
 		})
 	}
 }
+
+func AuthMiddlewareWS(sessionUC usecase.ISessionUsecase) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			token, err := utils.GetSessionCookie(r)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			userIDStr, err := sessionUC.CheckLogin(r.Context(), token)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				return
+			}
+
+			userID, err := uuid.Parse(userIDStr)
+			if err != nil {
+				http.Error(w, "Invalid user ID", http.StatusBadRequest)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), utils.USER_ID_KEY, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+	}
+}

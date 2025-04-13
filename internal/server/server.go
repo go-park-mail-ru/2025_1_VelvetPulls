@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
@@ -47,36 +48,52 @@ func (s *Server) Run(address string) error {
 	}
 	defer logFile.Close()
 
-	r := mux.NewRouter().PathPrefix("/api").Subrouter()
+	// ===== Root Router =====
+	mainRouter := mux.NewRouter()
 
-	// документация Swagger
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
+	// ===== API Subrouter =====
+	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
+	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
+	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
-	// Controller
-	delivery.NewAuthController(r, authUsecase)
-	delivery.NewChatController(r, chatUsecase, sessionUsecase)
-	delivery.NewUserController(r, userUsecase, sessionUsecase)
-	delivery.NewContactController(r, contactUsecase, sessionUsecase)
-	delivery.NewUploadsController(r)
+	// Controllers
+	httpDelivery.NewAuthController(apiRouter, authUsecase)
+	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionUsecase)
+	httpDelivery.NewUserController(apiRouter, userUsecase, sessionUsecase)
+	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionUsecase)
+	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionUsecase)
 
-	r.Use(middleware.RequestIDMiddleware)
-	r.Use(middleware.AccessLogMiddleware)
+	// ===== WebSocket =====
+	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase)
 
+	// ===== Uploads =====
+	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
+	httpDelivery.NewUploadsController(uploadsRouter)
+
+	// Swagger
+	apiRouter.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
+
+	// Middleware only for API
+	apiRouter.Use(middleware.RequestIDMiddleware)
+	apiRouter.Use(middleware.AccessLogMiddleware)
+
+	// Server with CORS applied globally
 	httpServer := &http.Server{
-		Handler:      middleware.CorsMiddleware(r),
+		Handler:      middleware.CorsMiddleware(mainRouter),
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,

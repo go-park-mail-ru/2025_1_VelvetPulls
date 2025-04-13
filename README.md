@@ -3,15 +3,20 @@ Backend-репозиторий проекта "Telegram" команды "Бар�
 
 ## Состав команды
 
-[Руслан Новиков](https://github.com/ruslann19) - *Fullstack-разработчик*
+[Руслан Новиков](https://github.com/ruslann19) - *Frontend-разработчик*
+
+[Воронов Денис](https://github.com/VDEN5) - *Frontend-разработчик*
 
 [Илья Малютин](https://github.com/Xeonoff) - *Fullstack-разработчик*
 
-[Алексей Лупенков](https://github.com/onionfriend2004) - *Fullstack-разработчик*
+[Алексей Лупенков](https://github.com/onionfriend2004) - *Backend-разработчик*
+
 
 ## Менторы
 
 [Полина Жарова](https://github.com/polinazharova) - *Frontend*
+
+[Алексей Зотов](https://github.com/let-robots-reign) - *Frontend*
 
 [Владимир Борозенец](https://github.com/He11Coder) - *Go*
 

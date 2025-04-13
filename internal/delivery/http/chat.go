@@ -40,7 +40,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionU
 // @Description Возвращает список всех чатов, в которых участвует текущий пользователь
 // @Tags Chat
 // @Produce json
-// @Success 200 {array} model.Chat
+// @Success 200 {array} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /chats [get]
@@ -72,7 +72,7 @@ func (c *chatController) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param chat_data formData string true "Данные чата в формате JSON"
 // @Param avatar formData file false "Аватар чата"
-// @Success 201 {object} model.ChatInfo
+// @Success 201 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /chat [post]
@@ -150,7 +150,7 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 // @Tags Chat
 // @Produce json
 // @Param chat_id path string true "ID чата"
-// @Success 200 {object} model.ChatInfo
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 403 {object} utils.JSONResponse
 // @Failure 404 {object} utils.JSONResponse
@@ -195,7 +195,7 @@ func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 // @Param chat_id path string true "ID чата"
 // @Param chat_data formData string true "Данные чата в формате JSON"
 // @Param avatar formData file false "Новый аватар чата"
-// @Success 200 {object} model.ChatInfo
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 403 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
@@ -318,7 +318,7 @@ func (c *chatController) DeleteChat(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param chat_id path string true "ID чата"
 // @Param user_ids body []uuid.UUID true "Список ID пользователей для добавления"
-// @Success 200 {object} model.AddedUsersIntoChat
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 403 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
@@ -372,7 +372,7 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 // @Produce json
 // @Param chat_id path string true "ID чата"
 // @Param user_ids body []uuid.UUID true "Список ID пользователей для удаления"
-// @Success 200 {object} model.DeletedUsersFromChat
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 403 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
