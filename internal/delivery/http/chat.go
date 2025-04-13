@@ -102,19 +102,6 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var dialogUserUUID uuid.UUID
-	if requestData.Type == "dialog" {
-		var err error
-		dialogUserUUID, err = uuid.Parse(requestData.DialogUser)
-		if err != nil {
-			logger.Error("Invalid dialog user ID format", zap.String("dialog_user", requestData.DialogUser), zap.Error(err))
-			if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid dialog user ID format", false); sendErr != nil {
-				logger.Error("Failed to send error response", zap.Error(sendErr))
-			}
-			return
-		}
-	}
-
 	avatar, _, err := r.FormFile("avatar")
 	if err != nil && err != http.ErrMissingFile {
 		logger.Error("Invalid avatar file", zap.Error(err))
@@ -134,7 +121,7 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 	chatData := model.CreateChat{
 		Type:       requestData.Type,
 		Title:      requestData.Title,
-		DialogUser: dialogUserUUID,
+		DialogUser: requestData.DialogUser,
 		Avatar:     nil,
 	}
 
@@ -348,8 +335,8 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var userIDs []uuid.UUID
-	if err := json.NewDecoder(r.Body).Decode(&userIDs); err != nil {
+	var usernames []string
+	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
@@ -360,9 +347,9 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("Adding users to chat",
 		zap.String("chatID", chatID.String()),
-		zap.Any("userIDs", userIDs))
+		zap.Any("usernames", usernames))
 
-	result, err := c.chatUsecase.AddUsersIntoChat(r.Context(), userID, userIDs, chatID)
+	result, err := c.chatUsecase.AddUsersIntoChat(r.Context(), userID, usernames, chatID)
 	if err != nil {
 		logger.Error("Failed to add users to chat", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)
@@ -402,8 +389,8 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var userIDs []uuid.UUID
-	if err := json.NewDecoder(r.Body).Decode(&userIDs); err != nil {
+	var usernames []string
+	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
 			logger.Error("Failed to send error response", zap.Error(sendErr))
@@ -414,9 +401,9 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("Removing users from chat",
 		zap.String("chatID", chatID.String()),
-		zap.Any("userIDs", userIDs))
+		zap.Any("usernames", usernames))
 
-	result, err := c.chatUsecase.DeleteUserFromChat(r.Context(), userID, userIDs, chatID)
+	result, err := c.chatUsecase.DeleteUserFromChat(r.Context(), userID, usernames, chatID)
 	if err != nil {
 		logger.Error("Failed to remove users from chat", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)

@@ -10,7 +10,6 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -26,7 +25,7 @@ func NewUserController(r *mux.Router, userUsecase usecase.IUserUsecase, sessionU
 		sessionUsecase: sessionUsecase,
 	}
 
-	r.Handle("/profile/{user_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetProfile))).Methods(http.MethodGet)
+	r.Handle("/profile/{username}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetProfile))).Methods(http.MethodGet)
 	r.Handle("/profile", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetSelfProfile))).Methods(http.MethodGet)
 	r.Handle("/profile", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.UpdateSelfProfile))).Methods(http.MethodPut)
 }
@@ -45,7 +44,7 @@ func (c *userController) GetSelfProfile(w http.ResponseWriter, r *http.Request) 
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("Fetching self profile")
 
-	profile, err := c.userUsecase.GetUserProfile(r.Context(), userID)
+	profile, err := c.userUsecase.GetUserProfileByID(r.Context(), userID)
 	if err != nil {
 		logger.Error("Failed to get self profile", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)
@@ -70,21 +69,14 @@ func (c *userController) GetSelfProfile(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 404 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
-// @Router /profile/{user_id} [get]
+// @Router /profile/{username} [get]
 func (c *userController) GetProfile(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	vars := mux.Vars(r)
-	userID, err := uuid.Parse(vars["user_id"])
-	if err != nil {
-		logger.Error("Invalid user ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
-		return
-	}
+	username := vars["username"]
 
-	logger.Info("Fetching user profile", zap.String("userID", userID.String()))
-	profile, err := c.userUsecase.GetUserProfile(r.Context(), userID)
+	logger.Info("Fetching user profile", zap.String("username", username))
+	profile, err := c.userUsecase.GetUserProfileByUsername(r.Context(), username)
 	if err != nil {
 		logger.Error("Failed to get user profile", zap.Error(err))
 		code, err := apperrors.GetErrAndCodeToSend(err)

@@ -130,13 +130,18 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 
 	if profile.Avatar != nil {
 		logger.Info("Updating avatar")
-		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&avatarOldURL)
+		var oldUrl *string
+		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&oldUrl)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			logger.Error("Failed to get current avatar path", zap.Error(err))
 			if rbErr := tx.Rollback(); rbErr != nil {
 				logger.Error("Rollback failed", zap.Error(rbErr))
 			}
 			return "", "", ErrDatabaseOperation
+		}
+
+		if oldUrl != nil {
+			avatarOldURL = *oldUrl
 		}
 
 		avatarDir := "./uploads/avatar/"

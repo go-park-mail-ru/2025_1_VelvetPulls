@@ -21,7 +21,6 @@ var errToCode = map[error]int{
 	usecase.ErrHashPassword:            http.StatusInternalServerError, // 500
 	usecase.ErrInvalidUsername:         http.StatusBadRequest,          // 400
 	usecase.ErrInvalidPassword:         http.StatusBadRequest,          // 400
-	usecase.ErrSelfContact:             http.StatusBadRequest,          // 400
 	usecase.ErrPermissionDenied:        http.StatusForbidden,
 	usecase.ErrDialogUpdateForbidden:   http.StatusBadRequest,
 	usecase.ErrOnlyOwnerCanModify:      http.StatusForbidden,
@@ -37,7 +36,9 @@ var errToCode = map[error]int{
 
 	// Repository errors
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
+	repository.ErrSelfContact:         http.StatusBadRequest,          // 400
 	repository.ErrUserNotFound:        http.StatusNotFound,            // 404
+	repository.ErrChatNotFound:        http.StatusNotFound,            // 404
 	repository.ErrRecordAlreadyExists: http.StatusConflict,            // 409
 	repository.ErrUpdateFailed:        http.StatusInternalServerError, // 500
 	repository.ErrInvalidUUID:         http.StatusBadRequest,          // 400

@@ -10,7 +10,8 @@ import (
 )
 
 type IUserUsecase interface {
-	GetUserProfile(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error)
+	GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error)
+	GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error
 }
 
@@ -24,11 +25,33 @@ func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
 	}
 }
 
-func (uc *UserUsecase) GetUserProfile(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
+func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Fetching user profile")
 
 	user, err := uc.userRepo.GetUserByID(ctx, id)
+	if err != nil {
+		logger.Error("Error fetching user profile")
+		return nil, err
+	}
+
+	profile := &model.GetUserProfile{
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Username:   user.Username,
+		Phone:      user.Phone,
+		Email:      user.Email,
+		AvatarPath: user.AvatarPath,
+	}
+
+	return profile, nil
+}
+
+func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Fetching user profile")
+
+	user, err := uc.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
 		logger.Error("Error fetching user profile")
 		return nil, err

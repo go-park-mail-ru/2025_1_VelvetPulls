@@ -11,5 +11,5 @@ type Contact struct {
 }
 
 type RequestContact struct {
-	ID uuid.UUID `json:"id"`
+	Username string `json:"username"`
 }
