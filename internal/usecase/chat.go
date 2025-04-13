@@ -89,9 +89,12 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	}
 
 	if chat.Type == "dialog" {
-		if len(users) > 0 {
-			chat.Title = users[0].Username
-			chat.AvatarPath = users[0].AvatarPath
+		for _, user := range users {
+			if user.ID != userID {
+				chat.Title = user.Username
+				chat.AvatarPath = user.AvatarPath
+				break
+			}
 		}
 	}
 
