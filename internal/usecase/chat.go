@@ -48,9 +48,12 @@ func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.
 				return nil, err
 			}
 
-			if len(users) > 0 {
-				chats[i].Title = users[0].Username
-				chats[i].AvatarPath = users[0].AvatarPath
+			for _, user := range users {
+				if user.ID != userID {
+					chats[i].Title = user.Username
+					chats[i].AvatarPath = user.AvatarPath
+					break
+				}
 			}
 		}
 	}
@@ -197,8 +200,6 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 	logger.Info("Chat successfully created")
 	return uc.GetChatInfo(ctx, userID, chatID)
 }
-
-// ... (остальные методы аналогично с добавлением логгера)
 
 func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
