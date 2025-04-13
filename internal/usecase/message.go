@@ -19,10 +19,11 @@ type IMessageUsecase interface {
 type MessageUsecase struct {
 	messageRepo repository.IMessageRepo
 	chatRepo    repository.IChatRepo
+	wsUsecase   IWebsocketUsecase
 }
 
-func NewMessageUsecase(messageRepo repository.IMessageRepo, chatRepo repository.IChatRepo) IMessageUsecase {
-	return &MessageUsecase{messageRepo: messageRepo, chatRepo: chatRepo}
+func NewMessageUsecase(messageRepo repository.IMessageRepo, chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IMessageUsecase {
+	return &MessageUsecase{messageRepo: messageRepo, chatRepo: chatRepo, wsUsecase: wsUsecase}
 }
 
 func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
@@ -71,5 +72,25 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, messageInput *model.M
 		logger.Error("Failed to create message", zap.Error(err))
 		return fmt.Errorf("SendMessage: failed to create message: %w", err)
 	}
+
+	uc.sendEvent(ctx, NewMessage, message)
 	return nil
+}
+
+func (uc *MessageUsecase) sendEvent(ctx context.Context, action string, message *model.Message) {
+	logger := utils.GetLoggerFromCtx(ctx)
+
+	// Формируем событие
+	newEvent := MessageEvent{
+		Action:  action,
+		Message: *message,
+	}
+
+	// Отправляем в WebSocket слой
+	if uc.wsUsecase != nil {
+		uc.wsUsecase.SendMessage(newEvent)
+		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", message.ChatID.String()))
+	} else {
+		logger.Warn("wsUsecase is nil, event not sent")
+	}
 }

@@ -3,8 +3,11 @@ package http
 import (
 	"log"
 	"net/http"
+	"time"
 
-	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -17,38 +20,53 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type websocketController struct {
+type WebsocketController struct {
+	sessionUsecase   usecase.ISessionUsecase
 	websocketUsecase usecase.IWebsocketUsecase
 }
 
-func NewWebsocketController(r *mux.Router, websocketUsecase usecase.IWebsocketUsecase) {
-	controller := &websocketController{
+func NewWebsocketController(r *mux.Router, sessionUsecase usecase.ISessionUsecase, websocketUsecase usecase.IWebsocketUsecase) {
+	controller := &WebsocketController{
+		sessionUsecase:   sessionUsecase,
 		websocketUsecase: websocketUsecase,
 	}
-	r.Handle("/ws", http.HandlerFunc(controller.WebsocketConnection))
+
+	go websocketUsecase.ConsumeMessages()
+
+	r.HandleFunc("/ws", middleware.AuthMiddlewareWS(sessionUsecase)(controller.WebsocketConnection)).Methods("GET")
 }
 
-func (c *websocketController) WebsocketConnection(w http.ResponseWriter, r *http.Request) {
+func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("failed to upgrade to websocket: %v", err)
-		http.Error(w, "could not open websocket connection", http.StatusBadRequest)
+		log.Println("Ошибка апгрейда:", err)
 		return
 	}
+
 	defer conn.Close()
 
+	userID := utils.GetUserIDFromCtx(r.Context())
+	eventChan := make(chan usecase.AnyEvent, 100)
+
+	err = c.websocketUsecase.InitBrokersForUser(userID, eventChan)
+	if err != nil {
+		log.Println("Ошибка инициализации брокеров:", err)
+		return
+	}
+
+	// пока соеденено
+	duration := 500 * time.Millisecond
+
 	for {
-		messageType, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("error reading message: %v", err)
-			break
-		}
+		select {
+		case message := <-eventChan:
+			log.Println("Message delivery websocket: получены новые сообщения")
 
-		log.Printf("received message: %s", string(message))
+			conn.WriteJSON(message.Event)
 
-		if err := conn.WriteMessage(messageType, message); err != nil {
-			log.Printf("error writing message: %v", err)
-			break
+		default:
+			time.Sleep(duration)
 		}
 	}
+
 }

@@ -51,14 +51,6 @@ func (s *Server) Run(address string) error {
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
-	// ===== WebSocket =====
-	websocketUsecase := usecase.NewWebsocketUsecase()
-	websocketDelivery.NewWebsocketController(mainRouter, websocketUsecase)
-
-	// ===== Uploads =====
-	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
-	httpDelivery.NewUploadsController(uploadsRouter)
-
 	// ===== API Subrouter =====
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
@@ -71,7 +63,8 @@ func (s *Server) Run(address string) error {
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
-	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo)
+	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
@@ -84,6 +77,13 @@ func (s *Server) Run(address string) error {
 	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionUsecase)
 	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionUsecase)
 
+	// ===== WebSocket =====
+	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase)
+
+	// ===== Uploads =====
+	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
+	httpDelivery.NewUploadsController(uploadsRouter)
+
 	// Swagger
 	apiRouter.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
@@ -93,7 +93,7 @@ func (s *Server) Run(address string) error {
 
 	// Server with CORS applied globally
 	httpServer := &http.Server{
-		Handler:      middleware.CorsMiddleware(mainRouter), // Cors is safe for both HTTP and WebSocket
+		Handler:      middleware.CorsMiddleware(mainRouter),
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
