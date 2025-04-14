@@ -67,13 +67,13 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, messageInput *model.M
 		UserID: userID,
 		Body:   messageInput.Message,
 	}
-
-	if err := uc.messageRepo.CreateMessage(ctx, message); err != nil {
+	messageOut, err := uc.messageRepo.CreateMessage(ctx, message)
+	if err != nil {
 		logger.Error("Failed to create message", zap.Error(err))
 		return fmt.Errorf("SendMessage: failed to create message: %w", err)
 	}
 
-	uc.sendEvent(ctx, NewMessage, message)
+	uc.sendEvent(ctx, NewMessage, messageOut)
 	return nil
 }
 

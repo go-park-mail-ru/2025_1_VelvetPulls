@@ -11,7 +11,7 @@ import (
 
 type IMessageRepo interface {
 	GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error)
-	CreateMessage(ctx context.Context, message *model.Message) error
+	CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error)
 }
 
 type messageRepo struct {
@@ -83,20 +83,74 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 	return messages, nil
 }
 
-func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message) error {
+func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Message, error) {
 	query := `
-	INSERT INTO message (user_id, chat_id, body)
-	VALUES ($1, $2, $3)
+	SELECT 
+		m.id,
+		m.parent_message_id,
+		m.chat_id,
+		m.user_id,
+		m.body,
+		m.sent_at,
+		m.is_redacted,
+		u.username,
+		u.avatar_path
+	FROM message m
+	JOIN public.user u ON m.user_id = u.id
+	WHERE m.id = $1
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	var msg model.Message
+	var parentMsgID sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&msg.ID,
+		&parentMsgID,
+		&msg.ChatID,
+		&msg.UserID,
+		&msg.Body,
+		&msg.SentAt,
+		&msg.IsRedacted,
+		&msg.Username,
+		&msg.AvatarPath,
+	)
+	fmt.Println(err)
+	if err != nil {
+		return nil, fmt.Errorf("getMessage: failed to get message: %w", err)
+	}
+
+	if parentMsgID.Valid {
+		id, err := uuid.Parse(parentMsgID.String)
+		if err == nil {
+			msg.ParentMessageID = &id
+		}
+	}
+
+	return &msg, nil
+}
+
+func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error) {
+	query := `
+	INSERT INTO message (user_id, chat_id, body)
+	VALUES ($1, $2, $3) 
+	RETURNING id
+	`
+
+	err := r.db.QueryRowContext(ctx, query,
 		message.UserID,
 		message.ChatID,
 		message.Body,
+	).Scan(
+		&message.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("CreateMessage: insert failed: %w", err)
+		return nil, fmt.Errorf("CreateMessage: insert failed: %w", err)
 	}
-
-	return nil
+	fmt.Println(message.ID)
+	messageOut, err := r.getMessage(ctx, message.ID)
+	fmt.Println(err)
+	if err != nil {
+		return nil, err
+	}
+	return messageOut, nil
 }
