@@ -28,4 +28,7 @@ clean:
 # Тесты с покрытием
 .PHONY: test
 test:
-	@$(GO_CMD) test ./... -coverprofile=$(COVERAGE_FILE)
+	@$(GO_CMD) test ./tests/... \
+		-coverpkg=./internal/usecase,./internal/repository,./internal/delivery/http,./internal/delivery/websocket \
+		-coverprofile=$(COVERAGE_FILE)
+	@$(GO_CMD) tool cover -func=$(COVERAGE_FILE)

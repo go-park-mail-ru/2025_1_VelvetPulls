@@ -11,7 +11,7 @@ services:
     env_file:
       - ../.env
     ports:
-      - "${DATABASE_PORT}:5432" 
+      - "${DATABASE_PORT}:${DATABASE_PORT}" 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${DATABASE_USER} -d $${DATABASE_NAME}"]
       interval: 10s
@@ -21,7 +21,7 @@ services:
   redis:
     image: redis
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT}:${DATABASE_PORT}"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     env_file:
@@ -38,7 +38,7 @@ services:
       context: ../
       dockerfile: ./deploy/Dockerfile
     ports:
-      - "8080:8080"
+      - "${APP_PORT}:${APP_PORT}"
     env_file:
       - ../.env
     depends_on:
