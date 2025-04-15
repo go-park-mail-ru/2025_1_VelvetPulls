@@ -14,13 +14,13 @@ func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.H
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := utils.GetSessionCookie(r)
 			if err != nil {
-				utils.SendJSONResponse(w, http.StatusBadRequest, "Unauthorized", false)
+				utils.SendJSONResponse(w, http.StatusUnauthorized, "Unauthorized", false)
 				return
 			}
 
 			userIDString, err := sessionUC.CheckLogin(r.Context(), token)
 			if err != nil {
-				utils.SendJSONResponse(w, http.StatusUnauthorized, "Invalid session", false)
+				utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid session", false)
 				return
 			}
 

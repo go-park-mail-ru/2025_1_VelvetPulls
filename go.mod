@@ -3,7 +3,9 @@ module github.com/go-park-mail-ru/2025_1_VelvetPulls
 go 1.24.0
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
+	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
