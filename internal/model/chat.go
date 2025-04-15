@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -109,4 +110,59 @@ func (d *DeletedUsersFromChat) Validate() error {
 		return errors.Join(ErrValidation, errors.New("invalid deleted users data: "+err.Error()))
 	}
 	return nil
+}
+
+func (c *Chat) Sanitize() {
+	c.Title = utils.SanitizeString(c.Title)
+}
+
+func (c *CreateChatRequest) Sanitize() {
+	c.Title = utils.SanitizeString(c.Title)
+	c.DialogUser = utils.SanitizeString(c.DialogUser)
+}
+
+func (c *CreateChat) Sanitize() {
+	c.Title = utils.SanitizeString(c.Title)
+	c.DialogUser = utils.SanitizeString(c.DialogUser)
+}
+
+func (u *UpdateChat) Sanitize() {
+	if u.Title != nil {
+		s := utils.SanitizeString(*u.Title)
+		u.Title = &s
+	}
+}
+
+func (c *ChatInfo) Sanitize() {
+	c.Title = utils.SanitizeString(c.Title)
+	for i := range c.Users {
+		c.Users[i].Sanitize()
+	}
+}
+
+func (u *UserInChat) Sanitize() {
+	u.Username = utils.SanitizeString(u.Username)
+	if u.Name != nil {
+		s := utils.SanitizeString(*u.Name)
+		u.Name = &s
+	}
+	if u.Role != nil {
+		s := utils.SanitizeString(*u.Role)
+		u.Role = &s
+	}
+}
+
+func (a *AddedUsersIntoChat) Sanitize() {
+	for i := range a.AddedUsers {
+		a.AddedUsers[i] = utils.SanitizeString(a.AddedUsers[i])
+	}
+	for i := range a.NotAddedUsers {
+		a.NotAddedUsers[i] = utils.SanitizeString(a.NotAddedUsers[i])
+	}
+}
+
+func (d *DeletedUsersFromChat) Sanitize() {
+	for i := range d.DeletedUsers {
+		d.DeletedUsers[i] = utils.SanitizeString(d.DeletedUsers[i])
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -69,4 +70,22 @@ func (sm *SendMessage) Validate() error {
 	}
 
 	return nil
+}
+
+func (m *Message) Sanitize() {
+	m.Body = utils.SanitizeString(m.Body)
+	m.Username = utils.SanitizeString(m.Username)
+}
+
+func (mi *MessageInput) Sanitize() {
+	mi.Message = utils.SanitizeString(mi.Message)
+}
+
+func (sm *SendMessage) Sanitize() {
+	if sm.MessageType == NewMessage {
+		if msg, ok := sm.Payload.(Message); ok {
+			msg.Sanitize()
+			sm.Payload = msg
+		}
+	}
 }

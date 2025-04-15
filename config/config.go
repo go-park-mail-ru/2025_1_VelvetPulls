@@ -14,6 +14,14 @@ var (
 	CookieDuration = 3 * time.Hour
 )
 
+var CSRF = struct {
+	CsrfAuthKey  string
+	IsProduction bool
+}{
+	CsrfAuthKey:  "32-byte-long-auth-key-here",
+	IsProduction: false,
+}
+
 var Cors = struct {
 	AllowedOrigin  string
 	AllowedMethods string

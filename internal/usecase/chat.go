@@ -160,7 +160,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 	chatID, avatarNewURL, err := uc.chatRepo.CreateChat(ctx, chat)
 	if err != nil {
 		logger.Error("Failed to create chat in repository", zap.Error(err))
-		return nil, ErrChatCreationFailed
+		return nil, err
 	}
 
 	logger.Info("Chat created, adding users", zap.String("chatID", chatID.String()))

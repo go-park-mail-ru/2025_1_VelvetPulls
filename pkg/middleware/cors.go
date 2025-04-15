@@ -14,9 +14,14 @@ func CorsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", config.Cors.AllowedHeaders)
 
 		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Headers",
+				config.Cors.AllowedHeaders+", X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "X-CSRF-Token")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+
+		w.Header().Set("Access-Control-Expose-Headers", "X-CSRF-Token")
 
 		next.ServeHTTP(w, r)
 	})

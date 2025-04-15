@@ -62,6 +62,10 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 		case message := <-eventChan:
 			log.Println("Message delivery websocket: получены новые сообщения")
 
+			if s, ok := message.Event.(interface{ Sanitize() }); ok {
+				s.Sanitize()
+			}
+
 			conn.WriteJSON(message.Event)
 
 		default:

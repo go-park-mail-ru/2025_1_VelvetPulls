@@ -14,4 +14,5 @@ var (
 	ErrEmptyField          = errors.New("empty required field")
 	ErrDatabaseOperation   = errors.New("database operation failed")
 	ErrDatabaseScan        = errors.New("failed to scan database row")
+	ErrEmptyMessage        = errors.New("message body is empty")
 )
