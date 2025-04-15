@@ -78,6 +78,12 @@ func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateCha
 	var avatarPath string
 	var args []interface{}
 
+	cleanTitle := utils.SanitizeString(create.Title)
+	if cleanTitle == "" {
+		logger.Warn("Chat title is empty after sanitization")
+		return uuid.UUID{}, "", ErrEmptyField
+	}
+
 	if create.Avatar != nil {
 		logger.Info("Processing chat avatar")
 
@@ -89,7 +95,7 @@ func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateCha
 		args = append(args, nil)
 	}
 
-	args = append(args, create.Type, create.Title)
+	args = append(args, create.Type, cleanTitle)
 
 	query := `
         INSERT INTO public.chat 
@@ -164,7 +170,8 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	}
 
 	if update.Title != nil {
-		if *update.Title == "" {
+		cleanTitle := utils.SanitizeString(*update.Title)
+		if cleanTitle == "" {
 			logger.Warn("Chat title cannot be empty")
 			if rbErr := tx.Rollback(); rbErr != nil {
 				logger.Error("Rollback failed", zap.Error(rbErr))
@@ -172,7 +179,7 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 			return "", "", ErrEmptyField
 		}
 		updates = append(updates, fmt.Sprintf("title = $%d", argIndex))
-		args = append(args, *update.Title)
+		args = append(args, cleanTitle)
 		argIndex++
 	}
 
@@ -248,15 +255,22 @@ func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID
 }
 
 func (r *chatRepository) AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error {
+	cleanUsername := utils.SanitizeString(username)
+	cleanUserRole := utils.SanitizeString(userRole)
+
+	if cleanUsername == "" {
+		return ErrEmptyField
+	}
+
 	var userID uuid.UUID
 	query := `SELECT id FROM public.user WHERE username = $1`
-	err := r.db.QueryRowContext(ctx, query, username).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, query, cleanUsername).Scan(&userID)
 	if err != nil {
 		return err
 	}
 
 	insertQuery := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`
-	_, err = r.db.ExecContext(ctx, insertQuery, userID, chatID, userRole)
+	_, err = r.db.ExecContext(ctx, insertQuery, userID, chatID, cleanUserRole)
 	if err != nil {
 		return err
 	}
@@ -300,10 +314,15 @@ func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID)
 }
 
 func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error {
+	cleanUsername := utils.SanitizeString(username)
+	if cleanUsername == "" {
+		return ErrEmptyField
+	}
+
 	var userID uuid.UUID
 	queryUser := `SELECT id FROM public.user WHERE username = $1`
 
-	err := r.db.QueryRowContext(ctx, queryUser, username).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, queryUser, cleanUsername).Scan(&userID)
 	if err != nil {
 		return err
 	}

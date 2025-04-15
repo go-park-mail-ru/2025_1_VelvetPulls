@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -65,6 +66,8 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 		); err != nil {
 			return nil, fmt.Errorf("GetMessages: scan failed: %w", err)
 		}
+		msg.Body = utils.SanitizeRichText(msg.Body)
+		msg.Username = utils.SanitizeString(msg.Username)
 
 		if parentMsgID.Valid {
 			id, err := uuid.Parse(parentMsgID.String)
@@ -119,6 +122,9 @@ func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Mess
 		return nil, fmt.Errorf("getMessage: failed to get message: %w", err)
 	}
 
+	msg.Body = utils.SanitizeRichText(msg.Body)
+	msg.Username = utils.SanitizeString(msg.Username)
+
 	if parentMsgID.Valid {
 		id, err := uuid.Parse(parentMsgID.String)
 		if err == nil {
@@ -130,6 +136,10 @@ func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Mess
 }
 
 func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error) {
+	cleanBody := utils.SanitizeRichText(message.Body)
+	if cleanBody == "" {
+		return nil, ErrEmptyMessage
+	}
 	query := `
 	INSERT INTO message (user_id, chat_id, body)
 	VALUES ($1, $2, $3) 
@@ -139,7 +149,7 @@ func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message)
 	err := r.db.QueryRowContext(ctx, query,
 		message.UserID,
 		message.ChatID,
-		message.Body,
+		cleanBody,
 	).Scan(
 		&message.ID,
 	)

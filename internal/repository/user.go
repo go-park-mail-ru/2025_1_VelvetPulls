@@ -43,6 +43,7 @@ func (r *userRepo) getUserByField(ctx context.Context, field, value string) (*mo
 	logger.Info("Executing query to get user by field")
 	row := r.db.QueryRowContext(ctx, query, value)
 
+	var firstName, lastName, username sql.NullString
 	err := row.Scan(
 		&user.ID, &user.AvatarPath, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt,
 	)
@@ -54,6 +55,19 @@ func (r *userRepo) getUserByField(ctx context.Context, field, value string) (*mo
 		logger.Error("Database operation failed")
 		return nil, ErrDatabaseOperation
 	}
+
+	if firstName.Valid {
+		cleanFirstName := utils.SanitizeString(firstName.String)
+		user.FirstName = &cleanFirstName
+	}
+	if lastName.Valid {
+		cleanLastName := utils.SanitizeString(lastName.String)
+		user.LastName = &cleanLastName
+	}
+	if username.Valid {
+		user.Username = utils.SanitizeString(username.String)
+	}
+
 	logger.Info("User found")
 	return &user, nil
 }
@@ -160,6 +174,8 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	}
 
 	for field, value := range fields {
+		cleanValue := utils.SanitizeString(*value)
+		value = &cleanValue
 		if value != nil {
 			if *value == "" {
 				logger.Warn("Field value is empty")
