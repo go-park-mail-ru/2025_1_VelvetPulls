@@ -2,16 +2,14 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 var (
 	PORT           = ":8080"
 	UPLOAD_DIR     = "./uploads/"
+	LOG_DIR        = "./logs/"
 	MAX_FILE_SIZE  = int64(2 << 20) // 2 MB (2,097,152 байт)
 	CookieDuration = 3 * time.Hour
 )
@@ -42,11 +40,6 @@ var Redis = struct {
 }{}
 
 func Init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Warning: No .env file found or error loading .env - using system environment variables")
-	}
-
 	Postgre.User = os.Getenv("DATABASE_USER")
 	Postgre.Password = os.Getenv("DATABASE_PASS")
 	Postgre.Host = os.Getenv("DATABASE_HOST")
