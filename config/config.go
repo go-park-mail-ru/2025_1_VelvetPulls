@@ -15,11 +15,11 @@ var (
 )
 
 var CSRF = struct {
-	csrfAuthKey  string
-	isProduction bool
+	CsrfAuthKey  string
+	IsProduction bool
 }{
-	csrfAuthKey:  "32-byte-long-auth-key-here",
-	isProduction: false,
+	CsrfAuthKey:  "32-byte-long-auth-key-here",
+	IsProduction: false,
 }
 
 var Cors = struct {

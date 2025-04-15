@@ -5,6 +5,10 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
+type Sanitizable interface {
+	Sanitize()
+}
+
 var (
 	StrictPolicy = bluemonday.StrictPolicy()
 

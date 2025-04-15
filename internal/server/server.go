@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	//"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
 	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
@@ -88,13 +87,19 @@ func (s *Server) Run(address string) error {
 	// Swagger
 	apiRouter.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
+	// CSRF
+	apiRouter.HandleFunc("/csrf", httpDelivery.GetCSRFTokenHandler).Methods(http.MethodGet)
+
 	// Middleware only for API
 	apiRouter.Use(middleware.RequestIDMiddleware)
 	apiRouter.Use(middleware.AccessLogMiddleware)
 
+	handler := middleware.CorsMiddleware(mainRouter)
+	// handler = middleware.CSRFMiddleware(config.CSRF.IsProduction, []byte(config.CSRF.CsrfAuthKey))(handler)
+
 	// Server with CORS applied globally
 	httpServer := &http.Server{
-		Handler:      middleware.CorsMiddleware(mainRouter),
+		Handler:      handler,
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,

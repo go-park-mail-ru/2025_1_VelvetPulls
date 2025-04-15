@@ -28,21 +28,28 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 		Status: success,
 	}
 
-	// Если успех, проверим пустой срез
 	if success {
-		response.Data = v
+		// Если структура умеет себя санитизировать — даём ей это сделать
+		if s, ok := v.(Sanitizable); ok {
+			s.Sanitize()
+		}
+
+		// Если строка — санитизируем через строгий
+		if str, ok := v.(string); ok {
+			response.Data = SanitizeString(str)
+		} else {
+			response.Data = v
+		}
 	} else {
-		// Ошибка
 		if err, ok := v.(error); ok {
-			response.Error = err.Error()
+			response.Error = SanitizeString(err.Error())
 		} else if str, ok := v.(string); ok {
-			response.Error = str
+			response.Error = SanitizeString(str)
 		} else {
 			response.Error = "unknown error"
 		}
 	}
 
-	// Если ошибка при кодировании в JSON, вернем ошибку
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return errors.New("failed to encode JSON response: " + err.Error())
 	}

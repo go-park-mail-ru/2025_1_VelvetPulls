@@ -77,22 +77,15 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 
 func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-
-	cleanUsername := utils.SanitizeString(contactUsername)
-	if cleanUsername == "" {
-		logger.Warn("Empty username after sanitization")
-		return ErrEmptyField
-	}
-
 	logger.Info("Adding contact by username",
 		zap.String("userID", userID.String()),
-		zap.String("contactUsername", cleanUsername),
+		zap.String("contactUsername", contactUsername),
 	)
 
 	var contactID uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		"SELECT id FROM public.user WHERE username = $1",
-		cleanUsername,
+		contactUsername,
 	).Scan(&contactID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -139,26 +132,19 @@ func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID
 
 func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-
-	cleanUsername := utils.SanitizeString(contactUsername)
-	if cleanUsername == "" {
-		logger.Warn("Empty username after sanitization")
-		return ErrEmptyField
-	}
-
 	logger.Info("Deleting contact by username",
 		zap.String("userID", userID.String()),
-		zap.String("contactUsername", cleanUsername),
+		zap.String("contactUsername", contactUsername),
 	)
 
 	var contactID uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		"SELECT id FROM public.user WHERE username = $1",
-		cleanUsername,
+		contactUsername,
 	).Scan(&contactID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Warn("Contact user not found", zap.String("username", cleanUsername))
+			logger.Warn("Contact user not found", zap.String("username", contactUsername))
 			return ErrUserNotFound
 		}
 		logger.Error("Failed to fetch contact ID", zap.Error(err))
@@ -187,12 +173,12 @@ func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.U
 	if rowsAffected == 0 {
 		logger.Warn("Contact not found for deletion",
 			zap.String("userID", userID.String()),
-			zap.String("contactUsername", cleanUsername),
+			zap.String("contactUsername", contactUsername),
 		)
 	} else {
 		logger.Info("Successfully deleted contact",
 			zap.String("userID", userID.String()),
-			zap.String("contactUsername", cleanUsername),
+			zap.String("contactUsername", contactUsername),
 		)
 	}
 

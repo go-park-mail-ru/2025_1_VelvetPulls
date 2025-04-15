@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -41,4 +42,45 @@ func (up *UpdateUserProfile) Validate() error {
 	}
 
 	return nil
+}
+
+func (g *GetUserProfile) Sanitize() {
+	g.Username = utils.SanitizeString(g.Username)
+	g.Phone = utils.SanitizeString(g.Phone)
+
+	if g.FirstName != nil {
+		s := utils.SanitizeString(*g.FirstName)
+		g.FirstName = &s
+	}
+	if g.LastName != nil {
+		s := utils.SanitizeString(*g.LastName)
+		g.LastName = &s
+	}
+	if g.Email != nil {
+		s := utils.SanitizeString(*g.Email)
+		g.Email = &s
+	}
+}
+
+func (u *UpdateUserProfile) Sanitize() {
+	if u.FirstName != nil {
+		s := utils.SanitizeString(*u.FirstName)
+		u.FirstName = &s
+	}
+	if u.LastName != nil {
+		s := utils.SanitizeString(*u.LastName)
+		u.LastName = &s
+	}
+	if u.Username != nil {
+		s := utils.SanitizeString(*u.Username)
+		u.Username = &s
+	}
+	if u.Phone != nil {
+		s := utils.SanitizeString(*u.Phone)
+		u.Phone = &s
+	}
+	if u.Email != nil {
+		s := utils.SanitizeString(*u.Email)
+		u.Email = &s
+	}
 }

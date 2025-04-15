@@ -7,10 +7,9 @@ import (
 	"github.com/gorilla/csrf"
 )
 
-func CSRF(secure bool, authKey []byte) func(http.Handler) http.Handler {
+func CSRFMiddleware(secure bool, authKey []byte) func(http.Handler) http.Handler {
 	return csrf.Protect(
 		authKey,
-		csrf.Secure(secure), //false - http
 		csrf.Path("/"),
 		csrf.HttpOnly(true),
 		csrf.FieldName("csrf_token"),
