@@ -25,6 +25,7 @@ type IChatRepo interface {
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
 	GetUsersFromChat(ctx context.Context, chatId uuid.UUID) ([]model.UserInChat, error)
 	RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error
+	//GetProfileAvatarAndName(ctx context.Context, userID uuid.UUID) (string, string, error)
 }
 
 type chatRepository struct {
@@ -315,25 +316,4 @@ func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, usern
 	}
 
 	return nil
-}
-func (r *chatRepository) GetProfileAvatarAndName(ctx context.Context, userID uuid.UUID) (string, string, error) {
-	query := `SELECT avatar_path, username FROM public.user WHERE id = $1`
-	row := r.db.QueryRowContext(ctx, query, userID)
-
-	var userName string
-	var avatarPath sql.NullString
-	err := row.Scan(&avatarPath, &userName)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", ErrUserNotFound
-		}
-		return "", "", ErrDatabaseOperation
-	}
-
-	actualAvatarPath := ""
-	if avatarPath.Valid {
-		actualAvatarPath = avatarPath.String
-	}
-
-	return actualAvatarPath, userName, nil
 }

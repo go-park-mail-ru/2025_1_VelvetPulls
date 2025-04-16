@@ -281,3 +281,57 @@ func TestGetUsersFromChat(t *testing.T) {
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
 }
+
+func TestGetChatByID_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewChatRepo(db)
+	chatID := uuid.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1")).
+		WithArgs(chatID).
+		WillReturnError(sql.ErrNoRows)
+
+	ctx := context.Background()
+	_, err = repo.GetChatByID(ctx, chatID)
+	assert.Error(t, err)
+	assert.Equal(t, repository.ErrChatNotFound, err)
+}
+
+func TestAddUserToChatByUsername_UserNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewChatRepo(db)
+	ctx := context.Background()
+	username := "nonexistent"
+	chatID := uuid.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM public.user WHERE username = $1")).
+		WithArgs(username).
+		WillReturnError(sql.ErrNoRows)
+
+	err = repo.AddUserToChatByUsername(ctx, username, "member", chatID)
+	assert.Error(t, err)
+}
+
+func TestRemoveUserFromChatByUsername_UserNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewChatRepo(db)
+	ctx := context.Background()
+	username := "nonexistent"
+	chatID := uuid.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM public.user WHERE username = $1")).
+		WithArgs(username).
+		WillReturnError(sql.ErrNoRows)
+
+	err = repo.RemoveUserFromChatByUsername(ctx, username, chatID)
+	assert.Error(t, err)
+}
