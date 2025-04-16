@@ -29,7 +29,7 @@ var Cors = struct {
 }{
 	AllowedOrigin:  "http://90.156.217.108:80",
 	AllowedMethods: "GET, POST, PUT, DELETE",
-	AllowedHeaders: "Content-Type, Authorization",
+	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token",
 }
 
 var Postgre = struct {
