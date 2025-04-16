@@ -330,6 +330,112 @@ func TestGetChats_Failure(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }
 
+func TestCreateChat_InvalidData(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockChatUC := mocks.NewMockIChatUsecase(ctrl)
+	mockSessUC := mocks.NewMockISessionUsecase(ctrl)
+
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	mockSessUC.EXPECT().
+		CheckLogin(gomock.Any(), gomock.Any()).
+		Return(userID.String(), nil)
+
+	// Теперь ожидаем вызов CreateChat с невалидными данными
+	mockChatUC.EXPECT().
+		CreateChat(gomock.Any(), userID, gomock.AssignableToTypeOf(&model.CreateChat{})).
+		Return(nil, model.ErrValidation)
+
+	router := mux.NewRouter()
+	delivery.NewChatController(router, mockChatUC, mockSessUC)
+
+	// Невалидные данные (отсутствует title)
+	invalidData := map[string]interface{}{
+		"type": "group",
+	}
+	dataBytes, err := json.Marshal(invalidData)
+	assert.NoError(t, err)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	partWriter, err := writer.CreateFormField("chat_data")
+	assert.NoError(t, err)
+	_, err = partWriter.Write(dataBytes)
+	assert.NoError(t, err)
+	err = writer.Close()
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/chat", body)
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "00000000-0000-0000-0000-000000000001",
+	})
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = addUserIDToContext(req, userID)
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var resp utils.JSONResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.False(t, resp.Status)
+	assert.Contains(t, resp.Error, "validation error")
+}
+
+func TestCreateChat_MissingChatData(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockChatUC := mocks.NewMockIChatUsecase(ctrl)
+	mockSessUC := mocks.NewMockISessionUsecase(ctrl)
+
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	mockSessUC.EXPECT().
+		CheckLogin(gomock.Any(), gomock.Any()).
+		Return(userID.String(), nil)
+
+	// Ожидаем вызов CreateChat с пустыми данными
+	mockChatUC.EXPECT().
+		CreateChat(gomock.Any(), userID, gomock.AssignableToTypeOf(&model.CreateChat{})).
+		Return(nil, model.ErrValidation)
+
+	router := mux.NewRouter()
+	delivery.NewChatController(router, mockChatUC, mockSessUC)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	// Не добавляем поле chat_data вообще
+	err := writer.Close()
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/chat", body)
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "00000000-0000-0000-0000-000000000001",
+	})
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = addUserIDToContext(req, userID)
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var resp utils.JSONResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.False(t, resp.Status)
+	assert.Contains(t, resp.Error, "validation error")
+}
+
 /*func TestCreateChat_InvalidData(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

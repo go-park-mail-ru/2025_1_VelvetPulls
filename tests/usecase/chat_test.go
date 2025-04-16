@@ -264,3 +264,334 @@ func TestDeleteUserFromChat(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, toDelete, res.DeletedUsers)
 }
+
+func TestGetChats_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+	userID := uuid.New()
+
+	mockRepo.EXPECT().
+		GetChats(ctx, userID).
+		Return(nil, uuid.Nil, assert.AnError)
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.GetChats(ctx, userID)
+
+	assert.Error(t, err)
+}
+
+func TestGetChatInfo_PermissionDenied(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	mockRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, chatID).
+		Return("", nil) // Пустая роль - нет доступа
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.GetChatInfo(ctx, userID, chatID)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrPermissionDenied, err)
+}
+
+func TestCreateDialogChat_ExistingDialog(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	dialogUser := "existing_user"
+	existingChatID := uuid.New()
+
+	createChat := &model.CreateChat{
+		Type:       "dialog",
+		Title:      "Dialog",
+		DialogUser: dialogUser,
+	}
+
+	// Мокаем получение чатов пользователя
+	existingChat := model.Chat{
+		ID:   existingChatID,
+		Type: "dialog",
+	}
+	mockRepo.EXPECT().
+		GetChats(ctx, userID).
+		Return([]model.Chat{existingChat}, userID, nil)
+
+	// Мокаем получение пользователей из существующего чата
+	mockRepo.EXPECT().
+		GetUsersFromChat(ctx, existingChatID).
+		Return([]model.UserInChat{
+			{ID: userID, Username: "current_user"},
+			{Username: dialogUser},
+		}, nil)
+
+	// Ожидаем получение информации о существующем чате
+	mockRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, existingChatID).
+		Return("owner", nil)
+	mockRepo.EXPECT().
+		GetChatByID(ctx, existingChatID).
+		Return(&model.Chat{ID: existingChatID, Type: "dialog"}, nil)
+	mockRepo.EXPECT().
+		GetUsersFromChat(ctx, existingChatID).
+		Return([]model.UserInChat{}, nil)
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	info, err := uc.CreateChat(ctx, userID, createChat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, existingChatID, info.ID)
+}
+
+func TestCreateChat_ValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	invalidChat := &model.CreateChat{
+		Type:  "invalid_type", // Невалидный тип
+		Title: "Chat",
+	}
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.CreateChat(ctx, userID, invalidChat)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "validation")
+}
+
+func TestUpdateChat_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	title := "New Title"
+	updateChat := &model.UpdateChat{
+		ID:    chatID,
+		Title: &title,
+	}
+
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: "group"}, nil)
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil) // Не owner
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.UpdateChat(ctx, userID, updateChat)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrOnlyOwnerCanModify, err)
+}
+
+func TestDeleteChat_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil) // Не owner
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	err := uc.DeleteChat(ctx, userID, chatID)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrOnlyOwnerCanDelete, err)
+}
+
+func TestAddUsersIntoChat_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	usernames := []string{"user1"}
+
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: "group"}, nil)
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil) // Не owner
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.AddUsersIntoChat(ctx, userID, usernames, chatID)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrOnlyOwnerCanAddUsers, err)
+}
+
+func TestDeleteUserFromChat_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	usernames := []string{"user1"}
+
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: "group"}, nil)
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil) // Не owner
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.DeleteUserFromChat(ctx, userID, usernames, chatID)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrOnlyOwnerCanDeleteUsers, err)
+}
+
+func TestUpdateChat_DialogForbidden(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	title := "New Title"
+	updateChat := &model.UpdateChat{
+		ID:    chatID,
+		Title: &title,
+	}
+
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: "dialog"}, nil)
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	_, err := uc.UpdateChat(ctx, userID, updateChat)
+
+	assert.Error(t, err)
+	assert.Equal(t, usecase.ErrDialogUpdateForbidden, err)
+}
+
+func TestCreateChat_WithAvatar(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	avatarURL := "path/to/avatar.png"
+	createChat := &model.CreateChat{
+		Title: "Group with avatar",
+		Type:  "group",
+	}
+
+	// Мокаем создание чата с возвратом URL аватара
+	mockRepo.EXPECT().
+		CreateChat(ctx, createChat).
+		Return(chatID, avatarURL, nil)
+
+	// Мокаем добавление владельца
+	mockRepo.EXPECT().
+		AddUserToChatByID(ctx, userID, "owner", chatID).
+		Return(nil)
+
+	// Мокаем получение информации о чате
+	mockRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, chatID).
+		Return("owner", nil)
+	mockRepo.EXPECT().
+		GetChatByID(ctx, chatID).
+		Return(&model.Chat{
+			ID:         chatID,
+			Type:       "group",
+			Title:      "Group with avatar",
+			AvatarPath: &avatarURL,
+		}, nil)
+	mockRepo.EXPECT().
+		GetUsersFromChat(ctx, chatID).
+		Return([]model.UserInChat{}, nil)
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	info, err := uc.CreateChat(ctx, userID, createChat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, avatarURL, *info.AvatarPath)
+}
+
+func TestUpdateChat_WithAvatar(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockIChatRepo(ctrl)
+	logger := zap.NewNop()
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	newAvatarURL := "path/to/new_avatar.png"
+	oldAvatarURL := "path/to/old_avatar.png"
+	title := "Updated Title"
+	updateChat := &model.UpdateChat{
+		ID:    chatID,
+		Title: &title,
+	}
+
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: "group"}, nil)
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("owner", nil)
+	mockRepo.EXPECT().UpdateChat(ctx, updateChat).
+		Return(newAvatarURL, oldAvatarURL, nil)
+	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
+		Return("owner", nil)
+	mockRepo.EXPECT().GetChatByID(ctx, chatID).
+		Return(&model.Chat{
+			ID:         chatID,
+			Type:       "group",
+			Title:      title,
+			AvatarPath: &newAvatarURL,
+		}, nil)
+	mockRepo.EXPECT().GetUsersFromChat(ctx, chatID).
+		Return([]model.UserInChat{}, nil)
+
+	uc := usecase.NewChatUsecase(mockRepo)
+	info, err := uc.UpdateChat(ctx, userID, updateChat)
+
+	assert.NoError(t, err)
+	assert.Equal(t, title, info.Title)
+	assert.Equal(t, newAvatarURL, *info.AvatarPath)
+}
