@@ -51,6 +51,9 @@ func (s *Server) Run(address string) error {
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
+	mainRouter.Use(middleware.RequestIDMiddleware)
+	mainRouter.Use(middleware.AccessLogMiddleware)
+
 	// ===== API Subrouter =====
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
@@ -89,10 +92,6 @@ func (s *Server) Run(address string) error {
 
 	// CSRF
 	apiRouter.HandleFunc("/csrf", httpDelivery.GetCSRFTokenHandler).Methods(http.MethodGet)
-
-	// Middleware only for API
-	apiRouter.Use(middleware.RequestIDMiddleware)
-	apiRouter.Use(middleware.AccessLogMiddleware)
 
 	handler := middleware.CorsMiddleware(mainRouter)
 	// handler = middleware.CSRFMiddleware(config.CSRF.IsProduction, []byte(config.CSRF.CsrfAuthKey))(handler)

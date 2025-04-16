@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -25,13 +28,23 @@ func (rw *responseWriter) Write(p []byte) (int, error) {
 	return rw.ResponseWriter.Write(p)
 }
 
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("wrapped ResponseWriter does not implement http.Hijacker")
+	}
+	return hj.Hijack()
+}
+
 func AccessLogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		wrappedWriter := &responseWriter{ResponseWriter: w, status: http.StatusOK} // По умолчанию 200
+		wrappedWriter := &responseWriter{
+			ResponseWriter: w,
+			status:         http.StatusOK,
+		}
 
 		requestID := utils.GetRequestIDFromCtx(r.Context())
-
 		contextLogger := utils.Logger.With(
 			zap.String("request_id", requestID),
 			zap.String("method", r.Method),

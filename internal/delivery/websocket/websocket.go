@@ -1,7 +1,6 @@
 package http
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 )
 
 var upgrader = websocket.Upgrader{
@@ -37,9 +37,10 @@ func NewWebsocketController(r *mux.Router, sessionUsecase usecase.ISessionUsecas
 }
 
 func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Ошибка апгрейда:", err)
+		logger.Error("Upgrade error:", zap.Error(err))
 		return
 	}
 
@@ -50,7 +51,7 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 
 	err = c.websocketUsecase.InitBrokersForUser(userID, eventChan)
 	if err != nil {
-		log.Println("Ошибка инициализации брокеров:", err)
+		logger.Error("Broker Init error:", zap.Error(err))
 		return
 	}
 
@@ -60,7 +61,7 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 	for {
 		select {
 		case message := <-eventChan:
-			log.Println("Message delivery websocket: получены новые сообщения")
+			logger.Info("Message delivery websocket: получены новые сообщения")
 
 			if s, ok := message.Event.(interface{ Sanitize() }); ok {
 				s.Sanitize()
