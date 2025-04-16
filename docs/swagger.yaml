@@ -17,6 +17,26 @@ definitions:
       username:
         type: string
     type: object
+  model.RequestContact:
+    properties:
+      id:
+        type: string
+    type: object
+  model.UpdateUserProfile:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
   utils.JSONResponse:
     properties:
       data: {}
@@ -30,37 +50,7 @@ info:
   title: Keftegram backend API
   version: "1.0"
 paths:
-  /api/chats/:
-    get:
-      consumes:
-      - application/json
-      description: Возвращает список чатов пользователя, ассоциированных с текущей
-        сессией
-      parameters:
-      - default: token=xxx
-        description: token
-        in: header
-        name: Cookie
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/utils.JSONResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.JSONResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.JSONResponse'
-      summary: Получение чатов пользователя
-      tags:
-      - Chat
-  /api/login/:
+  /api/login:
     post:
       consumes:
       - application/json
@@ -79,7 +69,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "400":
           description: Bad Request
           schema:
@@ -90,8 +80,27 @@ paths:
             $ref: '#/definitions/utils.JSONResponse'
       summary: Авторизация пользователя
       tags:
-      - User
-  /api/register/:
+      - Auth
+  /api/logout:
+    delete:
+      description: Завершает текущую сессию пользователя, удаляя cookie сессии
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Выход пользователя
+      tags:
+      - Auth
+  /api/register:
     post:
       consumes:
       - application/json
@@ -110,7 +119,7 @@ paths:
         "201":
           description: Created
           schema:
-            type: string
+            $ref: '#/definitions/utils.JSONResponse'
         "400":
           description: Bad Request
           schema:
@@ -121,5 +130,437 @@ paths:
             $ref: '#/definitions/utils.JSONResponse'
       summary: Регистрация нового пользователя
       tags:
+      - Auth
+  /chat:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Создает новый чат (личный, групповой или канал) с возможностью
+        загрузки аватара
+      parameters:
+      - description: Данные чата в формате JSON
+        in: formData
+        name: chat_data
+        required: true
+        type: string
+      - description: Аватар чата
+        in: formData
+        name: avatar
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Создать новый чат
+      tags:
+      - Chat
+  /chat/{chat_id}:
+    delete:
+      description: Удаляет чат (доступно только для владельца чата)
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Удалить чат
+      tags:
+      - Chat
+    get:
+      description: Возвращает полную информацию о чате по его ID
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получить информацию о чате
+      tags:
+      - Chat
+    put:
+      consumes:
+      - multipart/form-data
+      description: Обновляет информацию о чате (название, аватар) для владельца чата
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      - description: Данные чата в формате JSON
+        in: formData
+        name: chat_data
+        required: true
+        type: string
+      - description: Новый аватар чата
+        in: formData
+        name: avatar
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Обновить информацию о чате
+      tags:
+      - Chat
+  /chat/{chat_id}/users:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет одного или нескольких пользователей из чата (доступно для
+        владельца/администратора)
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      - description: Список ID пользователей для удаления
+        in: body
+        name: user_ids
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Удалить пользователей из чата
+      tags:
+      - Chat
+    post:
+      consumes:
+      - application/json
+      description: Добавляет одного или нескольких пользователей в чат (доступно для
+        владельца/администратора)
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      - description: Список ID пользователей для добавления
+        in: body
+        name: user_ids
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Добавить пользователей в чат
+      tags:
+      - Chat
+  /chats:
+    get:
+      description: Возвращает список всех чатов, в которых участвует текущий пользователь
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/utils.JSONResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получить список чатов пользователя
+      tags:
+      - Chat
+  /contacts:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет контакт из списка пользователя
+      parameters:
+      - description: Данные контакта
+        in: body
+        name: contact
+        required: true
+        schema:
+          $ref: '#/definitions/model.RequestContact'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Удалить контакт
+      tags:
+      - Contacts
+    get:
+      description: Возвращает список контактов пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получить контакты
+      tags:
+      - Contacts
+    post:
+      consumes:
+      - application/json
+      description: Добавляет нового контакта для пользователя
+      parameters:
+      - description: Данные контакта
+        in: body
+        name: contact
+        required: true
+        schema:
+          $ref: '#/definitions/model.RequestContact'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Добавить контакт
+      tags:
+      - Contacts
+  /profile:
+    get:
+      description: Возвращает профиль текущего пользователя, основываясь на ID из
+        контекста сессии
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получить профиль текущего пользователя
+      tags:
       - User
+    put:
+      consumes:
+      - application/json
+      description: Обновляет профиль текущего пользователя, включая возможность изменить
+        изображение профиля
+      parameters:
+      - description: Данные профиля
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUserProfile'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Обновить профиль текущего пользователя
+      tags:
+      - User
+  /profile/{user_id}:
+    get:
+      description: Возвращает профиль пользователя по предоставленному ID
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получить профиль пользователя по ID
+      tags:
+      - User
+  /uploads/{folder}/{name}:
+    get:
+      description: Возвращает файл из указанной папки на сервере
+      parameters:
+      - description: Название папки
+        in: path
+        name: folder
+        required: true
+        type: string
+      - description: Имя файла
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Получение загруженного файла
+      tags:
+      - Uploads
 swagger: "2.0"
