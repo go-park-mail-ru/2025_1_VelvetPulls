@@ -29,6 +29,6 @@ clean:
 .PHONY: test
 test:
 	@$(GO_CMD) test ./tests/... \
-		-coverpkg=./internal/usecase,./internal/repository,./internal/delivery/http,./internal/delivery/websocket \
+		-coverpkg=./internal/usecase,./internal/repository,./internal/delivery/http,./internal/delivery/websocket,./pkg/middleware,./pkg/utils\
 		-coverprofile=$(COVERAGE_FILE)
 	@$(GO_CMD) tool cover -func=$(COVERAGE_FILE)

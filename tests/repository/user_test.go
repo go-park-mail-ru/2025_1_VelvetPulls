@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"mime/multipart"
 	"testing"
 	"time"
@@ -17,6 +16,94 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+// Test GetUserByEmail, GetUserByPhone, GetUserByID, CreateUser, UpdateUser уже имеются – ниже добавлены недостающие тесты.
+
+// -----------------------------
+// Новые тесты для GetUserByUsername
+// -----------------------------
+
+func TestGetUserByUsername_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewUserRepo(db)
+
+	username := "testuser"
+	expectedID := uuid.New()
+
+	rows := sqlmock.NewRows([]string{
+		"id", "avatar_path", "first_name", "last_name", "username",
+		"phone", "email", "password", "created_at", "updated_at",
+	}).AddRow(
+		expectedID, "/avatar.jpg", "John", "Doe", username,
+		"1234567890", "test@mail.com", "hashedpass", time.Now(), time.Now(),
+	)
+
+	mock.ExpectQuery(`SELECT .* FROM public.user WHERE username = \$1`).
+		WithArgs(username).
+		WillReturnRows(rows)
+
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+
+	user, err := repo.GetUserByUsername(ctx, username)
+	require.NoError(t, err)
+	require.Equal(t, username, user.Username)
+}
+
+func TestGetUserByUsername_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewUserRepo(db)
+
+	username := "notfound"
+	mock.ExpectQuery(`SELECT .* FROM public.user WHERE username = \$1`).
+		WithArgs(username).
+		WillReturnError(sql.ErrNoRows)
+
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+
+	user, err := repo.GetUserByUsername(ctx, username)
+	require.Nil(t, user)
+	require.ErrorIs(t, err, repository.ErrUserNotFound)
+}
+
+// -----------------------------
+// Тест для успешного создания пользователя (CreateUser)
+// -----------------------------
+
+func TestCreateUser_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewUserRepo(db)
+
+	newUser := &model.User{
+		Username: "newuser",
+		Phone:    "9876543210",
+		Password: "hashedpass",
+	}
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+
+	// Ожидаем успешное выполнение запроса INSERT и возврат нового id.
+	expectedID := uuid.New()
+	mock.ExpectQuery(`INSERT INTO public.user \(username, phone, password\) VALUES \(\$1, \$2, \$3\) RETURNING id`).
+		WithArgs(newUser.Username, newUser.Phone, newUser.Password).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expectedID))
+
+	userID, err := repo.CreateUser(ctx, newUser)
+	require.NoError(t, err)
+	require.Equal(t, expectedID.String(), userID)
+}
+
+// -----------------------------
+// Остальные тесты (GetUserByEmail, GetUserByPhone, GetUserByID, CreateUser (ошибки), UpdateUser и т.д.)
+// уже присутствуют в вашем файле и ниже приведены для справки.
+// -----------------------------
 
 func TestGetUserByEmail_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -288,7 +375,7 @@ func TestUpdateUser_WithAvatar(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"avatar_path"}).AddRow(oldAvatar))
 
 	// 3. Ожидаем UPDATE запрос
-	// Важно: порядок полей должен точно соответствовать коду репозитория
+	// Поскольку обновляются не все поля, порядковый номер аргументов может меняться.
 	mock.ExpectExec(`UPDATE public.user SET (.+) WHERE id = \$4`).
 		WithArgs(
 			sqlmock.AnyArg(), // новый avatar_path
@@ -303,11 +390,11 @@ func TestUpdateUser_WithAvatar(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
 
-	// Создаем mock для multipart.File
+	// Для теста достаточно задать ненулевое значение для profile.Avatar.
+	// Заметим, что тип profile.Avatar — это указатель на multipart.File.
 	profile.Avatar = new(multipart.File)
 
 	newAvatar, oldAvatarPath, err := repo.UpdateUser(ctx, profile)
-	fmt.Println(err)
 	require.NoError(t, err)
 	require.NotEmpty(t, newAvatar)
 	require.Equal(t, oldAvatar, oldAvatarPath)
@@ -325,7 +412,7 @@ func TestUpdateUser_NoChanges(t *testing.T) {
 		ID: userID,
 	}
 
-	// Mock transaction
+	// Если нет изменений (нет ни одного ненулевого поля) транзакция откатывается.
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 
@@ -349,7 +436,7 @@ func TestUpdateUser_EmptyField(t *testing.T) {
 		FirstName: &empty,
 	}
 
-	// Mock transaction
+	// Ожидаем начало транзакции и затем откат.
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 
