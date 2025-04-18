@@ -59,7 +59,7 @@ type WebsocketUsecase struct {
 	messageChan chan MessageEvent
 
 	onlineChats map[uuid.UUID]ChatInfo
-	onlineUsers map[uuid.UUID]chan AnyEvent
+	onlineUsers map[uuid.UUID][]chan AnyEvent
 
 	chatRepo repository.IChatRepo
 }
@@ -68,7 +68,7 @@ func NewWebsocketUsecase(chatRepo repository.IChatRepo) IWebsocketUsecase {
 	socket := &WebsocketUsecase{
 		messageChan: make(chan MessageEvent, 100),
 		onlineChats: make(map[uuid.UUID]ChatInfo),
-		onlineUsers: make(map[uuid.UUID]chan AnyEvent),
+		onlineUsers: make(map[uuid.UUID][]chan AnyEvent),
 		chatRepo:    chatRepo,
 	}
 
@@ -101,8 +101,8 @@ func (w *WebsocketUsecase) InitNewChatRoom(chatID uuid.UUID) {
 }
 
 func (w *WebsocketUsecase) InitBrokersForUser(userID uuid.UUID, eventChan chan AnyEvent) error {
-	// Сохраняем канал пользователя
-	w.onlineUsers[userID] = eventChan
+	// Добавляем новый канал в слайс
+	w.onlineUsers[userID] = append(w.onlineUsers[userID], eventChan)
 
 	// Получаем все чаты пользователя
 	userChats, _, err := w.chatRepo.GetChats(context.Background(), userID)
@@ -110,7 +110,6 @@ func (w *WebsocketUsecase) InitBrokersForUser(userID uuid.UUID, eventChan chan A
 		return err
 	}
 
-	// Инициализируем комнату, если еще нет, и добавляем пользователя
 	for _, chat := range userChats {
 		if _, ok := w.onlineChats[chat.ID]; !ok {
 			w.InitNewChatRoom(chat.ID)
@@ -146,10 +145,12 @@ func (w *WebsocketUsecase) SendMessage(event MessageEvent) {
 	}
 
 	for userID := range chatInfo.users {
-		if ch, ok := w.onlineUsers[userID]; ok {
-			ch <- AnyEvent{
-				TypeOfEvent: NewMessage,
-				Event:       event,
+		if chans, ok := w.onlineUsers[userID]; ok {
+			for _, ch := range chans {
+				ch <- AnyEvent{
+					TypeOfEvent: NewMessage,
+					Event:       event,
+				}
 			}
 		}
 	}
