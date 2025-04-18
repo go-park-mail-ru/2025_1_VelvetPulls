@@ -80,13 +80,11 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, messageInput *model.M
 func (uc *MessageUsecase) sendEvent(ctx context.Context, action string, message *model.Message) {
 	logger := utils.GetLoggerFromCtx(ctx)
 
-	// Формируем событие
-	newEvent := MessageEvent{
+	newEvent := model.MessageEvent{
 		Action:  action,
 		Message: *message,
 	}
 
-	// Отправляем в WebSocket слой
 	if uc.wsUsecase != nil {
 		uc.wsUsecase.SendMessage(newEvent)
 		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", message.ChatID.String()))

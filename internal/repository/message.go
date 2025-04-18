@@ -114,7 +114,6 @@ func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Mess
 		&msg.Username,
 		&msg.AvatarPath,
 	)
-	fmt.Println(err)
 	if err != nil {
 		return nil, fmt.Errorf("getMessage: failed to get message: %w", err)
 	}
@@ -146,9 +145,7 @@ func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message)
 	if err != nil {
 		return nil, fmt.Errorf("CreateMessage: insert failed: %w", err)
 	}
-	fmt.Println(message.ID)
 	messageOut, err := r.getMessage(ctx, message.ID)
-	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}

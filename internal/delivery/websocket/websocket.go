@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -30,7 +31,7 @@ func NewWebsocketController(r *mux.Router, sessionUsecase usecase.ISessionUsecas
 		sessionUsecase:   sessionUsecase,
 		websocketUsecase: websocketUsecase,
 	}
-
+	go websocketUsecase.ConsumeChats()
 	go websocketUsecase.ConsumeMessages()
 
 	r.HandleFunc("/ws", middleware.AuthMiddlewareWS(sessionUsecase)(controller.WebsocketConnection)).Methods("GET")
@@ -44,34 +45,60 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 		return
 	}
 
-	defer conn.Close()
-
 	userID := utils.GetUserIDFromCtx(r.Context())
-	eventChan := make(chan usecase.AnyEvent, 100)
+	eventChan := make(chan model.AnyEvent, 100)
 
-	err = c.websocketUsecase.InitBrokersForUser(userID, eventChan)
+	// Регистрируем канал пользователя
+	err = c.websocketUsecase.RegisterUserChannel(userID, eventChan)
 	if err != nil {
 		logger.Error("Broker Init error:", zap.Error(err))
+		conn.Close()
 		return
 	}
 
-	// пока соеденено
+	// Канал для отслеживания закрытия соединения
+	done := make(chan struct{})
+
+	// Горутина для чтения сообщений (чтобы обнаружить закрытие соединения)
+	go func() {
+		defer close(done)
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// Основной цикл отправки сообщений
 	duration := 500 * time.Millisecond
+	ticker := time.NewTicker(duration)
+	defer ticker.Stop()
 
 	for {
 		select {
+		case <-done:
+			// Соединение закрыто
+			c.websocketUsecase.UnregisterUserChannel(userID, eventChan)
+			conn.Close()
+			return
+
 		case message := <-eventChan:
-			logger.Info("Message delivery websocket: получены новые сообщения")
+			logger.Debug("Message delivery websocket: получены новые сообщения")
 
 			if s, ok := message.Event.(interface{ Sanitize() }); ok {
 				s.Sanitize()
 			}
 
-			conn.WriteJSON(message.Event)
+			if err := conn.WriteJSON(message.Event); err != nil {
+				logger.Error("Write error:", zap.Error(err))
+				c.websocketUsecase.UnregisterUserChannel(userID, eventChan)
+				conn.Close()
+				return
+			}
 
-		default:
-			time.Sleep(duration)
+		case <-ticker.C:
+			// Периодическая проверка состояния
 		}
 	}
-
 }

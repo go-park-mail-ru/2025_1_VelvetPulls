@@ -21,11 +21,12 @@ type IChatUsecase interface {
 }
 
 type ChatUsecase struct {
-	chatRepo repository.IChatRepo
+	chatRepo  repository.IChatRepo
+	wsUsecase IWebsocketUsecase
 }
 
-func NewChatUsecase(chatRepo repository.IChatRepo) IChatUsecase {
-	return &ChatUsecase{chatRepo: chatRepo}
+func NewChatUsecase(chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IChatUsecase {
+	return &ChatUsecase{chatRepo: chatRepo, wsUsecase: wsUsecase}
 }
 
 func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
@@ -198,7 +199,13 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 	}
 
 	logger.Info("Chat successfully created")
-	return uc.GetChatInfo(ctx, userID, chatID)
+	chatinfo, err := uc.GetChatInfo(ctx, userID, chatID)
+	// fmt.Println(err)
+	// if err == nil {
+	// 	uc.sendEvent(ctx, NewChat, chatinfo)
+	// }
+
+	return chatinfo, err
 }
 
 func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error) {
@@ -383,3 +390,21 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 		zap.Int("deleted", len(deleted)))
 	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
 }
+
+// func (uc *ChatUsecase) sendEvent(ctx context.Context, action string, chat *model.ChatInfo) {
+// 	logger := utils.GetLoggerFromCtx(ctx)
+
+// 	newEvent := model.ChatEvent{
+// 		Action: action,
+// 		Chat:   *chat,
+// 	}
+// 	fmt.Println(newEvent)
+// 	if uc.wsUsecase != nil {
+// 		uc.wsUsecase.SendChatEvent(newEvent)
+// 		fmt.Println(newEvent)
+// 		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", chat.ID.String()))
+// 	} else {
+// 		fmt.Println("pizdos")
+// 		logger.Warn("wsUsecase is nil, event not sent")
+// 	}
+// }

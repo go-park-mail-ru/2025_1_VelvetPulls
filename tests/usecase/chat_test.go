@@ -33,7 +33,7 @@ func TestGetChatByID(t *testing.T) {
 		GetChats(ctx, chatID).
 		Return([]model.Chat{*expectedChat}, chatID, nil)
 
-	usecase := usecase.NewChatUsecase(mockRepo)
+	usecase := usecase.NewChatUsecase(mockRepo, nil)
 	chat, err := usecase.GetChats(ctx, chatID)
 
 	assert.NoError(t, err)
@@ -45,7 +45,7 @@ func TestGetChatInfo(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
-	chatUC := usecase.NewChatUsecase(mockChatRepo)
+	chatUC := usecase.NewChatUsecase(mockChatRepo, nil)
 
 	logger := zap.NewNop()
 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, logger)
@@ -141,7 +141,7 @@ func TestCreateGroupChat(t *testing.T) {
 		GetUsersFromChat(ctx, chatID).
 		Return([]model.UserInChat{{ID: userID, Username: "user1"}}, nil)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	info, err := uc.CreateChat(ctx, userID, createChat)
 
 	assert.NoError(t, err)
@@ -190,7 +190,7 @@ func TestUpdateChat(t *testing.T) {
 		Return([]model.UserInChat{}, nil).
 		Times(1)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	info, err := uc.UpdateChat(ctx, userID, updateChat)
 
 	assert.NoError(t, err)
@@ -211,7 +211,7 @@ func TestDeleteChat(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).Return("owner", nil)
 	mockRepo.EXPECT().DeleteChat(ctx, chatID).Return(nil)
 
-	usecase := usecase.NewChatUsecase(mockRepo)
+	usecase := usecase.NewChatUsecase(mockRepo, nil)
 	err := usecase.DeleteChat(ctx, userID, chatID)
 
 	assert.NoError(t, err)
@@ -234,7 +234,7 @@ func TestAddUsersIntoChat(t *testing.T) {
 	mockRepo.EXPECT().AddUserToChatByUsername(ctx, "alice", "member", chatID).Return(nil)
 	mockRepo.EXPECT().AddUserToChatByUsername(ctx, "bob", "member", chatID).Return(nil)
 
-	usecase := usecase.NewChatUsecase(mockRepo)
+	usecase := usecase.NewChatUsecase(mockRepo, nil)
 	res, err := usecase.AddUsersIntoChat(ctx, userID, usernames, chatID)
 
 	assert.NoError(t, err)
@@ -258,7 +258,7 @@ func TestDeleteUserFromChat(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).Return("owner", nil)
 	mockRepo.EXPECT().RemoveUserFromChatByUsername(ctx, "charlie", chatID).Return(nil)
 
-	usecase := usecase.NewChatUsecase(mockRepo)
+	usecase := usecase.NewChatUsecase(mockRepo, nil)
 	res, err := usecase.DeleteUserFromChat(ctx, userID, toDelete, chatID)
 
 	assert.NoError(t, err)
@@ -278,7 +278,7 @@ func TestGetChats_RepoError(t *testing.T) {
 		GetChats(ctx, userID).
 		Return(nil, uuid.Nil, assert.AnError)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.GetChats(ctx, userID)
 
 	assert.Error(t, err)
@@ -299,7 +299,7 @@ func TestGetChatInfo_PermissionDenied(t *testing.T) {
 		GetUserRoleInChat(ctx, userID, chatID).
 		Return("", nil) // Пустая роль - нет доступа
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.GetChatInfo(ctx, userID, chatID)
 
 	assert.Error(t, err)
@@ -352,7 +352,7 @@ func TestCreateDialogChat_ExistingDialog(t *testing.T) {
 		GetUsersFromChat(ctx, existingChatID).
 		Return([]model.UserInChat{}, nil)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	info, err := uc.CreateChat(ctx, userID, createChat)
 
 	assert.NoError(t, err)
@@ -373,7 +373,7 @@ func TestCreateChat_ValidationError(t *testing.T) {
 		Title: "Chat",
 	}
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.CreateChat(ctx, userID, invalidChat)
 
 	assert.Error(t, err)
@@ -401,7 +401,7 @@ func TestUpdateChat_NotOwner(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
 		Return("member", nil) // Не owner
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.UpdateChat(ctx, userID, updateChat)
 
 	assert.Error(t, err)
@@ -422,7 +422,7 @@ func TestDeleteChat_NotOwner(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
 		Return("member", nil) // Не owner
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	err := uc.DeleteChat(ctx, userID, chatID)
 
 	assert.Error(t, err)
@@ -446,7 +446,7 @@ func TestAddUsersIntoChat_NotOwner(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
 		Return("member", nil) // Не owner
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.AddUsersIntoChat(ctx, userID, usernames, chatID)
 
 	assert.Error(t, err)
@@ -470,7 +470,7 @@ func TestDeleteUserFromChat_NotOwner(t *testing.T) {
 	mockRepo.EXPECT().GetUserRoleInChat(ctx, userID, chatID).
 		Return("member", nil) // Не owner
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.DeleteUserFromChat(ctx, userID, usernames, chatID)
 
 	assert.Error(t, err)
@@ -496,7 +496,7 @@ func TestUpdateChat_DialogForbidden(t *testing.T) {
 	mockRepo.EXPECT().GetChatByID(ctx, chatID).
 		Return(&model.Chat{ID: chatID, Type: "dialog"}, nil)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	_, err := uc.UpdateChat(ctx, userID, updateChat)
 
 	assert.Error(t, err)
@@ -545,7 +545,7 @@ func TestCreateChat_WithAvatar(t *testing.T) {
 		GetUsersFromChat(ctx, chatID).
 		Return([]model.UserInChat{}, nil)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	info, err := uc.CreateChat(ctx, userID, createChat)
 
 	assert.NoError(t, err)
@@ -588,7 +588,7 @@ func TestUpdateChat_WithAvatar(t *testing.T) {
 	mockRepo.EXPECT().GetUsersFromChat(ctx, chatID).
 		Return([]model.UserInChat{}, nil)
 
-	uc := usecase.NewChatUsecase(mockRepo)
+	uc := usecase.NewChatUsecase(mockRepo, nil)
 	info, err := uc.UpdateChat(ctx, userID, updateChat)
 
 	assert.NoError(t, err)

@@ -2,105 +2,60 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
-	"log"
+	"sync"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/google/uuid"
 )
 
-type MessageEvent struct {
-	Action  string        `json:"action"`
-	Message model.Message `json:"payload"`
-}
-
 const (
-	NewMessage       = "newMessage"
-	AddWebsocketUser = "addWebsocketUser"
+	AddWebsocketUser    = "addWebsocketUser"
+	DeleteWebsocketUser = "deleteWebsocketUser"
 )
 
-type AnyEvent struct {
-	TypeOfEvent string
-	Event       interface{}
-}
-
-type Event struct {
-	Action string      `json:"action"`
-	ChatId uuid.UUID   `json:"chatId"`
-	Users  []uuid.UUID `json:"users"`
-}
-
-type ChatInfo struct {
-	events chan Event
-	users  map[uuid.UUID]struct{}
-}
-
-func SerializeMessageEvent(event MessageEvent) ([]byte, error) {
-	return json.Marshal(event)
-}
-
-func DeserializeMessageEvent(data []byte) (MessageEvent, error) {
-	var event MessageEvent
-	err := json.Unmarshal(data, &event)
-	if err != nil {
-		return MessageEvent{}, err
-	}
-	return event, nil
-}
-
 type IWebsocketUsecase interface {
-	InitBrokersForUser(userID uuid.UUID, eventChan chan AnyEvent) error
+	RegisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) error
+	UnregisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent)
+	GetUserChannels(userID uuid.UUID) []chan model.AnyEvent
+	InitChat(chatID uuid.UUID, users []uuid.UUID) error
 	ConsumeMessages()
-	SendMessage(event MessageEvent)
+	ConsumeChats()
+	SendMessage(event model.MessageEvent)
+	SendChatEvent(event model.ChatEvent)
 }
 
 type WebsocketUsecase struct {
-	messageChan chan MessageEvent
+	messageChan chan model.MessageEvent
+	chatChan    chan model.ChatEvent
 
-	onlineChats map[uuid.UUID]ChatInfo
-	onlineUsers map[uuid.UUID][]chan AnyEvent
+	onlineChats map[uuid.UUID]model.ChatInfoWS
+	onlineUsers map[uuid.UUID][]chan model.AnyEvent
+	mu          sync.RWMutex
 
 	chatRepo repository.IChatRepo
 }
 
 func NewWebsocketUsecase(chatRepo repository.IChatRepo) IWebsocketUsecase {
-	socket := &WebsocketUsecase{
-		messageChan: make(chan MessageEvent, 100),
-		onlineChats: make(map[uuid.UUID]ChatInfo),
-		onlineUsers: make(map[uuid.UUID][]chan AnyEvent),
+	return &WebsocketUsecase{
+		messageChan: make(chan model.MessageEvent, 100),
+		chatChan:    make(chan model.ChatEvent, 100),
+		onlineChats: make(map[uuid.UUID]model.ChatInfoWS),
+		onlineUsers: make(map[uuid.UUID][]chan model.AnyEvent),
 		chatRepo:    chatRepo,
 	}
-
-	return socket
 }
 
-func (w *WebsocketUsecase) InitNewChatRoom(chatID uuid.UUID) {
-	log.Printf("Initializing new chat room: %s", chatID.String())
-
-	eventsChan := make(chan Event, 100)
-	chatInfo := ChatInfo{
-		events: eventsChan,
-		users:  make(map[uuid.UUID]struct{}),
-	}
-	w.onlineChats[chatID] = chatInfo
-
-	go func(chatInfo ChatInfo) {
-		for event := range chatInfo.events {
-			log.Printf("Chat %s received event: %v", chatID.String(), event)
-
-			switch event.Action {
-			case AddWebsocketUser:
-				for _, userID := range event.Users {
-					chatInfo.users[userID] = struct{}{}
-					log.Printf("User %s added to chat %s", userID.String(), chatID.String())
-				}
-			}
-		}
-	}(chatInfo)
+func (w *WebsocketUsecase) GetUserChannels(userID uuid.UUID) []chan model.AnyEvent {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.onlineUsers[userID]
 }
 
-func (w *WebsocketUsecase) InitBrokersForUser(userID uuid.UUID, eventChan chan AnyEvent) error {
+func (w *WebsocketUsecase) RegisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	// Добавляем новый канал в слайс
 	w.onlineUsers[userID] = append(w.onlineUsers[userID], eventChan)
 
@@ -112,9 +67,9 @@ func (w *WebsocketUsecase) InitBrokersForUser(userID uuid.UUID, eventChan chan A
 
 	for _, chat := range userChats {
 		if _, ok := w.onlineChats[chat.ID]; !ok {
-			w.InitNewChatRoom(chat.ID)
+			w.initNewChatRoom(chat.ID)
 		}
-		w.onlineChats[chat.ID].events <- Event{
+		w.onlineChats[chat.ID].Events <- model.Event{
 			Action: AddWebsocketUser,
 			ChatId: chat.ID,
 			Users:  []uuid.UUID{userID},
@@ -124,34 +79,81 @@ func (w *WebsocketUsecase) InitBrokersForUser(userID uuid.UUID, eventChan chan A
 	return nil
 }
 
-func (w *WebsocketUsecase) ConsumeMessages() {
-	for msg := range w.messageChan {
-		chatID := msg.Message.ChatID
+func (w *WebsocketUsecase) UnregisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-		if _, ok := w.onlineChats[chatID]; !ok {
-			w.InitNewChatRoom(chatID)
+	// Удаляем канал из списка пользователя
+	channels := w.onlineUsers[userID]
+	for i, ch := range channels {
+		if ch == eventChan {
+			w.onlineUsers[userID] = append(channels[:i], channels[i+1:]...)
+			break
 		}
-
-		w.SendMessage(msg)
-	}
-}
-
-func (w *WebsocketUsecase) SendMessage(event MessageEvent) {
-	chatID := event.Message.ChatID
-
-	chatInfo, ok := w.onlineChats[chatID]
-	if !ok {
-		return
 	}
 
-	for userID := range chatInfo.users {
-		if chans, ok := w.onlineUsers[userID]; ok {
-			for _, ch := range chans {
-				ch <- AnyEvent{
-					TypeOfEvent: NewMessage,
-					Event:       event,
+	// Если у пользователя больше нет каналов, удаляем его из чатов
+	if len(w.onlineUsers[userID]) == 0 {
+		delete(w.onlineUsers, userID)
+
+		// Удаляем пользователя из всех чатов
+		for chatID, chatInfo := range w.onlineChats {
+			if _, ok := chatInfo.Users[userID]; ok {
+				delete(chatInfo.Users, userID)
+
+				// Если в чате больше нет пользователей, закрываем его
+				if len(chatInfo.Users) == 0 {
+					close(chatInfo.Events)
+					delete(w.onlineChats, chatID)
 				}
 			}
 		}
 	}
+
+	close(eventChan)
+}
+
+func (w *WebsocketUsecase) initNewChatRoom(chatID uuid.UUID) {
+	eventsChan := make(chan model.Event, 100)
+	chatInfo := model.ChatInfoWS{
+		Events: eventsChan,
+		Users:  make(map[uuid.UUID]struct{}),
+	}
+	w.onlineChats[chatID] = chatInfo
+
+	go func(chatInfo model.ChatInfoWS) {
+		for event := range chatInfo.Events {
+			switch event.Action {
+			case AddWebsocketUser:
+				for _, userID := range event.Users {
+					chatInfo.Users[userID] = struct{}{}
+				}
+			case DeleteWebsocketUser:
+				for _, userID := range event.Users {
+					delete(chatInfo.Users, userID)
+				}
+			}
+		}
+	}(chatInfo)
+}
+
+func (w *WebsocketUsecase) InitChat(chatID uuid.UUID, users []uuid.UUID) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if _, exists := w.onlineChats[chatID]; !exists {
+		w.initNewChatRoom(chatID)
+	}
+
+	for _, userID := range users {
+		if _, exists := w.onlineUsers[userID]; exists {
+			w.onlineChats[chatID].Events <- model.Event{
+				Action: AddWebsocketUser,
+				Users:  []uuid.UUID{userID},
+				ChatId: chatID,
+			}
+		}
+	}
+
+	return nil
 }
