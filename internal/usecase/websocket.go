@@ -1,12 +1,15 @@
 package usecase
 
 import (
-	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
+	"go.uber.org/zap"
 )
 
 const (
@@ -14,76 +17,62 @@ const (
 	DeleteWebsocketUser = "deleteWebsocketUser"
 )
 
+const (
+	NewChat     = "newChat"
+	UpdateChat  = "updateChat"
+	DeleteChat  = "deleteChat"
+	AddUsers    = "addUsers"
+	RemoveUsers = "removeUsers"
+)
+
+const (
+	NewMessage    = "newMessage"
+	UpdateMessage = "updateMessage"
+	DeleteMessage = "deleteMessage"
+)
+
+// IWebsocketUsecase defines methods to manage WebSocket channels and NATS integration
 type IWebsocketUsecase interface {
 	RegisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) error
 	UnregisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent)
 	GetUserChannels(userID uuid.UUID) []chan model.AnyEvent
 	InitChat(chatID uuid.UUID, users []uuid.UUID) error
-	ConsumeMessages()
-	ConsumeChats()
-	SendMessage(event model.MessageEvent)
-	SendChatEvent(event model.ChatEvent)
+	PublishMessage(event model.MessageEvent) error
+	PublishChatEvent(event model.ChatEvent) error
 }
 
+// WebsocketUsecase implements IWebsocketUsecase using NATS for transport
 type WebsocketUsecase struct {
-	messageChan chan model.MessageEvent
-	chatChan    chan model.ChatEvent
-
-	onlineChats map[uuid.UUID]model.ChatInfoWS
-	onlineUsers map[uuid.UUID][]chan model.AnyEvent
-	mu          sync.RWMutex
-
-	chatRepo repository.IChatRepo
+	nc            *nats.Conn
+	chatRepo      repository.IChatRepo
+	onlineChats   map[uuid.UUID]model.ChatInfoWS      // chatID -> ChatInfoWS{Events, Users}
+	onlineUsers   map[uuid.UUID][]chan model.AnyEvent // userID -> slice of event channels
+	subscriptions map[uuid.UUID][]*nats.Subscription  // chatID -> NATS subscriptions
+	mu            sync.RWMutex
 }
 
-func NewWebsocketUsecase(chatRepo repository.IChatRepo) IWebsocketUsecase {
+// NewWebsocketUsecase creates a new WebsocketUsecase
+func NewWebsocketUsecase(chatRepo repository.IChatRepo, nc *nats.Conn) IWebsocketUsecase {
 	return &WebsocketUsecase{
-		messageChan: make(chan model.MessageEvent, 100),
-		chatChan:    make(chan model.ChatEvent, 100),
-		onlineChats: make(map[uuid.UUID]model.ChatInfoWS),
-		onlineUsers: make(map[uuid.UUID][]chan model.AnyEvent),
-		chatRepo:    chatRepo,
+		nc:            nc,
+		chatRepo:      chatRepo,
+		onlineChats:   make(map[uuid.UUID]model.ChatInfoWS),
+		onlineUsers:   make(map[uuid.UUID][]chan model.AnyEvent),
+		subscriptions: make(map[uuid.UUID][]*nats.Subscription),
 	}
 }
 
-func (w *WebsocketUsecase) GetUserChannels(userID uuid.UUID) []chan model.AnyEvent {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return w.onlineUsers[userID]
-}
-
+// RegisterUserChannel adds a user's event channel
 func (w *WebsocketUsecase) RegisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	// Добавляем новый канал в слайс
 	w.onlineUsers[userID] = append(w.onlineUsers[userID], eventChan)
-
-	// Получаем все чаты пользователя
-	userChats, _, err := w.chatRepo.GetChats(context.Background(), userID)
-	if err != nil {
-		return err
-	}
-
-	for _, chat := range userChats {
-		if _, ok := w.onlineChats[chat.ID]; !ok {
-			w.initNewChatRoom(chat.ID)
-		}
-		w.onlineChats[chat.ID].Events <- model.Event{
-			Action: AddWebsocketUser,
-			ChatId: chat.ID,
-			Users:  []uuid.UUID{userID},
-		}
-	}
-
+	w.mu.Unlock()
 	return nil
 }
 
+// UnregisterUserChannel removes a user's event channel
 func (w *WebsocketUsecase) UnregisterUserChannel(userID uuid.UUID, eventChan chan model.AnyEvent) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	// Удаляем канал из списка пользователя
 	channels := w.onlineUsers[userID]
 	for i, ch := range channels {
 		if ch == eventChan {
@@ -91,69 +80,135 @@ func (w *WebsocketUsecase) UnregisterUserChannel(userID uuid.UUID, eventChan cha
 			break
 		}
 	}
-
-	// Если у пользователя больше нет каналов, удаляем его из чатов
 	if len(w.onlineUsers[userID]) == 0 {
 		delete(w.onlineUsers, userID)
-
-		// Удаляем пользователя из всех чатов
-		for chatID, chatInfo := range w.onlineChats {
-			if _, ok := chatInfo.Users[userID]; ok {
-				delete(chatInfo.Users, userID)
-
-				// Если в чате больше нет пользователей, закрываем его
-				if len(chatInfo.Users) == 0 {
-					close(chatInfo.Events)
-					delete(w.onlineChats, chatID)
-				}
-			}
-		}
 	}
-
+	w.mu.Unlock()
 	close(eventChan)
 }
 
-func (w *WebsocketUsecase) initNewChatRoom(chatID uuid.UUID) {
-	eventsChan := make(chan model.Event, 100)
-	chatInfo := model.ChatInfoWS{
-		Events: eventsChan,
-		Users:  make(map[uuid.UUID]struct{}),
-	}
-	w.onlineChats[chatID] = chatInfo
-
-	go func(chatInfo model.ChatInfoWS) {
-		for event := range chatInfo.Events {
-			switch event.Action {
-			case AddWebsocketUser:
-				for _, userID := range event.Users {
-					chatInfo.Users[userID] = struct{}{}
-				}
-			case DeleteWebsocketUser:
-				for _, userID := range event.Users {
-					delete(chatInfo.Users, userID)
-				}
-			}
-		}
-	}(chatInfo)
+// GetUserChannels returns a copy of channels for a user
+func (w *WebsocketUsecase) GetUserChannels(userID uuid.UUID) []chan model.AnyEvent {
+	w.mu.RLock()
+	orig := w.onlineUsers[userID]
+	w.mu.RUnlock()
+	copy := make([]chan model.AnyEvent, len(orig))
+	copy = append(copy[:0], orig...)
+	return copy
 }
 
+// InitChat subscribes to NATS subjects for a chat and tracks membership
 func (w *WebsocketUsecase) InitChat(chatID uuid.UUID, users []uuid.UUID) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
-
+	// Initialize chat info if not exists
 	if _, exists := w.onlineChats[chatID]; !exists {
-		w.initNewChatRoom(chatID)
+		eventsChan := make(chan model.Event, 100)
+		w.onlineChats[chatID] = model.ChatInfoWS{Events: eventsChan, Users: make(map[uuid.UUID]struct{})}
+
+		// Start goroutine to handle membership events
+		go w.handleMembershipEvents(chatID)
+
+		// Subscribe to membership events
+		subM, err := w.nc.Subscribe(fmt.Sprintf("chat.%s.events", chatID.String()), func(msg *nats.Msg) {
+			var ev model.Event
+			if err := json.Unmarshal(msg.Data, &ev); err != nil {
+				zap.L().Error("failed to unmarshal membership event", zap.Error(err))
+				return
+			}
+			w.onlineChats[chatID].Events <- ev
+		})
+		if err != nil {
+			w.mu.Unlock()
+			return fmt.Errorf("subscribe membership: %w", err)
+		}
+
+		// Subscribe to chat messages
+		subMsg, err := w.nc.Subscribe(fmt.Sprintf("chat.%s.messages", chatID.String()), func(msg *nats.Msg) {
+			var me model.MessageEvent
+			if err := json.Unmarshal(msg.Data, &me); err != nil {
+				zap.L().Error("failed to unmarshal message event", zap.Error(err))
+				return
+			}
+			w.SendMessage(me)
+		})
+		if err != nil {
+			w.mu.Unlock()
+			return fmt.Errorf("subscribe messages: %w", err)
+		}
+
+		// Save subscriptions
+		w.subscriptions[chatID] = []*nats.Subscription{subM, subMsg}
 	}
+	// Add initial users
+	for _, uid := range users {
+		w.onlineChats[chatID].Users[uid] = struct{}{}
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// PublishMessage publishes a message event to NATS
+func (w *WebsocketUsecase) PublishMessage(event model.MessageEvent) error {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	subj := fmt.Sprintf("chat.%s.messages", event.Message.ChatID.String())
+	return w.nc.Publish(subj, data)
+}
+
+// PublishChatEvent publishes a membership event to NATS
+func (w *WebsocketUsecase) PublishChatEvent(event model.ChatEvent) error {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	subj := fmt.Sprintf("chat.%s.events", event.Chat.ID.String())
+	return w.nc.Publish(subj, data)
+}
+
+// handleMembershipEvents processes Event from NATS and updates onlineChats
+func (w *WebsocketUsecase) handleMembershipEvents(chatID uuid.UUID) {
+	ch := w.onlineChats[chatID].Events
+	for ev := range ch {
+		w.mu.Lock()
+		chatInfo := w.onlineChats[chatID]
+		switch ev.Action {
+		case AddWebsocketUser:
+			for _, uid := range ev.Users {
+				chatInfo.Users[uid] = struct{}{}
+			}
+		case DeleteWebsocketUser:
+			for _, uid := range ev.Users {
+				delete(chatInfo.Users, uid)
+			}
+		}
+		w.onlineChats[chatID] = chatInfo
+		w.mu.Unlock()
+	}
+}
+
+// SendMessage distributes MessageEvent to user channels
+func (w *WebsocketUsecase) SendMessage(event model.MessageEvent) {
+	w.mu.RLock()
+	chatInfo, ok := w.onlineChats[event.Message.ChatID]
+	if !ok {
+		w.mu.RUnlock()
+		return
+	}
+	users := make([]uuid.UUID, 0, len(chatInfo.Users))
+	for uid := range chatInfo.Users {
+		users = append(users, uid)
+	}
+	chans := w.onlineUsers
+	w.mu.RUnlock()
 
 	for _, userID := range users {
-		if _, exists := w.onlineUsers[userID]; exists {
-			w.onlineChats[chatID].Events <- model.Event{
-				Action: AddWebsocketUser,
-				Users:  []uuid.UUID{userID},
-				ChatId: chatID,
+		for _, ch := range chans[userID] {
+			select {
+			case ch <- model.AnyEvent{TypeOfEvent: event.Action, Event: event}:
+			default:
 			}
 		}
 	}
-
-	return nil
 }

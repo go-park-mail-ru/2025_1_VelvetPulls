@@ -79,16 +79,14 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, messageInput *model.M
 
 func (uc *MessageUsecase) sendEvent(ctx context.Context, action string, message *model.Message) {
 	logger := utils.GetLoggerFromCtx(ctx)
-
-	newEvent := model.MessageEvent{
-		Action:  action,
-		Message: *message,
-	}
-
+	event := model.MessageEvent{Action: action, Message: *message}
 	if uc.wsUsecase != nil {
-		uc.wsUsecase.SendMessage(newEvent)
-		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", message.ChatID.String()))
+		if err := uc.wsUsecase.PublishMessage(event); err != nil {
+			logger.Error("Failed to publish message event", zap.Error(err))
+		} else {
+			logger.Info("Published message event via NATS", zap.String("chatID", message.ChatID.String()))
+		}
 	} else {
-		logger.Warn("wsUsecase is nil, event not sent")
+		logger.Warn("wsUsecase is nil, message event not published")
 	}
 }

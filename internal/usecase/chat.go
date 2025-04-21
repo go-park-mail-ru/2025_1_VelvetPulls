@@ -200,10 +200,19 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *m
 
 	logger.Info("Chat successfully created")
 	chatinfo, err := uc.GetChatInfo(ctx, userID, chatID)
-	// fmt.Println(err)
-	// if err == nil {
-	// 	uc.sendEvent(ctx, NewChat, chatinfo)
-	// }
+	if err == nil && uc.wsUsecase != nil {
+		if uc.wsUsecase != nil {
+			userIDs := make([]uuid.UUID, 0, len(chatinfo.Users))
+			for _, user := range chatinfo.Users {
+				userIDs = append(userIDs, user.ID)
+			}
+
+			if err := uc.wsUsecase.InitChat(chatID, userIDs); err != nil {
+				logger.Error("Failed to init chat subscriptions", zap.Error(err))
+			}
+			uc.sendEvent(ctx, NewChat, chatinfo)
+		}
+	}
 
 	return chatinfo, err
 }
@@ -266,7 +275,12 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *m
 	}
 
 	logger.Info("Chat successfully updated")
-	return uc.GetChatInfo(ctx, userID, chat.ID)
+	chatinfo, err := uc.GetChatInfo(ctx, userID, chat.ID)
+	if err == nil && uc.wsUsecase != nil {
+		uc.sendEvent(ctx, UpdateChat, chatinfo)
+	}
+
+	return chatinfo, err
 }
 
 func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
@@ -292,6 +306,10 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID uuid.UUID, chatID 
 	}
 
 	logger.Info("Chat successfully deleted")
+	if uc.wsUsecase != nil {
+		uc.sendEvent(ctx, DeleteChat, &model.ChatInfo{ID: chatID})
+	}
+
 	return nil
 }
 
@@ -391,20 +409,16 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
 }
 
-// func (uc *ChatUsecase) sendEvent(ctx context.Context, action string, chat *model.ChatInfo) {
-// 	logger := utils.GetLoggerFromCtx(ctx)
-
-// 	newEvent := model.ChatEvent{
-// 		Action: action,
-// 		Chat:   *chat,
-// 	}
-// 	fmt.Println(newEvent)
-// 	if uc.wsUsecase != nil {
-// 		uc.wsUsecase.SendChatEvent(newEvent)
-// 		fmt.Println(newEvent)
-// 		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", chat.ID.String()))
-// 	} else {
-// 		fmt.Println("pizdos")
-// 		logger.Warn("wsUsecase is nil, event not sent")
-// 	}
-// }
+func (uc *ChatUsecase) sendEvent(ctx context.Context, action string, chat *model.ChatInfo) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	event := model.ChatEvent{Action: action, Chat: *chat}
+	if uc.wsUsecase != nil {
+		if err := uc.wsUsecase.PublishChatEvent(event); err != nil {
+			logger.Error("Failed to publish message event", zap.Error(err))
+		} else {
+			logger.Info("Published message event via NATS", zap.String("chatID", chat.ID.String()))
+		}
+	} else {
+		logger.Warn("wsUsecase is nil, message event not published")
+	}
+}

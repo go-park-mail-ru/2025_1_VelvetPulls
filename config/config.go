@@ -32,6 +32,12 @@ var Cors = struct {
 	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token",
 }
 
+var (
+	NATSURL  = "nats://nats:4222"
+	NATSUser = ""
+	NATSPass = ""
+)
+
 var Postgre = struct {
 	User     string
 	Password string

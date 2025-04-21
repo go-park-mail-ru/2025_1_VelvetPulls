@@ -13,6 +13,7 @@ import (
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
+	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -35,10 +36,11 @@ type IServer interface {
 type Server struct {
 	dbConn      *sql.DB
 	redisClient *redis.Client
+	nc          *nats.Conn
 }
 
-func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
-	return &Server{dbConn: dbConn, redisClient: redisClient}
+func NewServer(dbConn *sql.DB, redisClient *redis.Client, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, redisClient: redisClient, nc: nc}
 }
 
 func (s *Server) Run(address string) error {
@@ -66,7 +68,7 @@ func (s *Server) Run(address string) error {
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
-	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
+	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo, s.nc)
 	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo, websocketUsecase)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
@@ -81,7 +83,7 @@ func (s *Server) Run(address string) error {
 	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionUsecase)
 
 	// ===== WebSocket =====
-	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase)
+	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase, s.nc)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()

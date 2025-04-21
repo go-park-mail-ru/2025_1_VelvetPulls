@@ -33,6 +33,18 @@ services:
       timeout: 3s
       retries: 30
 
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./nats-server.conf:/nats-server.conf
+    command: ["-c", "/nats-server.conf"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
+
+    
   app:
     build:
       context: ../
@@ -45,5 +57,7 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     restart: unless-stopped
