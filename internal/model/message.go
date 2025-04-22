@@ -26,7 +26,7 @@ type Message struct {
 	Body            string     `json:"body"`
 	SentAt          time.Time  `json:"sent_at"`
 	IsRedacted      bool       `json:"is_redacted"`
-	AvatarPath      *string    `json:"avatar_path"`
+	AvatarPath      *string    `json:"avatar_path,omitempty"`
 	Username        string     `json:"user,omitempty"`
 }
 

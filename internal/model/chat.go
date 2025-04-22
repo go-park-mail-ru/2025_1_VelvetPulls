@@ -9,9 +9,36 @@ import (
 	"github.com/google/uuid"
 )
 
+type ChatType string
+
+const (
+	ChatTypeDialog ChatType = "dialog"
+	ChatTypeGroup  ChatType = "group"
+)
+
+type UserRoleInChat string
+
+func (ct ChatType) IsValid() bool {
+	switch ct {
+	case ChatTypeDialog, ChatTypeGroup:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r UserRoleInChat) IsMember() bool {
+	return r == RoleMember || r == RoleOwner
+}
+
+const (
+	RoleOwner  UserRoleInChat = "owner"
+	RoleMember UserRoleInChat = "member"
+)
+
 type Chat struct {
 	ID         uuid.UUID `json:"id" valid:"uuid"`
-	AvatarPath *string   `json:"avatar_path"`
+	AvatarPath *string   `json:"avatar_path,omitempty"`
 	Type       string    `json:"type" valid:"in(dialog|group|channel),required"`
 	Title      string    `json:"title" valid:"required~Title is required,length(1|100)"`
 	CreatedAt  string    `json:"created_at"`
@@ -39,7 +66,7 @@ type UpdateChat struct {
 
 type ChatInfo struct {
 	ID         uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath *string      `json:"avatar_path"`
+	AvatarPath *string      `json:"avatar_path,omitempty"`
 	Type       string       `json:"type" valid:"in(dialog|group|channel)"`
 	Title      string       `json:"title" valid:"length(1|100)"`
 	CountUsers int          `json:"count_users" valid:"range(0|5000)"`
@@ -48,19 +75,19 @@ type ChatInfo struct {
 
 type UserInChat struct {
 	ID         uuid.UUID `json:"id" valid:"uuid"`
-	Username   string    `json:"username" valid:"required,length(3|50)"`
-	Name       *string   `json:"name" valid:"length(0|100)"`
-	AvatarPath *string   `json:"avatar_path"`
+	Username   string    `json:"username,omitempty" valid:"required,length(3|50)"`
+	Name       *string   `json:"name,omitempty" valid:"length(0|100)"`
+	AvatarPath *string   `json:"avatar_path,omitempty"`
 	Role       *string   `json:"role" valid:"length(0|20)"`
 }
 
 type AddedUsersIntoChat struct {
-	AddedUsers    []string `json:"added_users" valid:"required"`
-	NotAddedUsers []string `json:"not_added_users" valid:"required"`
+	AddedUsers    []string `json:"added_users,omitempty" valid:"required"`
+	NotAddedUsers []string `json:"not_added_users,omitempty" valid:"required"`
 }
 
 type DeletedUsersFromChat struct {
-	DeletedUsers []string `json:"deleted_users" valid:"required"`
+	DeletedUsers []string `json:"deleted_users,omitempty" valid:"required"`
 }
 
 func (c *Chat) Validate() error {

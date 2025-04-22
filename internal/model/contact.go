@@ -7,10 +7,10 @@ import (
 
 type Contact struct {
 	ID        uuid.UUID `json:"id"`
-	FirstName *string   `json:"first_name"`
-	LastName  *string   `json:"last_name"`
+	FirstName *string   `json:"first_name,omitempty"`
+	LastName  *string   `json:"last_name,omitempty"`
 	Username  string    `json:"username"`
-	AvatarURL *string   `json:"avatar_path"`
+	AvatarURL *string   `json:"avatar_path,omitempty"`
 }
 
 type RequestContact struct {

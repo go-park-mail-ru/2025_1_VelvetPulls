@@ -42,32 +42,28 @@ func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase,
 func (c *messageController) GetMessageHistory(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
+	// Парсим chat_id
 	vars := mux.Vars(r)
 	chatID, err := uuid.Parse(vars["chat_id"])
 	if err != nil {
 		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Fetching message history", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+	logger.Info("GetMessageHistory", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
+	// Получаем историю
 	messages, err := c.messageUsecase.GetChatMessages(r.Context(), userID, chatID)
 	if err != nil {
 		logger.Error("Failed to get message history", zap.Error(err))
 		code, msg := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, msg, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, messages, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, messages, true)
 }
 
 // @Summary Отправить сообщение в чат
@@ -84,40 +80,35 @@ func (c *messageController) GetMessageHistory(w http.ResponseWriter, r *http.Req
 // @Router /chat/{chat_id}/messages [post]
 func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	userID := utils.GetUserIDFromCtx(r.Context())
 
+	// Парсим chat_id
 	vars := mux.Vars(r)
 	chatID, err := uuid.Parse(vars["chat_id"])
 	if err != nil {
 		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
+	userID := utils.GetUserIDFromCtx(r.Context())
+
+	// Декодируем тело
 	var input model.MessageInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		logger.Error("Failed to decode message input", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
 
-	logger.Info("Sending message", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
+	logger.Info("SendMessage", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
-	err = c.messageUsecase.SendMessage(r.Context(), &input, userID, chatID)
-	if err != nil {
+	// Отправляем через usecase
+	if err := c.messageUsecase.SendMessage(r.Context(), &input, userID, chatID); err != nil {
 		logger.Error("Failed to send message", zap.Error(err))
-		code, errMsg := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, errMsg, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusCreated, "message send successful", true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusCreated, "Message sent successfully", true)
 }
