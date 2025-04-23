@@ -36,13 +36,22 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 }
 
 // --- Chat methods ---
-
 func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
 	query := `
-		SELECT c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at
+		SELECT 
+			c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at,
+			m.id, m.user_id, m.body, m.sent_at
 		FROM chat c
 		JOIN user_chat uc ON c.id = uc.chat_id
+		LEFT JOIN LATERAL (
+			SELECT m.id, m.user_id, m.body, m.sent_at
+			FROM message m
+			WHERE m.chat_id = c.id
+			ORDER BY m.sent_at DESC
+			LIMIT 1
+		) m ON true
 		WHERE uc.user_id = $1
+		ORDER BY m.sent_at DESC NULLS LAST
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -53,13 +62,42 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 
 	var chats []model.Chat
 	var lastChatID uuid.UUID
+
 	for rows.Next() {
 		var chat model.Chat
-		if err := rows.Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
+		var msgID sql.NullString
+		var msgUserID sql.NullString
+		var msgBody sql.NullString
+		var msgSentAt sql.NullTime
+
+		err := rows.Scan(
+			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title,
+			&chat.CreatedAt, &chat.UpdatedAt,
+			&msgID, &msgUserID, &msgBody, &msgSentAt,
+		)
+		if err != nil {
 			return nil, uuid.Nil, err
 		}
+
+		if msgID.Valid && msgUserID.Valid && msgBody.Valid && msgSentAt.Valid {
+			msgUUID, err1 := uuid.Parse(msgID.String)
+			userUUID, err2 := uuid.Parse(msgUserID.String)
+			if err1 == nil && err2 == nil {
+				chat.LastMessage = &model.LastMessage{
+					ID:     msgUUID,
+					UserID: userUUID,
+					Body:   msgBody.String,
+					SentAt: msgSentAt.Time,
+				}
+			}
+		}
+
 		chats = append(chats, chat)
 		lastChatID = chat.ID
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, uuid.Nil, err
 	}
 
 	return chats, lastChatID, nil
