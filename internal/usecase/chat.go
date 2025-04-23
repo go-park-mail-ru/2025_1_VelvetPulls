@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
@@ -108,7 +107,6 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	// create chat record
 	chatID, avatarURL, err := uc.chatRepo.CreateChat(ctx, req)
-	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +129,6 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	// return full info and publish
 	info, err := uc.GetChatInfo(ctx, userID, chatID)
-	fmt.Println(err)
 	if err == nil && uc.wsUsecase != nil {
 		uc.wsUsecase.InitChat(chatID, uc.extractUserIDs(info.Users))
 		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: NewChat, Chat: *info})
@@ -281,7 +278,6 @@ func (uc *ChatUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUI
 
 func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID) error {
 	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
-	fmt.Println(role, err)
 	if err != nil {
 		return err
 	}

@@ -11,26 +11,23 @@ import (
 	"go.uber.org/zap"
 )
 
-// IMessageUsecase описывает операции по работе с сообщениями
-// в рамках чата: чтение истории и отправка новых сообщений
 type IMessageUsecase interface {
 	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
 	SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
+	UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
+	DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error
 }
 
-// MessageUsecase реализует бизнес-логику сообщений в чатах
 type MessageUsecase struct {
 	messageRepo repository.IMessageRepo
 	chatRepo    repository.IChatRepo
 	wsUsecase   IWebsocketUsecase
 }
 
-// NewMessageUsecase создаёт экземпляр MessageUsecase
 func NewMessageUsecase(msgRepo repository.IMessageRepo, chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IMessageUsecase {
 	return &MessageUsecase{messageRepo: msgRepo, chatRepo: chatRepo, wsUsecase: wsUsecase}
 }
 
-// ensureMember проверяет, что пользователь является участником чата
 func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
 	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
@@ -42,18 +39,15 @@ func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.
 	return nil
 }
 
-// GetChatMessages возвращает все сообщения из чата
 func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChatMessages start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
-	// проверяем права доступа
 	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
 		logger.Warn("Access denied при попытке получить сообщения", zap.Error(err))
 		return nil, err
 	}
 
-	// выборка из репозитория
 	msgs, err := uc.messageRepo.GetMessages(ctx, chatID)
 	if err != nil {
 		logger.Error("GetMessages failed", zap.Error(err))
@@ -62,53 +56,106 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 	return msgs, nil
 }
 
-// SendMessage валидирует и сохраняет новое сообщение, а затем публикует событие
 func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
-	// проверяем права доступа
 	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
 		logger.Warn("Access denied при попытке отправить сообщение", zap.Error(err))
 		return err
 	}
 
-	// валидация содержимого
 	if err := input.Validate(); err != nil {
-		logger.Error("Validation failed для MessageInput", zap.Error(err))
-		return fmt.Errorf("SendMessage: validation failed: %w", err)
+		logger.Error("Validation failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageValidationFailed, err)
 	}
 
-	// подготовка модели сообщения
 	msg := &model.Message{
 		ChatID: chatID,
 		UserID: userID,
 		Body:   input.Message,
 	}
 
-	// сохранение через репозиторий
 	saved, err := uc.messageRepo.CreateMessage(ctx, msg)
 	if err != nil {
 		logger.Error("CreateMessage failed", zap.Error(err))
-		return fmt.Errorf("SendMessage: failed to create message: %w", err)
+		return fmt.Errorf("%w: %v", ErrMessageCreationFailed, err)
 	}
 
-	// публикация события WebSocket/NATS
 	uc.publishEvent(ctx, NewMessage, saved)
 	return nil
 }
 
-// publishEvent формирует и отправляет событие о новом сообщении
+func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("UpdateMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
+
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+		logger.Warn("Access denied при попытке редактировать сообщение", zap.Error(err))
+		return err
+	}
+
+	message, err := uc.messageRepo.GetMessage(ctx, messageID)
+	if err != nil {
+		logger.Error("GetMessage failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageNotFound, err)
+	}
+
+	if message.UserID != userID {
+		logger.Warn("Access denied: user is not the author of the message", zap.String("messageID", messageID.String()))
+		return ErrMessageAccessDenied
+	}
+
+	updated, err := uc.messageRepo.UpdateMessage(ctx, messageID, input.Message)
+	if err != nil {
+		logger.Error("UpdateMessage failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageUpdateFailed, err)
+	}
+
+	uc.publishEvent(ctx, UpdateMessage, updated)
+	return nil
+}
+
+func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("DeleteMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
+
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+		logger.Warn("Access denied при попытке удалить сообщение", zap.Error(err))
+		return err
+	}
+
+	message, err := uc.messageRepo.GetMessage(ctx, messageID)
+	if err != nil {
+		logger.Error("GetMessage failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageNotFound, err)
+	}
+
+	if message.UserID != userID {
+		logger.Warn("Access denied: user is not the author of the message", zap.String("messageID", messageID.String()))
+		return ErrMessageAccessDenied
+	}
+
+	deleted, err := uc.messageRepo.DeleteMessage(ctx, messageID)
+	if err != nil {
+		logger.Error("DeleteMessage failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageDeleteFailed, err)
+	}
+
+	uc.publishEvent(ctx, DeleteMessage, deleted)
+	return nil
+}
+
 func (uc *MessageUsecase) publishEvent(ctx context.Context, action string, message *model.Message) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	event := model.MessageEvent{Action: action, Message: *message}
+
 	if uc.wsUsecase == nil {
 		logger.Warn("wsUsecase не инициализирован, событие не отправлено")
 		return
 	}
+
 	if err := uc.wsUsecase.PublishMessage(event); err != nil {
 		logger.Error("PublishMessage failed", zap.Error(err))
-	} else {
-		logger.Info("Message event published", zap.String("chatID", message.ChatID.String()))
 	}
 }

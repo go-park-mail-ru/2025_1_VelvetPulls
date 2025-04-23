@@ -27,6 +27,8 @@ func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase,
 
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.UpdateMessage))).Methods(http.MethodPut)
+	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.DeleteMessage))).Methods(http.MethodDelete)
 }
 
 // @Summary Получить историю сообщений в чате
@@ -111,4 +113,98 @@ func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.SendJSONResponse(w, r, http.StatusCreated, "Message sent successfully", true)
+}
+
+// @Summary Обновить сообщение в чате
+// @Description Обновляет сообщение пользователя в чате
+// @Tags Message
+// @Accept json
+// @Produce json
+// @Param chat_id path string true "ID чата"
+// @Param message body model.MessageInput true "Новое сообщение"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/messages [put]
+func (c *messageController) UpdateMessage(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
+	vars := mux.Vars(r)
+	chatID, err := uuid.Parse(vars["chat_id"])
+	if err != nil {
+		logger.Error("Invalid chat ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	messageID, err := uuid.Parse(vars["message_id"])
+	if err != nil {
+		logger.Error("Invalid message ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid message ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+
+	var input model.MessageInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		logger.Error("Failed to decode message input", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
+		return
+	}
+
+	logger.Info("UpdateMessage", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+
+	if err := c.messageUsecase.UpdateMessage(r.Context(), messageID, &input, userID, chatID); err != nil {
+		logger.Error("Failed to update message", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "Message updated successfully", true)
+}
+
+// @Summary Удалить сообщение в чате
+// @Description Удаляет сообщение пользователя из чата
+// @Tags Message
+// @Produce json
+// @Param chat_id path string true "ID чата"
+// @Param message_id path string true "ID сообщения"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/messages/{message_id} [delete]
+func (c *messageController) DeleteMessage(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
+	vars := mux.Vars(r)
+	chatID, err := uuid.Parse(vars["chat_id"])
+	if err != nil {
+		logger.Error("Invalid chat ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	messageID, err := uuid.Parse(vars["message_id"])
+	if err != nil {
+		logger.Error("Invalid message ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid message ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+
+	logger.Info("DeleteMessage", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()), zap.String("messageID", messageID.String()))
+
+	if err := c.messageUsecase.DeleteMessage(r.Context(), messageID, userID, chatID); err != nil {
+		logger.Error("Failed to delete message", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "Message deleted successfully", true)
 }
