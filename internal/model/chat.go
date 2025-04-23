@@ -12,8 +12,9 @@ import (
 type ChatType string
 
 const (
-	ChatTypeDialog ChatType = "dialog"
-	ChatTypeGroup  ChatType = "group"
+	ChatTypeDialog  ChatType = "dialog"
+	ChatTypeGroup   ChatType = "group"
+	ChatTypeChannel ChatType = "channel"
 )
 
 type UserRoleInChat string

@@ -88,9 +88,9 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 // CreateChat creates new chat, adds users, initializes WS and publishes event
 func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChat) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("CreateChat", zap.String("type", req.Type))
+	logger.Info("CreateChat start", zap.String("type", req.Type))
 
-	// validation
+	// Validation
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -98,20 +98,20 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 		return nil, utils.ErrNotImage
 	}
 
-	// for dialogs, reuse existing
+	// For dialogs, reuse existing
 	if req.Type == string(model.ChatTypeDialog) {
 		if info, found := uc.findExistingDialog(ctx, userID, req.DialogUser); found {
 			return info, nil
 		}
 	}
 
-	// create chat record
+	// Create chat record
 	chatID, avatarURL, err := uc.chatRepo.CreateChat(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// save avatar to filesystem
+	// Save avatar file if provided
 	if req.Avatar != nil {
 		if err := utils.RewritePhoto(*req.Avatar, avatarURL); err != nil {
 			logger.Error("CreateChat: RewritePhoto failed", zap.Error(err))
@@ -119,15 +119,17 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 		}
 	}
 
-	// add participants
+	// Add initial participant(s)
 	switch model.ChatType(req.Type) {
 	case model.ChatTypeDialog:
 		uc.addDialogUsers(ctx, userID, req.DialogUser, chatID)
 	case model.ChatTypeGroup:
 		uc.addGroupOwner(ctx, userID, chatID)
+	case model.ChatTypeChannel:
+		uc.addChannelOwner(ctx, userID, chatID)
 	}
 
-	// return full info and publish
+	// Prepare ChatInfo and publish event
 	info, err := uc.GetChatInfo(ctx, userID, chatID)
 	if err == nil && uc.wsUsecase != nil {
 		uc.wsUsecase.InitChat(chatID, uc.extractUserIDs(info.Users))
@@ -326,6 +328,13 @@ func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, chatID u
 	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
 		zap.L().Warn("addGroupOwner: AddUserToChatByID failed", zap.Error(err))
+	}
+}
+
+func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, chatID uuid.UUID) {
+	err := uc.chatRepo.AddUserToChatByID(ctx, ownerID, string(model.RoleOwner), chatID)
+	if err != nil {
+		zap.L().Warn("addChannelOwner: AddUserToChatByID failed", zap.String("chatID", chatID.String()), zap.Error(err))
 	}
 }
 

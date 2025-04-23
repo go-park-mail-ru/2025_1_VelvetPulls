@@ -28,17 +28,6 @@ func NewMessageUsecase(msgRepo repository.IMessageRepo, chatRepo repository.ICha
 	return &MessageUsecase{messageRepo: msgRepo, chatRepo: chatRepo, wsUsecase: wsUsecase}
 }
 
-func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
-	if err != nil {
-		return err
-	}
-	if !model.UserRoleInChat(role).IsMember() {
-		return ErrPermissionDenied
-	}
-	return nil
-}
-
 func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChatMessages start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
@@ -60,7 +49,8 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
-	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+	// проверка прав отправки
+	if err := uc.ensureCanSend(ctx, userID, chatID); err != nil {
 		logger.Warn("Access denied при попытке отправить сообщение", zap.Error(err))
 		return err
 	}
@@ -158,4 +148,40 @@ func (uc *MessageUsecase) publishEvent(ctx context.Context, action string, messa
 	if err := uc.wsUsecase.PublishMessage(event); err != nil {
 		logger.Error("PublishMessage failed", zap.Error(err))
 	}
+}
+
+// ensureMember проверяет, что пользователь является участником чата
+func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	if err != nil {
+		return err
+	}
+	if !model.UserRoleInChat(role).IsMember() {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
+// ensureCanSend проверяет, что пользователь может отправлять сообщения:
+// - в диалоге или группе любой участник
+// - в канале только владелец
+func (uc *MessageUsecase) ensureCanSend(ctx context.Context, userID, chatID uuid.UUID) error {
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return err
+	}
+	// если это канал
+	if chat.Type == string(model.ChatTypeChannel) {
+		// только владелец может
+		role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+		if err != nil {
+			return err
+		}
+		if model.UserRoleInChat(role) != model.RoleOwner {
+			return ErrMessageAccessDenied
+		}
+		return nil
+	}
+	// иначе участник
+	return uc.ensureMember(ctx, userID, chatID)
 }
