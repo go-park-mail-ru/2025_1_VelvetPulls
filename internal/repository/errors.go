@@ -15,4 +15,7 @@ var (
 	ErrDatabaseOperation   = errors.New("database operation failed")
 	ErrDatabaseScan        = errors.New("failed to scan database row")
 	ErrEmptyMessage        = errors.New("message body is empty")
+	ErrFileNotFound        = errors.New("file not found")
+	ErrFileAccessDenied    = errors.New("access to file denied")
+	ErrFileStorageFailed   = errors.New("file storage operation failed")
 )

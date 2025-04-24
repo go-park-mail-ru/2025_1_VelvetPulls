@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"os"
@@ -10,9 +11,12 @@ import (
 	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	minioRepo "github.com/go-park-mail-ru/2025_1_VelvetPulls/minio"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/gorilla/mux"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -35,18 +39,66 @@ type IServer interface {
 type Server struct {
 	dbConn      *sql.DB
 	redisClient *redis.Client
+	minioConfig *MinioConfig
 }
 
-func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
-	return &Server{dbConn: dbConn, redisClient: redisClient}
+type MinioConfig struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	UseSSL    bool
 }
 
+func NewServer(dbConn *sql.DB, redisClient *redis.Client, minioConfig *MinioConfig) IServer {
+	return &Server{
+		dbConn:      dbConn,
+		redisClient: redisClient,
+		minioConfig: minioConfig,
+	}
+}
+func (s *Server) initMinio() (*minio.Client, error) {
+	// Initialize Minio client
+	minioClient, err := minio.New(s.minioConfig.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(s.minioConfig.AccessKey, s.minioConfig.SecretKey, ""),
+		Secure: s.minioConfig.UseSSL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if bucket exists
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	exists, err := minioClient.BucketExists(ctx, s.minioConfig.Bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		err = minioClient.MakeBucket(ctx, s.minioConfig.Bucket, minio.MakeBucketOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return minioClient, nil
+}
 func (s *Server) Run(address string) error {
 	logFile, err := setupLogger()
 	if err != nil {
 		return err
 	}
 	defer logFile.Close()
+
+	// Initialize Minio client
+	minioClient, err := s.initMinio()
+	if err != nil {
+		utils.Logger.Error("Failed to initialize Minio: " + err.Error())
+		return err
+	}
+	utils.Logger.Info("Minio client initialized successfully")
 
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
@@ -63,6 +115,7 @@ func (s *Server) Run(address string) error {
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
+	fileRepo := minioRepo.NewFileRepository(minioClient, s.minioConfig.Bucket)
 
 	// Usecase
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
@@ -85,7 +138,7 @@ func (s *Server) Run(address string) error {
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
-	httpDelivery.NewUploadsController(uploadsRouter)
+	httpDelivery.NewUploadsController(uploadsRouter, fileRepo)
 
 	// Swagger
 	apiRouter.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)

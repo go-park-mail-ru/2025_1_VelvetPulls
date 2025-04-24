@@ -32,6 +32,14 @@ var Cors = struct {
 	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token",
 }
 
+var Minio = struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	UseSSL    bool
+}{}
+
 var Postgre = struct {
 	User     string
 	Password string
@@ -58,6 +66,12 @@ func Init() {
 	Redis.Host = os.Getenv("REDIS_HOST")
 	Redis.Port = os.Getenv("REDIS_PORT")
 	Redis.Password = os.Getenv("REDIS_PASSWORD")
+
+	Minio.Endpoint = os.Getenv("MINIO_ENDPOINT")
+	Minio.AccessKey = os.Getenv("MINIO_ACCESS_KEY")
+	Minio.SecretKey = os.Getenv("MINIO_SECRET_KEY")
+	Minio.Bucket = os.Getenv("MINIO_BUCKET")
+	Minio.UseSSL = os.Getenv("MINIO_USE_SSL") == "true"
 }
 
 func GetPostgresDSN() string {

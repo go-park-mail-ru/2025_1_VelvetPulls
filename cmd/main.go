@@ -41,9 +41,16 @@ func main() {
 
 	defer redisClient.Close()
 
+	s := server.NewServer(dbConn, redisClient, &server.MinioConfig{
+		Endpoint:  config.Minio.Endpoint,
+		AccessKey: config.Minio.AccessKey,
+		SecretKey: config.Minio.SecretKey,
+		Bucket:    config.Minio.Bucket,
+		UseSSL:    config.Minio.UseSSL,
+	})
+
 	log.Printf("Starting server on %s", config.PORT)
 
-	s := server.NewServer(dbConn, redisClient)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
