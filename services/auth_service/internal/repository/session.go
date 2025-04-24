@@ -10,9 +10,9 @@ import (
 )
 
 type ISessionRepo interface {
-	GetUserIDByToken(ctx context.Context, sessId string) (string, error)
-	CreateSession(ctx context.Context, userID string) (string, error)
-	DeleteSession(ctx context.Context, sessionId string) error
+	GetUserIDByToken(ctx context.Context, sessionID string) (string, error)
+	CreateSession(ctx context.Context, userID uuid.UUID) (string, error)
+	DeleteSession(ctx context.Context, sessionID string) error
 }
 
 type sessionRepo struct {
@@ -23,11 +23,11 @@ func NewSessionRepo(redisClient *redis.Client) ISessionRepo {
 	return &sessionRepo{redisClient: redisClient}
 }
 
-func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessId string) (string, error) {
+func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessionID string) (string, error) {
 	// logger := utils.GetLoggerFromCtx(ctx)
 	// logger.Info("Getting user ID by session token")
 
-	userID, err := r.redisClient.Get(ctx, sessId).Result()
+	userID, err := r.redisClient.Get(ctx, sessionID).Result()
 	if err == redis.Nil {
 		// logger.Error("Session not found")
 		return "", ErrSessionNotFound
@@ -37,7 +37,7 @@ func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessId string) (stri
 	}
 	return userID, nil
 }
-func (r *sessionRepo) CreateSession(ctx context.Context, userID string) (string, error) {
+func (r *sessionRepo) CreateSession(ctx context.Context, userID uuid.UUID) (string, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Creating new session")
 
@@ -52,11 +52,11 @@ func (r *sessionRepo) CreateSession(ctx context.Context, userID string) (string,
 	return sessionId, nil
 }
 
-func (r *sessionRepo) DeleteSession(ctx context.Context, sessionId string) error {
+func (r *sessionRepo) DeleteSession(ctx context.Context, sessionID string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Deleting session")
 
-	exists, err := r.redisClient.Exists(ctx, sessionId).Result()
+	exists, err := r.redisClient.Exists(ctx, sessionID).Result()
 	if err != nil {
 		logger.Error("Error checking if session exists")
 		return ErrDatabaseOperation
@@ -67,7 +67,7 @@ func (r *sessionRepo) DeleteSession(ctx context.Context, sessionId string) error
 		return ErrSessionNotFound
 	}
 
-	err = r.redisClient.Del(ctx, sessionId).Err()
+	err = r.redisClient.Del(ctx, sessionID).Err()
 	if err != nil {
 		logger.Error("Error deleting session in Redis")
 		return ErrDatabaseOperation

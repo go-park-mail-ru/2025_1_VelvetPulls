@@ -1,0 +1,56 @@
+package grpc
+
+import (
+	"context"
+
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/delivery/proto"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/usecase"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
+)
+
+type authController struct {
+	authpb.UnimplementedAuthServiceServer
+	authpb.UnimplementedSessionServiceServer
+
+	authUsecase    usecase.IAuthUsecase
+	sessionUsecase usecase.ISessionUsecase
+}
+
+func NewAuthController(grpcServer *grpc.Server, authUsecase usecase.IAuthUsecase, sessionUsecase usecase.ISessionUsecase) {
+	controller := &authController{
+		authUsecase:    authUsecase,
+		sessionUsecase: sessionUsecase,
+	}
+	authpb.RegisterAuthServiceServer(grpcServer, controller)
+	authpb.RegisterSessionServiceServer(grpcServer, controller)
+}
+
+func (c *authController) LoginUser(ctx context.Context, req *authpb.LoginUserRequest) (*authpb.LoginUserResponse, error) {
+	sessionID, err := c.authUsecase.LoginUser(ctx, model.LoginCredentials{
+		Username: req.GetUsername(),
+		Password: req.GetPassword(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &authpb.LoginUserResponse{SessionId: sessionID}, nil
+}
+
+func (c *authController) LogoutUser(ctx context.Context, req *authpb.LogoutUserRequest) (*emptypb.Empty, error) {
+	err := c.authUsecase.LogoutUser(ctx, req.GetSessionId())
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (c *authController) CheckLogin(ctx context.Context, req *authpb.CheckLoginRequest) (*authpb.CheckLoginResponse, error) {
+	userID, err := c.sessionUsecase.CheckLogin(ctx, req.GetSessionId())
+	if err != nil {
+		return nil, err
+	}
+	return &authpb.CheckLoginResponse{UserId: userID}, nil
+}

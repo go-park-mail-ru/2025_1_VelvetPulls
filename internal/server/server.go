@@ -58,18 +58,15 @@ func (s *Server) Run(address string) error {
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
-	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
 	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
 	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo, websocketUsecase)
-	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
