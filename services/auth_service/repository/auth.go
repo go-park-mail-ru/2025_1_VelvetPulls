@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )

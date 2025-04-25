@@ -8,6 +8,8 @@ import (
 	_ "github.com/go-park-mail-ru/2025_1_VelvetPulls/docs"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/server"
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // @title Keftegram backend API
@@ -27,9 +29,14 @@ func main() {
 
 	defer dbConn.Close()
 
-	log.Printf("Starting server on %s", config.PORT)
+	authConn, err := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to AuthService: %v", err)
+	}
+	defer authConn.Close()
 
-	s := server.NewServer(dbConn)
+	log.Printf("Starting server on %s", config.PORT)
+	s := server.NewServer(dbConn, authConn)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

@@ -5,10 +5,11 @@ import (
 	"net"
 	"os"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/delivery/grpc"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/repository"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/usecase"
+	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/grpc"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
@@ -53,7 +54,13 @@ func (s *Server) Run(address string) error {
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 
 	// gRPC server
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			middleware.RequestIDInterceptor(),
+			middleware.AccessLogInterceptor(),
+		),
+	)
+
 	grpcDelivery.NewAuthController(grpcServer, authUsecase, sessionUsecase)
 
 	lis, err := net.Listen("tcp", address)

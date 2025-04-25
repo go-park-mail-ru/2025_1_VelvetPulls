@@ -6,12 +6,10 @@ import (
 	"log"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/server"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/server"
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
-
-//config "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth-service/config"
-//auth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth-service/internal/server"
 
 func main() {
 	config.Init()

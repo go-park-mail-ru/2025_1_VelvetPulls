@@ -1,5 +1,3 @@
-SERVICE_NAME = app
-
 COMPOSE_FILE = ./deploy/docker-compose.yml
 ENV_FILE = .env
 
@@ -13,7 +11,7 @@ all: run
 # Запуск приложения через Docker Compose
 .PHONY: run
 run:
-	@docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up --build $(SERVICE_NAME)
+	@docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up
 
 # Остановка контейнеров
 .PHONY: stop

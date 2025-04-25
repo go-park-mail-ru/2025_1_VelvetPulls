@@ -10,29 +10,30 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type chatController struct {
-	sessionUsecase usecase.ISessionUsecase
-	chatUsecase    usecase.IChatUsecase
+	sessionClient authpb.SessionServiceClient
+	chatUsecase   usecase.IChatUsecase
 }
 
-func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &chatController{
-		chatUsecase:    chatUsecase,
-		sessionUsecase: sessionUsecase,
+		chatUsecase:   chatUsecase,
+		sessionClient: sessionClient,
 	}
 
-	r.Handle("/chats", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetChats))).Methods(http.MethodGet)
-	r.Handle("/chat", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.CreateChat))).Methods(http.MethodPost)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetChat))).Methods(http.MethodGet)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
-	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
-	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
+	r.Handle("/chats", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetChats))).Methods(http.MethodGet)
+	r.Handle("/chat", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.CreateChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetChat))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
+	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
 }
 
 // GetChats возвращает список чатов пользователя

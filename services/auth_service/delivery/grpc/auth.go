@@ -3,9 +3,9 @@ package grpc
 import (
 	"context"
 
-	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/delivery/proto"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/usecase"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -25,6 +25,20 @@ func NewAuthController(grpcServer *grpc.Server, authUsecase usecase.IAuthUsecase
 	}
 	authpb.RegisterAuthServiceServer(grpcServer, controller)
 	authpb.RegisterSessionServiceServer(grpcServer, controller)
+}
+
+func (c *authController) RegisterUser(ctx context.Context, req *authpb.RegisterUserRequest) (*authpb.RegisterUserResponse, error) {
+	sessionID, err := c.authUsecase.RegisterUser(ctx, model.RegisterCredentials{
+		Username:        req.GetUsername(),
+		Password:        req.GetPassword(),
+		ConfirmPassword: req.GetPassword(),
+		Phone:           req.GetPhone(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &authpb.RegisterUserResponse{SessionId: sessionID}, nil
 }
 
 func (c *authController) LoginUser(ctx context.Context, req *authpb.LoginUserRequest) (*authpb.LoginUserResponse, error) {

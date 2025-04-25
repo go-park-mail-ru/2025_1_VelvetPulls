@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
 	"go.uber.org/zap"
 )
 

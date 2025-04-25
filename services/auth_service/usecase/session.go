@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
 )
 
 type ISessionUsecase interface {

@@ -8,6 +8,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -22,19 +23,19 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebsocketController struct {
-	sessionUsecase   usecase.ISessionUsecase
+	sessionClient    authpb.SessionServiceClient
 	websocketUsecase usecase.IWebsocketUsecase
 }
 
-func NewWebsocketController(r *mux.Router, sessionUsecase usecase.ISessionUsecase, websocketUsecase usecase.IWebsocketUsecase) {
+func NewWebsocketController(r *mux.Router, sessionClient authpb.SessionServiceClient, websocketUsecase usecase.IWebsocketUsecase) {
 	controller := &WebsocketController{
-		sessionUsecase:   sessionUsecase,
+		sessionClient:    sessionClient,
 		websocketUsecase: websocketUsecase,
 	}
 	go websocketUsecase.ConsumeChats()
 	go websocketUsecase.ConsumeMessages()
 
-	r.HandleFunc("/ws", middleware.AuthMiddlewareWS(sessionUsecase)(controller.WebsocketConnection)).Methods("GET")
+	r.HandleFunc("/ws", middleware.AuthMiddlewareWS(sessionClient)(controller.WebsocketConnection)).Methods("GET")
 }
 
 func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http.Request) {
