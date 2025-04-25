@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 
+	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/app_errors"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
@@ -35,7 +36,7 @@ func (c *authController) RegisterUser(ctx context.Context, req *authpb.RegisterU
 		Phone:           req.GetPhone(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ConvertError(err)
 	}
 
 	return &authpb.RegisterUserResponse{SessionId: sessionID}, nil
@@ -47,7 +48,7 @@ func (c *authController) LoginUser(ctx context.Context, req *authpb.LoginUserReq
 		Password: req.GetPassword(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ConvertError(err)
 	}
 
 	return &authpb.LoginUserResponse{SessionId: sessionID}, nil
@@ -56,7 +57,7 @@ func (c *authController) LoginUser(ctx context.Context, req *authpb.LoginUserReq
 func (c *authController) LogoutUser(ctx context.Context, req *authpb.LogoutUserRequest) (*emptypb.Empty, error) {
 	err := c.authUsecase.LogoutUser(ctx, req.GetSessionId())
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ConvertError(err)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -64,7 +65,7 @@ func (c *authController) LogoutUser(ctx context.Context, req *authpb.LogoutUserR
 func (c *authController) CheckLogin(ctx context.Context, req *authpb.CheckLoginRequest) (*authpb.CheckLoginResponse, error) {
 	userID, err := c.sessionUsecase.CheckLogin(ctx, req.GetSessionId())
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ConvertError(err)
 	}
 	return &authpb.CheckLoginResponse{UserId: userID}, nil
 }

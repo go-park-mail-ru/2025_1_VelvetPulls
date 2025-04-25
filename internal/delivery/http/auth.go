@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"net/http"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
@@ -37,8 +36,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Используем gRPC-клиент для регистрации пользователя
-	resp, err := c.authClient.RegisterUser(context.Background(), &authpb.RegisterUserRequest{
+	resp, err := c.authClient.RegisterUser(r.Context(), &authpb.RegisterUserRequest{
 		Username:        creds.Username,
 		Password:        creds.Password,
 		ConfirmPassword: creds.Password,
@@ -46,12 +44,11 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("gRPC Register error", zap.Error(err))
-		code, msg := apperrors.GetErrAndCodeToSend(err)
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
 		utils.SendJSONResponse(w, code, msg, false)
 		return
 	}
 
-	// Устанавливаем cookie с сессией
 	utils.SetSessionCookie(w, resp.GetSessionId())
 	utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true)
 }
@@ -66,19 +63,17 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Используем gRPC-клиент для логина пользователя
-	resp, err := c.authClient.LoginUser(context.Background(), &authpb.LoginUserRequest{
+	resp, err := c.authClient.LoginUser(r.Context(), &authpb.LoginUserRequest{
 		Username: creds.Username,
 		Password: creds.Password,
 	})
 	if err != nil {
 		logger.Error("gRPC Login error", zap.Error(err))
-		code, msg := apperrors.GetErrAndCodeToSend(err)
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
 		utils.SendJSONResponse(w, code, msg, false)
 		return
 	}
 
-	// Устанавливаем cookie с сессией
 	utils.SetSessionCookie(w, resp.GetSessionId())
 	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
 }
@@ -86,7 +81,6 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
-	// Получаем sessionId из cookie
 	sessionID, err := utils.GetSessionCookie(r)
 	if err != nil {
 		logger.Warn("Missing session cookie")
@@ -94,18 +88,16 @@ func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Используем gRPC-клиент для выхода пользователя
 	_, err = c.authClient.LogoutUser(r.Context(), &authpb.LogoutUserRequest{
 		SessionId: sessionID,
 	})
 	if err != nil {
 		logger.Error("gRPC Logout error", zap.Error(err))
-		code, msg := apperrors.GetErrAndCodeToSend(err)
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
 		utils.SendJSONResponse(w, code, msg, false)
 		return
 	}
 
-	// Удаляем cookie сессии
 	utils.DeleteSessionCookie(w)
 	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
 }
