@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/app_errors"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
@@ -48,7 +47,6 @@ func (c *authController) LoginUser(ctx context.Context, req *authpb.LoginUserReq
 		Username: req.GetUsername(),
 		Password: req.GetPassword(),
 	})
-	fmt.Println(err)
 	if err != nil {
 		return nil, apperrors.ConvertError(err)
 	}
