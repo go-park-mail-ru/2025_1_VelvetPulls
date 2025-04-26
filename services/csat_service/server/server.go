@@ -8,9 +8,6 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/grpc"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
 
@@ -30,12 +27,11 @@ type IServer interface {
 }
 
 type Server struct {
-	dbConn      *sql.DB
-	redisClient *redis.Client
+	dbConn *sql.DB
 }
 
-func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
-	return &Server{dbConn: dbConn, redisClient: redisClient}
+func NewServer(dbConn *sql.DB) IServer {
+	return &Server{dbConn: dbConn}
 }
 
 func (s *Server) Run(address string) error {
@@ -46,12 +42,8 @@ func (s *Server) Run(address string) error {
 	defer logFile.Close()
 
 	// Repos
-	sessionRepo := repository.NewSessionRepo(s.redisClient)
-	authRepo := repository.NewAuthRepo(s.dbConn)
 
 	// Usecases
-	authUsecase := usecase.NewAuthUsecase(authRepo, sessionRepo)
-	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 
 	// gRPC server
 	grpcServer := grpc.NewServer(
@@ -61,13 +53,12 @@ func (s *Server) Run(address string) error {
 		),
 	)
 
-	grpcDelivery.NewAuthController(grpcServer, authUsecase, sessionUsecase)
+	grpcDelivery.NewAuthController(grpcServer)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
 
-	utils.Logger.Info("gRPC server started on " + address)
 	return grpcServer.Serve(lis)
 }

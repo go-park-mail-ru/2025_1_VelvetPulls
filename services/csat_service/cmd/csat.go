@@ -23,6 +23,7 @@ func main() {
 
 	defer dbConn.Close()
 
+	log.Printf("Starting server on :8082")
 	s := server.NewServer(dbConn)
 	if err := s.Run(":8082"); err != nil {
 		log.Fatal("Failed to run server:", err)
