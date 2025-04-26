@@ -63,6 +63,7 @@ func (c *csatController) CreateAnswer(w http.ResponseWriter, r *http.Request) {
 		QuestionId: answer.QuestionID,
 		Username:   answer.Username,
 		Rating:     int32(answer.Rating),
+		Feedback:   answer.Feedback,
 	})
 	if err != nil {
 		logger.Error("gRPC CreateAnswer error", zap.Error(err))
