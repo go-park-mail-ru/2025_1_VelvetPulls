@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 
 	csatpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/delivery/proto"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/model"
@@ -44,24 +43,26 @@ func (c *csatController) GetQuestions(ctx context.Context, _ *emptypb.Empty) (*c
 func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAnswerRequest) (*emptypb.Empty, error) {
 	questionID, err := uuid.Parse(req.GetQuestionId())
 	if err != nil {
-		fmt.Println(questionID)
 		return nil, usecase.ErrInvalidInput
 	}
 
 	username := req.GetUsername()
 	if username == "" {
-		fmt.Println(username)
 		return nil, usecase.ErrInvalidInput
 	}
+
 	feedback := req.GetFeedback()
+	if username == "" {
+		return nil, usecase.ErrInvalidInput
+	}
 
 	answer := &model.Answer{
 		QuestionID: questionID,
 		Username:   username,
 		Rating:     model.RatingScale(req.GetRating()),
-		Feedback:   &feedback,
+		Feedback:   feedback,
 	}
-	fmt.Println(answer)
+
 	if err := c.csatUsecase.CreateAnswer(ctx, answer); err != nil {
 		return nil, err
 	}
@@ -77,10 +78,38 @@ func (c *csatController) GetStatistics(ctx context.Context, _ *emptypb.Empty) (*
 
 	var pbStats []*csatpb.QuestionStatistic
 	for _, s := range stats.Questions {
+		// Преобразуем распределение оценок
+		pbDistrib := make([]*csatpb.RatingDistribution, 0, len(s.Distribution))
+		for _, d := range s.Distribution {
+			pbDistrib = append(pbDistrib, &csatpb.RatingDistribution{
+				Rating: int32(d.Rating),
+				Count:  int32(d.Count),
+			})
+		}
+
+		// Преобразуем комментарии
+		pbComments := make([]*csatpb.Answer, 0, len(s.Comments))
+		for _, a := range s.Comments {
+			var feedback string
+			if a.Feedback != nil {
+				feedback = *a.Feedback
+			}
+
+			pbComments = append(pbComments, &csatpb.Answer{
+				QuestionId: a.QuestionID.String(),
+				Username:   a.Username,
+				Rating:     int32(a.Rating),
+				Feedback:   feedback,
+			})
+		}
+
 		pbStats = append(pbStats, &csatpb.QuestionStatistic{
 			QuestionId:    s.QuestionID.String(),
+			QuestionText:  s.QuestionText,
 			AverageRating: s.AverageRating,
 			AnswerCount:   int32(s.TotalResponses),
+			Distribution:  pbDistrib,
+			Comments:      pbComments,
 		})
 	}
 
