@@ -60,7 +60,6 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 	if err != nil {
 		return "", err
 	}
-
 	sessionID, err := uc.sessionRepo.CreateSession(ctx, userID)
 	if err != nil {
 		return "", err
