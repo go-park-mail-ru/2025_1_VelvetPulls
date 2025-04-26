@@ -50,11 +50,13 @@ func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAns
 	if username == "" {
 		return nil, usecase.ErrInvalidInput
 	}
+	feedback := req.GetFeedback()
 
 	answer := &model.Answer{
 		QuestionID: questionID,
 		Username:   username,
 		Rating:     model.RatingScale(req.GetRating()),
+		Feedback:   &feedback,
 	}
 
 	if err := c.csatUsecase.CreateAnswer(ctx, answer); err != nil {

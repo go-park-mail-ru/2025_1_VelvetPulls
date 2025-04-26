@@ -22,6 +22,7 @@ message Answer {
   string question_id = 1;
   string username = 2;
   int32 rating = 3;
+  string feedback = 4;
 }
 
 message FullStatistics {
@@ -49,6 +50,7 @@ message CreateAnswerRequest {
   string question_id = 1;
   string username = 2;
   int32 rating = 3;
+  string feedback = 4; // добавил сюда feedback
 }
 
 message GetStatisticsResponse {

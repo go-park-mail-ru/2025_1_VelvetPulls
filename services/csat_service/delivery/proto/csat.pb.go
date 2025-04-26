@@ -79,6 +79,7 @@ type Answer struct {
 	QuestionId    string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Rating        int32                  `protobuf:"varint,3,opt,name=rating,proto3" json:"rating,omitempty"`
+	Feedback      string                 `protobuf:"bytes,4,opt,name=feedback,proto3" json:"feedback,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -132,6 +133,13 @@ func (x *Answer) GetRating() int32 {
 		return x.Rating
 	}
 	return 0
+}
+
+func (x *Answer) GetFeedback() string {
+	if x != nil {
+		return x.Feedback
+	}
+	return ""
 }
 
 type FullStatistics struct {
@@ -355,6 +363,7 @@ type CreateAnswerRequest struct {
 	QuestionId    string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Rating        int32                  `protobuf:"varint,3,opt,name=rating,proto3" json:"rating,omitempty"`
+	Feedback      string                 `protobuf:"bytes,4,opt,name=feedback,proto3" json:"feedback,omitempty"` // добавил сюда feedback
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -408,6 +417,13 @@ func (x *CreateAnswerRequest) GetRating() int32 {
 		return x.Rating
 	}
 	return 0
+}
+
+func (x *CreateAnswerRequest) GetFeedback() string {
+	if x != nil {
+		return x.Feedback
+	}
+	return ""
 }
 
 type GetStatisticsResponse struct {
@@ -549,12 +565,13 @@ const file_services_csat_service_delivery_proto_csat_proto_rawDesc = "" +
 	"/services/csat_service/delivery/proto/csat.proto\x12\x04csat\x1a\x1bgoogle/protobuf/empty.proto\".\n" +
 	"\bQuestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"]\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"y\n" +
 	"\x06Answer\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
 	"questionId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
-	"\x06rating\x18\x03 \x01(\x05R\x06rating\"\x81\x01\n" +
+	"\x06rating\x18\x03 \x01(\x05R\x06rating\x12\x1a\n" +
+	"\bfeedback\x18\x04 \x01(\tR\bfeedback\"\x81\x01\n" +
 	"\x0eFullStatistics\x12H\n" +
 	"\x13question_statistics\x18\x01 \x03(\v2\x17.csat.QuestionStatisticR\x12questionStatistics\x12%\n" +
 	"\x0eaverage_rating\x18\x02 \x01(\x01R\raverageRating\"~\n" +
@@ -568,12 +585,13 @@ const file_services_csat_service_delivery_proto_csat_proto_rawDesc = "" +
 	"\rtotal_answers\x18\x02 \x01(\x05R\ftotalAnswers\x12%\n" +
 	"\x0eaverage_rating\x18\x03 \x01(\x01R\raverageRating\"D\n" +
 	"\x14GetQuestionsResponse\x12,\n" +
-	"\tquestions\x18\x01 \x03(\v2\x0e.csat.QuestionR\tquestions\"j\n" +
+	"\tquestions\x18\x01 \x03(\v2\x0e.csat.QuestionR\tquestions\"\x86\x01\n" +
 	"\x13CreateAnswerRequest\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
 	"questionId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
-	"\x06rating\x18\x03 \x01(\x05R\x06rating\"M\n" +
+	"\x06rating\x18\x03 \x01(\x05R\x06rating\x12\x1a\n" +
+	"\bfeedback\x18\x04 \x01(\tR\bfeedback\"M\n" +
 	"\x15GetStatisticsResponse\x124\n" +
 	"\n" +
 	"statistics\x18\x01 \x01(\v2\x14.csat.FullStatisticsR\n" +
