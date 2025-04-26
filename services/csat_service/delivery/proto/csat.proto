@@ -25,6 +25,11 @@ message Answer {
   string feedback = 4;
 }
 
+message RatingDistribution {
+  int32 rating = 1;
+  int32 count = 2;
+}
+
 message FullStatistics {
   repeated QuestionStatistic question_statistics = 1;
   double average_rating = 2;
@@ -32,8 +37,11 @@ message FullStatistics {
 
 message QuestionStatistic {
   string question_id = 1;
-  double average_rating = 2;
-  int32 answer_count = 3;
+  string question_text = 2;
+  double average_rating = 3;
+  int32 answer_count = 4;
+  repeated RatingDistribution distribution = 5;
+  repeated Answer comments = 6;
 }
 
 message UserActivity {

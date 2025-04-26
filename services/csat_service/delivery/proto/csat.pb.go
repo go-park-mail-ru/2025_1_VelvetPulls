@@ -142,6 +142,58 @@ func (x *Answer) GetFeedback() string {
 	return ""
 }
 
+type RatingDistribution struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rating        int32                  `protobuf:"varint,1,opt,name=rating,proto3" json:"rating,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RatingDistribution) Reset() {
+	*x = RatingDistribution{}
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RatingDistribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RatingDistribution) ProtoMessage() {}
+
+func (x *RatingDistribution) ProtoReflect() protoreflect.Message {
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RatingDistribution.ProtoReflect.Descriptor instead.
+func (*RatingDistribution) Descriptor() ([]byte, []int) {
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RatingDistribution) GetRating() int32 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *RatingDistribution) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type FullStatistics struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	QuestionStatistics []*QuestionStatistic   `protobuf:"bytes,1,rep,name=question_statistics,json=questionStatistics,proto3" json:"question_statistics,omitempty"`
@@ -152,7 +204,7 @@ type FullStatistics struct {
 
 func (x *FullStatistics) Reset() {
 	*x = FullStatistics{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[2]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -164,7 +216,7 @@ func (x *FullStatistics) String() string {
 func (*FullStatistics) ProtoMessage() {}
 
 func (x *FullStatistics) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[2]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -177,7 +229,7 @@ func (x *FullStatistics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FullStatistics.ProtoReflect.Descriptor instead.
 func (*FullStatistics) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{2}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FullStatistics) GetQuestionStatistics() []*QuestionStatistic {
@@ -197,15 +249,18 @@ func (x *FullStatistics) GetAverageRating() float64 {
 type QuestionStatistic struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	QuestionId    string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
-	AverageRating float64                `protobuf:"fixed64,2,opt,name=average_rating,json=averageRating,proto3" json:"average_rating,omitempty"`
-	AnswerCount   int32                  `protobuf:"varint,3,opt,name=answer_count,json=answerCount,proto3" json:"answer_count,omitempty"`
+	QuestionText  string                 `protobuf:"bytes,2,opt,name=question_text,json=questionText,proto3" json:"question_text,omitempty"`
+	AverageRating float64                `protobuf:"fixed64,3,opt,name=average_rating,json=averageRating,proto3" json:"average_rating,omitempty"`
+	AnswerCount   int32                  `protobuf:"varint,4,opt,name=answer_count,json=answerCount,proto3" json:"answer_count,omitempty"`
+	Distribution  []*RatingDistribution  `protobuf:"bytes,5,rep,name=distribution,proto3" json:"distribution,omitempty"`
+	Comments      []*Answer              `protobuf:"bytes,6,rep,name=comments,proto3" json:"comments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *QuestionStatistic) Reset() {
 	*x = QuestionStatistic{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[3]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +272,7 @@ func (x *QuestionStatistic) String() string {
 func (*QuestionStatistic) ProtoMessage() {}
 
 func (x *QuestionStatistic) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[3]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,12 +285,19 @@ func (x *QuestionStatistic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestionStatistic.ProtoReflect.Descriptor instead.
 func (*QuestionStatistic) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{3}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *QuestionStatistic) GetQuestionId() string {
 	if x != nil {
 		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *QuestionStatistic) GetQuestionText() string {
+	if x != nil {
+		return x.QuestionText
 	}
 	return ""
 }
@@ -254,6 +316,20 @@ func (x *QuestionStatistic) GetAnswerCount() int32 {
 	return 0
 }
 
+func (x *QuestionStatistic) GetDistribution() []*RatingDistribution {
+	if x != nil {
+		return x.Distribution
+	}
+	return nil
+}
+
+func (x *QuestionStatistic) GetComments() []*Answer {
+	if x != nil {
+		return x.Comments
+	}
+	return nil
+}
+
 type UserActivity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -265,7 +341,7 @@ type UserActivity struct {
 
 func (x *UserActivity) Reset() {
 	*x = UserActivity{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[4]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -277,7 +353,7 @@ func (x *UserActivity) String() string {
 func (*UserActivity) ProtoMessage() {}
 
 func (x *UserActivity) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[4]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -290,7 +366,7 @@ func (x *UserActivity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserActivity.ProtoReflect.Descriptor instead.
 func (*UserActivity) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{4}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UserActivity) GetUsername() string {
@@ -323,7 +399,7 @@ type GetQuestionsResponse struct {
 
 func (x *GetQuestionsResponse) Reset() {
 	*x = GetQuestionsResponse{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[5]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +411,7 @@ func (x *GetQuestionsResponse) String() string {
 func (*GetQuestionsResponse) ProtoMessage() {}
 
 func (x *GetQuestionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[5]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +424,7 @@ func (x *GetQuestionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuestionsResponse.ProtoReflect.Descriptor instead.
 func (*GetQuestionsResponse) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{5}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetQuestionsResponse) GetQuestions() []*Question {
@@ -370,7 +446,7 @@ type CreateAnswerRequest struct {
 
 func (x *CreateAnswerRequest) Reset() {
 	*x = CreateAnswerRequest{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[6]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +458,7 @@ func (x *CreateAnswerRequest) String() string {
 func (*CreateAnswerRequest) ProtoMessage() {}
 
 func (x *CreateAnswerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[6]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +471,7 @@ func (x *CreateAnswerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAnswerRequest.ProtoReflect.Descriptor instead.
 func (*CreateAnswerRequest) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{6}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreateAnswerRequest) GetQuestionId() string {
@@ -435,7 +511,7 @@ type GetStatisticsResponse struct {
 
 func (x *GetStatisticsResponse) Reset() {
 	*x = GetStatisticsResponse{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[7]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +523,7 @@ func (x *GetStatisticsResponse) String() string {
 func (*GetStatisticsResponse) ProtoMessage() {}
 
 func (x *GetStatisticsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[7]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +536,7 @@ func (x *GetStatisticsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatisticsResponse.ProtoReflect.Descriptor instead.
 func (*GetStatisticsResponse) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{7}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetStatisticsResponse) GetStatistics() *FullStatistics {
@@ -479,7 +555,7 @@ type GetUserActivityRequest struct {
 
 func (x *GetUserActivityRequest) Reset() {
 	*x = GetUserActivityRequest{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[8]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -491,7 +567,7 @@ func (x *GetUserActivityRequest) String() string {
 func (*GetUserActivityRequest) ProtoMessage() {}
 
 func (x *GetUserActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[8]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -504,7 +580,7 @@ func (x *GetUserActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserActivityRequest.ProtoReflect.Descriptor instead.
 func (*GetUserActivityRequest) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{8}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetUserActivityRequest) GetUsername() string {
@@ -523,7 +599,7 @@ type GetUserActivityResponse struct {
 
 func (x *GetUserActivityResponse) Reset() {
 	*x = GetUserActivityResponse{}
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[9]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +611,7 @@ func (x *GetUserActivityResponse) String() string {
 func (*GetUserActivityResponse) ProtoMessage() {}
 
 func (x *GetUserActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[9]
+	mi := &file_services_csat_service_delivery_proto_csat_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +624,7 @@ func (x *GetUserActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserActivityResponse.ProtoReflect.Descriptor instead.
 func (*GetUserActivityResponse) Descriptor() ([]byte, []int) {
-	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{9}
+	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetUserActivityResponse) GetActivity() *UserActivity {
@@ -571,15 +647,21 @@ const file_services_csat_service_delivery_proto_csat_proto_rawDesc = "" +
 	"questionId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
 	"\x06rating\x18\x03 \x01(\x05R\x06rating\x12\x1a\n" +
-	"\bfeedback\x18\x04 \x01(\tR\bfeedback\"\x81\x01\n" +
+	"\bfeedback\x18\x04 \x01(\tR\bfeedback\"B\n" +
+	"\x12RatingDistribution\x12\x16\n" +
+	"\x06rating\x18\x01 \x01(\x05R\x06rating\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x81\x01\n" +
 	"\x0eFullStatistics\x12H\n" +
 	"\x13question_statistics\x18\x01 \x03(\v2\x17.csat.QuestionStatisticR\x12questionStatistics\x12%\n" +
-	"\x0eaverage_rating\x18\x02 \x01(\x01R\raverageRating\"~\n" +
+	"\x0eaverage_rating\x18\x02 \x01(\x01R\raverageRating\"\x8b\x02\n" +
 	"\x11QuestionStatistic\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
-	"questionId\x12%\n" +
-	"\x0eaverage_rating\x18\x02 \x01(\x01R\raverageRating\x12!\n" +
-	"\fanswer_count\x18\x03 \x01(\x05R\vanswerCount\"v\n" +
+	"questionId\x12#\n" +
+	"\rquestion_text\x18\x02 \x01(\tR\fquestionText\x12%\n" +
+	"\x0eaverage_rating\x18\x03 \x01(\x01R\raverageRating\x12!\n" +
+	"\fanswer_count\x18\x04 \x01(\x05R\vanswerCount\x12<\n" +
+	"\fdistribution\x18\x05 \x03(\v2\x18.csat.RatingDistributionR\fdistribution\x12(\n" +
+	"\bcomments\x18\x06 \x03(\v2\f.csat.AnswerR\bcomments\"v\n" +
 	"\fUserActivity\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12#\n" +
 	"\rtotal_answers\x18\x02 \x01(\x05R\ftotalAnswers\x12%\n" +
@@ -618,38 +700,41 @@ func file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP() []byte {
 	return file_services_csat_service_delivery_proto_csat_proto_rawDescData
 }
 
-var file_services_csat_service_delivery_proto_csat_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_services_csat_service_delivery_proto_csat_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_services_csat_service_delivery_proto_csat_proto_goTypes = []any{
 	(*Question)(nil),                // 0: csat.Question
 	(*Answer)(nil),                  // 1: csat.Answer
-	(*FullStatistics)(nil),          // 2: csat.FullStatistics
-	(*QuestionStatistic)(nil),       // 3: csat.QuestionStatistic
-	(*UserActivity)(nil),            // 4: csat.UserActivity
-	(*GetQuestionsResponse)(nil),    // 5: csat.GetQuestionsResponse
-	(*CreateAnswerRequest)(nil),     // 6: csat.CreateAnswerRequest
-	(*GetStatisticsResponse)(nil),   // 7: csat.GetStatisticsResponse
-	(*GetUserActivityRequest)(nil),  // 8: csat.GetUserActivityRequest
-	(*GetUserActivityResponse)(nil), // 9: csat.GetUserActivityResponse
-	(*emptypb.Empty)(nil),           // 10: google.protobuf.Empty
+	(*RatingDistribution)(nil),      // 2: csat.RatingDistribution
+	(*FullStatistics)(nil),          // 3: csat.FullStatistics
+	(*QuestionStatistic)(nil),       // 4: csat.QuestionStatistic
+	(*UserActivity)(nil),            // 5: csat.UserActivity
+	(*GetQuestionsResponse)(nil),    // 6: csat.GetQuestionsResponse
+	(*CreateAnswerRequest)(nil),     // 7: csat.CreateAnswerRequest
+	(*GetStatisticsResponse)(nil),   // 8: csat.GetStatisticsResponse
+	(*GetUserActivityRequest)(nil),  // 9: csat.GetUserActivityRequest
+	(*GetUserActivityResponse)(nil), // 10: csat.GetUserActivityResponse
+	(*emptypb.Empty)(nil),           // 11: google.protobuf.Empty
 }
 var file_services_csat_service_delivery_proto_csat_proto_depIdxs = []int32{
-	3,  // 0: csat.FullStatistics.question_statistics:type_name -> csat.QuestionStatistic
-	0,  // 1: csat.GetQuestionsResponse.questions:type_name -> csat.Question
-	2,  // 2: csat.GetStatisticsResponse.statistics:type_name -> csat.FullStatistics
-	4,  // 3: csat.GetUserActivityResponse.activity:type_name -> csat.UserActivity
-	10, // 4: csat.CsatService.GetQuestions:input_type -> google.protobuf.Empty
-	6,  // 5: csat.CsatService.CreateAnswer:input_type -> csat.CreateAnswerRequest
-	10, // 6: csat.CsatService.GetStatistics:input_type -> google.protobuf.Empty
-	8,  // 7: csat.CsatService.GetUserActivity:input_type -> csat.GetUserActivityRequest
-	5,  // 8: csat.CsatService.GetQuestions:output_type -> csat.GetQuestionsResponse
-	10, // 9: csat.CsatService.CreateAnswer:output_type -> google.protobuf.Empty
-	7,  // 10: csat.CsatService.GetStatistics:output_type -> csat.GetStatisticsResponse
-	9,  // 11: csat.CsatService.GetUserActivity:output_type -> csat.GetUserActivityResponse
-	8,  // [8:12] is the sub-list for method output_type
-	4,  // [4:8] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	4,  // 0: csat.FullStatistics.question_statistics:type_name -> csat.QuestionStatistic
+	2,  // 1: csat.QuestionStatistic.distribution:type_name -> csat.RatingDistribution
+	1,  // 2: csat.QuestionStatistic.comments:type_name -> csat.Answer
+	0,  // 3: csat.GetQuestionsResponse.questions:type_name -> csat.Question
+	3,  // 4: csat.GetStatisticsResponse.statistics:type_name -> csat.FullStatistics
+	5,  // 5: csat.GetUserActivityResponse.activity:type_name -> csat.UserActivity
+	11, // 6: csat.CsatService.GetQuestions:input_type -> google.protobuf.Empty
+	7,  // 7: csat.CsatService.CreateAnswer:input_type -> csat.CreateAnswerRequest
+	11, // 8: csat.CsatService.GetStatistics:input_type -> google.protobuf.Empty
+	9,  // 9: csat.CsatService.GetUserActivity:input_type -> csat.GetUserActivityRequest
+	6,  // 10: csat.CsatService.GetQuestions:output_type -> csat.GetQuestionsResponse
+	11, // 11: csat.CsatService.CreateAnswer:output_type -> google.protobuf.Empty
+	8,  // 12: csat.CsatService.GetStatistics:output_type -> csat.GetStatisticsResponse
+	10, // 13: csat.CsatService.GetUserActivity:output_type -> csat.GetUserActivityResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_services_csat_service_delivery_proto_csat_proto_init() }
@@ -663,7 +748,7 @@ func file_services_csat_service_delivery_proto_csat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_services_csat_service_delivery_proto_csat_proto_rawDesc), len(file_services_csat_service_delivery_proto_csat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
