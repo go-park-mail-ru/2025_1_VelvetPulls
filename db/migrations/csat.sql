@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS csat.answer (
 );
 
 CREATE TABLE IF NOT EXISTS csat.user_activity (
-    TEXT UNIQUE NOT NULL,
+    username TEXT UNIQUE NOT NULL,
     last_response_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     responses_count INTEGER DEFAULT 0,
-    PRIMARY KEY (user_id)
+    PRIMARY KEY (username)
 );
