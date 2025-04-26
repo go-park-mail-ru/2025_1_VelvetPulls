@@ -30,12 +30,12 @@ func main() {
 	defer dbConn.Close()
 
 	authConn, errAuth := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	csatConn, errCsat := grpc.NewClient("csat:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if errAuth != nil {
 		log.Fatalf("Failed to connect to AuthService: %v", errAuth)
 	}
 	defer authConn.Close()
 
+	csatConn, errCsat := grpc.NewClient("csat:8082", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if errCsat != nil {
 		log.Fatalf("Failed to connect to CsatService: %v", errCsat)
 	}

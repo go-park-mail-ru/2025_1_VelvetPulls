@@ -31,3 +31,7 @@ CREATE TABLE IF NOT EXISTS csat.user_activity (
     responses_count INTEGER DEFAULT 0,
     PRIMARY KEY (username)
 );
+
+INSERT INTO csat.question (title, question_text)
+VALUES
+('Качество продукта', 'Насколько вам нравится использовать keftegram?');
