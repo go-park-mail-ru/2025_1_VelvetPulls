@@ -7,7 +7,9 @@ import (
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/grpc"
+	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/delivery/grpc"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/usecase"
 	"google.golang.org/grpc"
 )
 
@@ -42,9 +44,9 @@ func (s *Server) Run(address string) error {
 	defer logFile.Close()
 
 	// Repos
-
+	csatRepo := repository.NewCsatRepository(s.dbConn)
 	// Usecases
-
+	csatUsecase := usecase.NewCsatUsecase(csatRepo)
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -53,7 +55,7 @@ func (s *Server) Run(address string) error {
 		),
 	)
 
-	grpcDelivery.NewAuthController(grpcServer)
+	grpcDelivery.NewCsatController(grpcServer, csatUsecase)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {

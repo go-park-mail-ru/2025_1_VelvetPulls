@@ -22,7 +22,7 @@ type psqlCsatRepository struct {
 	db *sql.DB
 }
 
-func NewPsqlCsatRepository(db *sql.DB) ICsatRepository {
+func NewCsatRepository(db *sql.DB) ICsatRepository {
 	return &psqlCsatRepository{
 		db: db,
 	}

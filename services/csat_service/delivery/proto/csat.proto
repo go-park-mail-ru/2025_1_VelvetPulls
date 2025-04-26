@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package csat;
+
+option go_package = "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/pkg/csatpb";
+
+import "google/protobuf/empty.proto";
+
+service CsatService {
+  rpc GetQuestions(google.protobuf.Empty) returns (GetQuestionsResponse);
+  rpc CreateAnswer(CreateAnswerRequest) returns (google.protobuf.Empty);
+  rpc GetStatistics(google.protobuf.Empty) returns (GetStatisticsResponse);
+  rpc GetUserActivity(GetUserActivityRequest) returns (GetUserActivityResponse);
+}
+
+message Question {
+  string id = 1;
+  string text = 2;
+}
+
+message Answer {
+  string question_id = 1;
+  string user_id = 2;
+  int32 rating = 3;
+}
+
+message FullStatistics {
+  repeated QuestionStatistic question_statistics = 1;
+  double average_rating = 2;
+}
+
+message QuestionStatistic {
+  string question_id = 1;
+  double average_rating = 2;
+  int32 answer_count = 3;
+}
+
+message UserActivity {
+  string user_id = 1;
+  int32 total_answers = 2;
+  double average_rating = 3;
+}
+
+message GetQuestionsResponse {
+  repeated Question questions = 1;
+}
+
+message CreateAnswerRequest {
+  string question_id = 1;
+  string user_id = 2;
+  int32 rating = 3;
+}
+
+message GetStatisticsResponse {
+  FullStatistics statistics = 1;
+}
+
+message GetUserActivityRequest {
+  string user_id = 1;
+}
+
+message GetUserActivityResponse {
+  UserActivity activity = 1;
+}
