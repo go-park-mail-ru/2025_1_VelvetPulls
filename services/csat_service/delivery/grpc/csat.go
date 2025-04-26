@@ -60,7 +60,7 @@ func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAns
 		QuestionID: questionID,
 		Username:   username,
 		Rating:     model.RatingScale(req.GetRating()),
-		Feedback:   feedback,
+		Feedback:   &feedback,
 	}
 
 	if err := c.csatUsecase.CreateAnswer(ctx, answer); err != nil {
