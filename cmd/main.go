@@ -29,14 +29,20 @@ func main() {
 
 	defer dbConn.Close()
 
-	authConn, err := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("Failed to connect to AuthService: %v", err)
+	authConn, errAuth := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	csatConn, errCsat := grpc.NewClient("csat:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if errAuth != nil {
+		log.Fatalf("Failed to connect to AuthService: %v", errAuth)
 	}
 	defer authConn.Close()
 
+	if errCsat != nil {
+		log.Fatalf("Failed to connect to CsatService: %v", errCsat)
+	}
+	defer csatConn.Close()
+
 	log.Printf("Starting server on %s", config.PORT)
-	s := server.NewServer(dbConn, authConn)
+	s := server.NewServer(dbConn, authConn, csatConn)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

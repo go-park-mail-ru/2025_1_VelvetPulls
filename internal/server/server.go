@@ -14,6 +14,7 @@ import (
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
+	generatedCsat "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/delivery/proto"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
@@ -37,10 +38,11 @@ type IServer interface {
 type Server struct {
 	dbConn   *sql.DB
 	authConn *grpc.ClientConn
+	csatConn *grpc.ClientConn
 }
 
-func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn) IServer {
-	return &Server{dbConn: dbConn, authConn: authConn}
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, csatConn *grpc.ClientConn) IServer {
+	return &Server{dbConn: dbConn, authConn: authConn, csatConn: csatConn}
 }
 
 func (s *Server) Run(address string) error {
@@ -52,6 +54,7 @@ func (s *Server) Run(address string) error {
 
 	// ===== Microservice usecase =====
 	authClient := generatedAuth.NewAuthServiceClient(s.authConn)
+	csatClient := generatedCsat.NewCsatServiceClient(s.csatConn)
 	sessionClient := generatedAuth.NewSessionServiceClient(s.authConn)
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
