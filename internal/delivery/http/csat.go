@@ -7,7 +7,9 @@ import (
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	csatpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -15,18 +17,20 @@ import (
 )
 
 type csatController struct {
-	csatClient csatpb.CsatServiceClient
+	csatClient    csatpb.CsatServiceClient
+	sessionClient authpb.SessionServiceClient
 }
 
-func NewCsatController(r *mux.Router, csatClient csatpb.CsatServiceClient) {
+func NewCsatController(r *mux.Router, csatClient csatpb.CsatServiceClient, sessionClient authpb.SessionServiceClient) {
 	controller := &csatController{
-		csatClient: csatClient,
+		csatClient:    csatClient,
+		sessionClient: sessionClient,
 	}
 
-	r.Handle("/csat/questions", http.HandlerFunc(controller.GetQuestions)).Methods(http.MethodGet)
-	r.Handle("/csat/answers", http.HandlerFunc(controller.CreateAnswer)).Methods(http.MethodPost)
-	r.Handle("/csat/statistics", http.HandlerFunc(controller.GetStatistics)).Methods(http.MethodGet)
-	r.Handle("/csat/activity", http.HandlerFunc(controller.GetUserActivity)).Methods(http.MethodGet)
+	r.Handle("/csat/questions", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetQuestions))).Methods(http.MethodGet)
+	r.Handle("/csat/answers", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.CreateAnswer))).Methods(http.MethodPost)
+	r.Handle("/csat/statistics", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetStatistics))).Methods(http.MethodGet)
+	r.Handle("/csat/activity", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetUserActivity))).Methods(http.MethodGet)
 }
 
 func (c *csatController) GetQuestions(w http.ResponseWriter, r *http.Request) {

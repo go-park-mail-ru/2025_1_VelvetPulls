@@ -80,7 +80,7 @@ func (s *Server) Run(address string) error {
 
 	// Controllers
 	httpDelivery.NewAuthController(apiRouter, authClient, sessionClient)
-	httpDelivery.NewCsatController(apiRouter, csatClient)
+	httpDelivery.NewCsatController(apiRouter, csatClient, sessionClient)
 	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionClient)
 	httpDelivery.NewUserController(apiRouter, userUsecase, sessionClient)
 	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionClient)
