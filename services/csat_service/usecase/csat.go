@@ -15,8 +15,8 @@ type ICsatUsecase interface {
 	GetQuestions(ctx context.Context) ([]*model.Question, error)
 	CreateAnswer(ctx context.Context, answer *model.Answer) error
 	GetStatistics(ctx context.Context) (*model.FullStatistics, error)
-	GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error)
-	GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error)
+	GetUserActivity(ctx context.Context, username string) (*model.UserActivity, error)
+	GetUserAverageRating(ctx context.Context, username string) (float64, error)
 }
 
 type csatUsecase struct {
@@ -48,10 +48,10 @@ func (u *csatUsecase) GetQuestions(ctx context.Context) ([]*model.Question, erro
 func (u *csatUsecase) CreateAnswer(ctx context.Context, answer *model.Answer) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 
-	if answer.QuestionID == uuid.Nil || answer.UserID == uuid.Nil || answer.Rating < 1 || answer.Rating > 5 {
+	if answer.QuestionID == uuid.Nil || answer.Username == "" || answer.Rating < 1 || answer.Rating > 5 {
 		logger.Warn("Invalid answer data",
 			zap.Any("question_id", answer.QuestionID),
-			zap.Any("user_id", answer.UserID),
+			zap.Any("username", answer.Username),
 			zap.Any("rating", answer.Rating))
 		return ErrInvalidInput
 	}
@@ -90,22 +90,17 @@ func (u *csatUsecase) GetStatistics(ctx context.Context) (*model.FullStatistics,
 	return stats, nil
 }
 
-func (u *csatUsecase) GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error) {
+func (u *csatUsecase) GetUserActivity(ctx context.Context, username string) (*model.UserActivity, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 
-	if userID == uuid.Nil {
-		logger.Warn("Invalid user ID")
-		return nil, ErrInvalidInput
-	}
-
-	activity, err := u.repo.GetUserActivity(ctx, userID)
+	activity, err := u.repo.GetUserActivity(ctx, username)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			logger.Warn("User activity not found", zap.String("user_id", userID.String()))
+			logger.Warn("User activity not found", zap.String("username", username))
 			return nil, ErrNotFound
 		}
 		logger.Error("Failed to get user activity",
-			zap.String("user_id", userID.String()),
+			zap.String("username", username),
 			zap.Error(err))
 		return nil, ErrInternalServerError
 	}
@@ -113,18 +108,13 @@ func (u *csatUsecase) GetUserActivity(ctx context.Context, userID uuid.UUID) (*m
 	return activity, nil
 }
 
-func (u *csatUsecase) GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error) {
+func (u *csatUsecase) GetUserAverageRating(ctx context.Context, username string) (float64, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 
-	if userID == uuid.Nil {
-		logger.Warn("Invalid user ID")
-		return 0, ErrInvalidInput
-	}
-
-	avgRating, err := u.repo.GetUserAverageRating(ctx, userID)
+	avgRating, err := u.repo.GetUserAverageRating(ctx, username)
 	if err != nil {
 		logger.Error("Failed to get user average rating",
-			zap.String("user_id", userID.String()),
+			zap.String("username", username),
 			zap.Error(err))
 		return 0, ErrInternalServerError
 	}

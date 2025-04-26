@@ -20,7 +20,7 @@ message Question {
 
 message Answer {
   string question_id = 1;
-  string user_id = 2;
+  string username = 2;
   int32 rating = 3;
 }
 
@@ -36,7 +36,7 @@ message QuestionStatistic {
 }
 
 message UserActivity {
-  string user_id = 1;
+  string username = 1;
   int32 total_answers = 2;
   double average_rating = 3;
 }
@@ -47,7 +47,7 @@ message GetQuestionsResponse {
 
 message CreateAnswerRequest {
   string question_id = 1;
-  string user_id = 2;
+  string username = 2;
   int32 rating = 3;
 }
 
@@ -56,7 +56,7 @@ message GetStatisticsResponse {
 }
 
 message GetUserActivityRequest {
-  string user_id = 1;
+  string username = 1;
 }
 
 message GetUserActivityResponse {

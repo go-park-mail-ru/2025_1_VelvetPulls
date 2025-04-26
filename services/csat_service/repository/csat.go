@@ -16,9 +16,10 @@ type ICsatRepository interface {
 	GetQuestions(ctx context.Context) ([]*model.Question, error)
 	CreateAnswer(ctx context.Context, answer *model.Answer) error
 	GetStatistics(ctx context.Context) (*model.FullStatistics, error)
-	GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error)
-	GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error)
+	GetUserActivity(ctx context.Context, username string) (*model.UserActivity, error)
+	GetUserAverageRating(ctx context.Context, username string) (float64, error)
 }
+
 type psqlCsatRepository struct {
 	db *sql.DB
 }
@@ -74,7 +75,7 @@ func (r *psqlCsatRepository) GetQuestions(ctx context.Context) ([]*model.Questio
 func (r *psqlCsatRepository) CreateAnswer(ctx context.Context, answer *model.Answer) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 
-	if answer.QuestionID == uuid.Nil || answer.Rating < 1 || answer.Rating > 5 {
+	if answer.QuestionID == uuid.Nil || answer.Rating < 1 || answer.Rating > 5 || answer.Username == "" {
 		logger.Warn("Invalid answer data")
 		return ErrInvalidInput
 	}
@@ -88,12 +89,12 @@ func (r *psqlCsatRepository) CreateAnswer(ctx context.Context, answer *model.Ans
 
 	// 1. Сохраняем ответ
 	answerQuery := `
-		INSERT INTO csat.answer (question_id, user_id, rating, feedback)
+		INSERT INTO csat.answer (question_id, username, rating, feedback)
 		VALUES ($1, $2, $3::rating_scale, $4)
 	`
 	_, err = tx.ExecContext(ctx, answerQuery,
 		answer.QuestionID,
-		answer.UserID,
+		answer.Username,
 		fmt.Sprintf("%d", answer.Rating),
 		answer.Feedback,
 	)
@@ -104,13 +105,13 @@ func (r *psqlCsatRepository) CreateAnswer(ctx context.Context, answer *model.Ans
 
 	// 2. Обновляем активность пользователя
 	activityQuery := `
-		INSERT INTO csat.user_activity (user_id, last_response_at, responses_count)
+		INSERT INTO csat.user_activity (username, last_response_at, responses_count)
 		VALUES ($1, NOW(), 1)
-		ON CONFLICT (user_id) DO UPDATE
+		ON CONFLICT (username) DO UPDATE
 		SET last_response_at = NOW(),
 		    responses_count = user_activity.responses_count + 1
 	`
-	_, err = tx.ExecContext(ctx, activityQuery, answer.UserID)
+	_, err = tx.ExecContext(ctx, activityQuery, answer.Username)
 	if err != nil {
 		logger.Error("UpdateUserActivity failed", zap.Error(err))
 		return ErrDatabaseOperation
@@ -167,7 +168,7 @@ func (r *psqlCsatRepository) GetStatistics(ctx context.Context) (*model.FullStat
 				return nil, ErrDatabaseOperation
 			}
 
-			rating := int(ratingStr[0] - '0') // Конвертация из '1'-'5' в 1-5
+			rating := int(ratingStr[0] - '0')
 			distrib = append(distrib, model.RatingDistribution{
 				Rating: model.RatingScale(rating),
 				Count:  count,
@@ -180,7 +181,7 @@ func (r *psqlCsatRepository) GetStatistics(ctx context.Context) (*model.FullStat
 
 		// Получаем комментарии
 		commentsQuery := `
-			SELECT id, user_id, rating, feedback, created_at
+			SELECT id, username, rating, feedback, created_at
 			FROM csat.answer
 			WHERE question_id = $1 AND feedback IS NOT NULL
 			ORDER BY created_at DESC
@@ -198,7 +199,7 @@ func (r *psqlCsatRepository) GetStatistics(ctx context.Context) (*model.FullStat
 			var ratingStr string
 			if err := commentRows.Scan(
 				&a.ID,
-				&a.UserID,
+				&a.Username,
 				&ratingStr,
 				&a.Feedback,
 				&a.CreatedAt,
@@ -213,7 +214,6 @@ func (r *psqlCsatRepository) GetStatistics(ctx context.Context) (*model.FullStat
 		}
 		commentRows.Close()
 
-		// Рассчитываем среднюю оценку
 		var avg float64
 		if total > 0 {
 			avg = float64(sum) / float64(total)
@@ -236,18 +236,18 @@ func (r *psqlCsatRepository) GetStatistics(ctx context.Context) (*model.FullStat
 	return stats, nil
 }
 
-func (r *psqlCsatRepository) GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error) {
+func (r *psqlCsatRepository) GetUserActivity(ctx context.Context, username string) (*model.UserActivity, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 
 	query := `
-		SELECT user_id, last_response_at, responses_count
+		SELECT username, last_response_at, responses_count
 		FROM csat.user_activity
-		WHERE user_id = $1
+		WHERE username = $1
 	`
 
 	var activity model.UserActivity
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
-		&activity.UserID,
+	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&activity.Username,
 		&activity.LastResponseAt,
 		&activity.ResponsesCount,
 	)
@@ -263,17 +263,17 @@ func (r *psqlCsatRepository) GetUserActivity(ctx context.Context, userID uuid.UU
 	return &activity, nil
 }
 
-func (r *psqlCsatRepository) GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error) {
+func (r *psqlCsatRepository) GetUserAverageRating(ctx context.Context, username string) (float64, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 
 	query := `
         SELECT AVG(rating::integer)
         FROM csat.answer
-        WHERE user_id = $1
+        WHERE username = $1
     `
 
 	var avgRating *float64
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&avgRating)
+	err := r.db.QueryRowContext(ctx, query, username).Scan(&avgRating)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil

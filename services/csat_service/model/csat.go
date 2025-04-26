@@ -28,14 +28,14 @@ type Question struct {
 type Answer struct {
 	ID         uuid.UUID   `json:"id"`
 	QuestionID uuid.UUID   `json:"question_id"`
-	UserID     uuid.UUID   `json:"user_id"`
+	Username   string      `json:"username"`
 	Rating     RatingScale `json:"rating"`
 	Feedback   *string     `json:"feedback,omitempty"`
 	CreatedAt  time.Time   `json:"created_at"`
 }
 
 type UserActivity struct {
-	UserID         uuid.UUID `json:"user_id"`
+	Username       string    `json:"username"`
 	LastResponseAt time.Time `json:"last_response_at"`
 	ResponsesCount int       `json:"responses_count"`
 }

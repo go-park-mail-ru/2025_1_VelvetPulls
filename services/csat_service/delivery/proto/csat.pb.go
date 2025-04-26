@@ -77,7 +77,7 @@ func (x *Question) GetText() string {
 type Answer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	QuestionId    string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Rating        int32                  `protobuf:"varint,3,opt,name=rating,proto3" json:"rating,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -120,9 +120,9 @@ func (x *Answer) GetQuestionId() string {
 	return ""
 }
 
-func (x *Answer) GetUserId() string {
+func (x *Answer) GetUsername() string {
 	if x != nil {
-		return x.UserId
+		return x.Username
 	}
 	return ""
 }
@@ -248,7 +248,7 @@ func (x *QuestionStatistic) GetAnswerCount() int32 {
 
 type UserActivity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	TotalAnswers  int32                  `protobuf:"varint,2,opt,name=total_answers,json=totalAnswers,proto3" json:"total_answers,omitempty"`
 	AverageRating float64                `protobuf:"fixed64,3,opt,name=average_rating,json=averageRating,proto3" json:"average_rating,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -285,9 +285,9 @@ func (*UserActivity) Descriptor() ([]byte, []int) {
 	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *UserActivity) GetUserId() string {
+func (x *UserActivity) GetUsername() string {
 	if x != nil {
-		return x.UserId
+		return x.Username
 	}
 	return ""
 }
@@ -353,7 +353,7 @@ func (x *GetQuestionsResponse) GetQuestions() []*Question {
 type CreateAnswerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	QuestionId    string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Rating        int32                  `protobuf:"varint,3,opt,name=rating,proto3" json:"rating,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -396,9 +396,9 @@ func (x *CreateAnswerRequest) GetQuestionId() string {
 	return ""
 }
 
-func (x *CreateAnswerRequest) GetUserId() string {
+func (x *CreateAnswerRequest) GetUsername() string {
 	if x != nil {
-		return x.UserId
+		return x.Username
 	}
 	return ""
 }
@@ -456,7 +456,7 @@ func (x *GetStatisticsResponse) GetStatistics() *FullStatistics {
 
 type GetUserActivityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -491,9 +491,9 @@ func (*GetUserActivityRequest) Descriptor() ([]byte, []int) {
 	return file_services_csat_service_delivery_proto_csat_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetUserActivityRequest) GetUserId() string {
+func (x *GetUserActivityRequest) GetUsername() string {
 	if x != nil {
-		return x.UserId
+		return x.Username
 	}
 	return ""
 }
@@ -549,11 +549,11 @@ const file_services_csat_service_delivery_proto_csat_proto_rawDesc = "" +
 	"/services/csat_service/delivery/proto/csat.proto\x12\x04csat\x1a\x1bgoogle/protobuf/empty.proto\".\n" +
 	"\bQuestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"Z\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"]\n" +
 	"\x06Answer\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
-	"questionId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"questionId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
 	"\x06rating\x18\x03 \x01(\x05R\x06rating\"\x81\x01\n" +
 	"\x0eFullStatistics\x12H\n" +
 	"\x13question_statistics\x18\x01 \x03(\v2\x17.csat.QuestionStatisticR\x12questionStatistics\x12%\n" +
@@ -562,24 +562,24 @@ const file_services_csat_service_delivery_proto_csat_proto_rawDesc = "" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
 	"questionId\x12%\n" +
 	"\x0eaverage_rating\x18\x02 \x01(\x01R\raverageRating\x12!\n" +
-	"\fanswer_count\x18\x03 \x01(\x05R\vanswerCount\"s\n" +
-	"\fUserActivity\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
+	"\fanswer_count\x18\x03 \x01(\x05R\vanswerCount\"v\n" +
+	"\fUserActivity\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12#\n" +
 	"\rtotal_answers\x18\x02 \x01(\x05R\ftotalAnswers\x12%\n" +
 	"\x0eaverage_rating\x18\x03 \x01(\x01R\raverageRating\"D\n" +
 	"\x14GetQuestionsResponse\x12,\n" +
-	"\tquestions\x18\x01 \x03(\v2\x0e.csat.QuestionR\tquestions\"g\n" +
+	"\tquestions\x18\x01 \x03(\v2\x0e.csat.QuestionR\tquestions\"j\n" +
 	"\x13CreateAnswerRequest\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
-	"questionId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"questionId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
 	"\x06rating\x18\x03 \x01(\x05R\x06rating\"M\n" +
 	"\x15GetStatisticsResponse\x124\n" +
 	"\n" +
 	"statistics\x18\x01 \x01(\v2\x14.csat.FullStatisticsR\n" +
-	"statistics\"1\n" +
-	"\x16GetUserActivityRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"I\n" +
+	"statistics\"4\n" +
+	"\x16GetUserActivityRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\"I\n" +
 	"\x17GetUserActivityResponse\x12.\n" +
 	"\bactivity\x18\x01 \x01(\v2\x12.csat.UserActivityR\bactivity2\xaa\x02\n" +
 	"\vCsatService\x12B\n" +

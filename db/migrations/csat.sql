@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS csat.question (
 CREATE TABLE IF NOT EXISTS csat.answer (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     question_id UUID NOT NULL,
-    user_id UUID,
+    username TEXT NOT NULL,
     rating rating_scale NOT NULL,
     feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
@@ -26,12 +26,7 @@ CREATE TABLE IF NOT EXISTS csat.answer (
 );
 
 CREATE TABLE IF NOT EXISTS csat.user_activity (
-    username TEXT UNIQUE NOT NULL,
+    username TEXT PRIMARY KEY,
     last_response_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    responses_count INTEGER DEFAULT 0,
-    PRIMARY KEY (username)
+    responses_count INTEGER DEFAULT 0
 );
-
-INSERT INTO csat.question (title, question_text)
-VALUES
-('Качество продукта', 'Насколько вам нравится использовать keftegram?');

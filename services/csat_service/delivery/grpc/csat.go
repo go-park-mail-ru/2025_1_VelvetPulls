@@ -45,14 +45,15 @@ func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAns
 	if err != nil {
 		return nil, usecase.ErrInvalidInput
 	}
-	userID, err := uuid.Parse(req.GetUserId())
-	if err != nil {
+
+	username := req.GetUsername()
+	if username == "" {
 		return nil, usecase.ErrInvalidInput
 	}
 
 	answer := &model.Answer{
 		QuestionID: questionID,
-		UserID:     userID,
+		Username:   username,
 		Rating:     model.RatingScale(req.GetRating()),
 	}
 
@@ -99,24 +100,21 @@ func (c *csatController) GetStatistics(ctx context.Context, _ *emptypb.Empty) (*
 }
 
 func (c *csatController) GetUserActivity(ctx context.Context, req *csatpb.GetUserActivityRequest) (*csatpb.GetUserActivityResponse, error) {
-	userID, err := uuid.Parse(req.GetUserId())
-	if err != nil {
-		return nil, usecase.ErrInvalidInput
-	}
+	username := req.GetUsername()
 
-	activity, err := c.csatUsecase.GetUserActivity(ctx, userID)
+	activity, err := c.csatUsecase.GetUserActivity(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 
-	avgRating, err := c.csatUsecase.GetUserAverageRating(ctx, userID)
+	avgRating, err := c.csatUsecase.GetUserAverageRating(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 
 	return &csatpb.GetUserActivityResponse{
 		Activity: &csatpb.UserActivity{
-			UserId:        activity.UserID.String(),
+			Username:      activity.Username,
 			TotalAnswers:  int32(activity.ResponsesCount),
 			AverageRating: avgRating,
 		},

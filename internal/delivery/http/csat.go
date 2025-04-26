@@ -61,7 +61,7 @@ func (c *csatController) CreateAnswer(w http.ResponseWriter, r *http.Request) {
 
 	_, err := c.csatClient.CreateAnswer(ctx, &csatpb.CreateAnswerRequest{
 		QuestionId: answer.QuestionID,
-		UserId:     answer.UserID,
+		Username:   answer.Username,
 		Rating:     int32(answer.Rating),
 	})
 	if err != nil {
@@ -105,7 +105,7 @@ func (c *csatController) GetUserActivity(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	resp, err := c.csatClient.GetUserActivity(ctx, &csatpb.GetUserActivityRequest{
-		UserId: userID,
+		Username: userID,
 	})
 	if err != nil {
 		logger.Error("gRPC GetUserActivity error", zap.Error(err))
