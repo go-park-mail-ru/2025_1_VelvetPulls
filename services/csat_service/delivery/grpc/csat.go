@@ -109,11 +109,16 @@ func (c *csatController) GetUserActivity(ctx context.Context, req *csatpb.GetUse
 		return nil, err
 	}
 
+	avgRating, err := c.csatUsecase.GetUserAverageRating(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &csatpb.GetUserActivityResponse{
 		Activity: &csatpb.UserActivity{
 			UserId:        activity.UserID.String(),
 			TotalAnswers:  int32(activity.ResponsesCount),
-			AverageRating: 0,
+			AverageRating: avgRating,
 		},
 	}, nil
 }

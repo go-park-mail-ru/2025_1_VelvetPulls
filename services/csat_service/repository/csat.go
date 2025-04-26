@@ -17,6 +17,7 @@ type ICsatRepository interface {
 	CreateAnswer(ctx context.Context, answer *model.Answer) error
 	GetStatistics(ctx context.Context) (*model.FullStatistics, error)
 	GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error)
+	GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error)
 }
 type psqlCsatRepository struct {
 	db *sql.DB
@@ -260,4 +261,30 @@ func (r *psqlCsatRepository) GetUserActivity(ctx context.Context, userID uuid.UU
 	}
 
 	return &activity, nil
+}
+
+func (r *psqlCsatRepository) GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+
+	query := `
+        SELECT AVG(rating::integer)
+        FROM csat.answer
+        WHERE user_id = $1
+    `
+
+	var avgRating *float64
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&avgRating)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+		logger.Error("GetUserAverageRating failed", zap.Error(err))
+		return 0, ErrDatabaseOperation
+	}
+
+	if avgRating == nil {
+		return 0, nil
+	}
+
+	return *avgRating, nil
 }

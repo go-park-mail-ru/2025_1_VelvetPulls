@@ -16,6 +16,7 @@ type ICsatUsecase interface {
 	CreateAnswer(ctx context.Context, answer *model.Answer) error
 	GetStatistics(ctx context.Context) (*model.FullStatistics, error)
 	GetUserActivity(ctx context.Context, userID uuid.UUID) (*model.UserActivity, error)
+	GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error)
 }
 
 type csatUsecase struct {
@@ -110,4 +111,23 @@ func (u *csatUsecase) GetUserActivity(ctx context.Context, userID uuid.UUID) (*m
 	}
 
 	return activity, nil
+}
+
+func (u *csatUsecase) GetUserAverageRating(ctx context.Context, userID uuid.UUID) (float64, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+
+	if userID == uuid.Nil {
+		logger.Warn("Invalid user ID")
+		return 0, ErrInvalidInput
+	}
+
+	avgRating, err := u.repo.GetUserAverageRating(ctx, userID)
+	if err != nil {
+		logger.Error("Failed to get user average rating",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return 0, ErrInternalServerError
+	}
+
+	return avgRating, nil
 }
