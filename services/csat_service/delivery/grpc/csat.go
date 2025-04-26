@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 
 	csatpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/delivery/proto"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/model"
@@ -43,11 +44,13 @@ func (c *csatController) GetQuestions(ctx context.Context, _ *emptypb.Empty) (*c
 func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAnswerRequest) (*emptypb.Empty, error) {
 	questionID, err := uuid.Parse(req.GetQuestionId())
 	if err != nil {
+		fmt.Println(questionID)
 		return nil, usecase.ErrInvalidInput
 	}
 
 	username := req.GetUsername()
 	if username == "" {
+		fmt.Println(username)
 		return nil, usecase.ErrInvalidInput
 	}
 	feedback := req.GetFeedback()
@@ -58,7 +61,7 @@ func (c *csatController) CreateAnswer(ctx context.Context, req *csatpb.CreateAns
 		Rating:     model.RatingScale(req.GetRating()),
 		Feedback:   &feedback,
 	}
-
+	fmt.Println(answer)
 	if err := c.csatUsecase.CreateAnswer(ctx, answer); err != nil {
 		return nil, err
 	}

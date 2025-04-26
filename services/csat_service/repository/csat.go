@@ -87,10 +87,9 @@ func (r *psqlCsatRepository) CreateAnswer(ctx context.Context, answer *model.Ans
 	}
 	defer tx.Rollback()
 
-	// 1. Сохраняем ответ
 	answerQuery := `
 		INSERT INTO csat.answer (question_id, username, rating, feedback)
-		VALUES ($1, $2, $3::rating_scale, $4)
+		VALUES ($1, $2, $3, $4)
 	`
 	_, err = tx.ExecContext(ctx, answerQuery,
 		answer.QuestionID,
@@ -103,7 +102,6 @@ func (r *psqlCsatRepository) CreateAnswer(ctx context.Context, answer *model.Ans
 		return ErrDatabaseOperation
 	}
 
-	// 2. Обновляем активность пользователя
 	activityQuery := `
 		INSERT INTO csat.user_activity (username, last_response_at, responses_count)
 		VALUES ($1, NOW(), 1)

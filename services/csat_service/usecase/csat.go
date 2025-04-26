@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/csat_service/model"
@@ -47,7 +48,7 @@ func (u *csatUsecase) GetQuestions(ctx context.Context) ([]*model.Question, erro
 
 func (u *csatUsecase) CreateAnswer(ctx context.Context, answer *model.Answer) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-
+	fmt.Println(answer)
 	if answer.QuestionID == uuid.Nil || answer.Username == "" || answer.Rating < 1 || answer.Rating > 5 {
 		logger.Warn("Invalid answer data",
 			zap.Any("question_id", answer.QuestionID),

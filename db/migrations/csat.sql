@@ -1,10 +1,11 @@
+-- Удаляем схему и ее содержимое, если она существует
 DROP SCHEMA IF EXISTS csat CASCADE;
 CREATE SCHEMA csat;
 
+-- Устанавливаем расширение pgcrypto
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TYPE rating_scale AS ENUM ('1', '2', '3', '4', '5');
-
+-- Создаем таблицу question с вопросами
 CREATE TABLE IF NOT EXISTS csat.question (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL CONSTRAINT title_not_empty CHECK (length(title) > 0),
@@ -15,16 +16,18 @@ CREATE TABLE IF NOT EXISTS csat.question (
     UNIQUE(title)
 );
 
+-- Создаем таблицу answer с рейтингами
 CREATE TABLE IF NOT EXISTS csat.answer (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     question_id UUID NOT NULL,
-    user_id UUID,
-    rating rating_scale NOT NULL,
+    username TEXT NOT NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),  -- Рейтинг от 1 до 5
     feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
     FOREIGN KEY (question_id) REFERENCES csat.question(id) ON DELETE CASCADE
 );
 
+-- Создаем таблицу user_activity для отслеживания активности пользователей
 CREATE TABLE IF NOT EXISTS csat.user_activity (
     username TEXT UNIQUE NOT NULL,
     last_response_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -32,6 +35,7 @@ CREATE TABLE IF NOT EXISTS csat.user_activity (
     PRIMARY KEY (username)
 );
 
+-- Добавляем вопрос в таблицу question
 INSERT INTO csat.question (title, question_text)
 VALUES
 ('Качество продукта', 'Насколько вам нравится использовать keftegram?');
