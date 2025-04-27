@@ -10,24 +10,25 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type userController struct {
-	sessionUsecase usecase.ISessionUsecase
-	userUsecase    usecase.IUserUsecase
+	sessionClient authpb.SessionServiceClient
+	userUsecase   usecase.IUserUsecase
 }
 
-func NewUserController(r *mux.Router, userUsecase usecase.IUserUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewUserController(r *mux.Router, userUsecase usecase.IUserUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &userController{
-		userUsecase:    userUsecase,
-		sessionUsecase: sessionUsecase,
+		userUsecase:   userUsecase,
+		sessionClient: sessionClient,
 	}
 
-	r.Handle("/profile/{username}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetProfile))).Methods(http.MethodGet)
-	r.Handle("/profile", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetSelfProfile))).Methods(http.MethodGet)
-	r.Handle("/profile", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.UpdateSelfProfile))).Methods(http.MethodPut)
+	r.Handle("/profile/{username}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetProfile))).Methods(http.MethodGet)
+	r.Handle("/profile", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetSelfProfile))).Methods(http.MethodGet)
+	r.Handle("/profile", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateSelfProfile))).Methods(http.MethodPut)
 }
 
 // GetSelfProfile возвращает профиль текущего пользователя

@@ -9,6 +9,7 @@ import (
 	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -16,17 +17,17 @@ import (
 
 type messageController struct {
 	messageUsecase usecase.IMessageUsecase
-	sessionUsecase usecase.ISessionUsecase
+	sessionClient  authpb.SessionServiceClient
 }
 
-func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &messageController{
 		messageUsecase: messageUsecase,
-		sessionUsecase: sessionUsecase,
+		sessionClient:  sessionClient,
 	}
 
-	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
-	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
 }
 
 // @Summary Получить историю сообщений в чате

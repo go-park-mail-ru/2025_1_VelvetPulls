@@ -1,5 +1,4 @@
 services:
-
   postgres:
     image: postgres
     environment:
@@ -21,7 +20,7 @@ services:
   redis:
     image: redis
     ports:
-      - "${REDIS_PORT}:${DATABASE_PORT}"
+      - "${REDIS_PORT}:${REDIS_PORT}"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     env_file:
@@ -36,9 +35,22 @@ services:
   app:
     build:
       context: ../
-      dockerfile: ./deploy/Dockerfile
+      dockerfile: ./deploy/main.Dockerfile
     ports:
       - "${APP_PORT}:${APP_PORT}"
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  auth:
+    build:
+      context: ../
+      dockerfile: ./deploy/auth.Dockerfile
+    ports:
+      - "8081:8081"
     env_file:
       - ../.env
     depends_on:

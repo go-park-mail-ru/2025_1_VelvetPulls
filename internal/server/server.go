@@ -8,13 +8,15 @@ import (
 
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
 	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
+
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
-	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"google.golang.org/grpc"
 )
 
 func setupLogger() (*os.File, error) {
@@ -33,12 +35,12 @@ type IServer interface {
 }
 
 type Server struct {
-	dbConn      *sql.DB
-	redisClient *redis.Client
+	dbConn   *sql.DB
+	authConn *grpc.ClientConn
 }
 
-func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
-	return &Server{dbConn: dbConn, redisClient: redisClient}
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn) IServer {
+	return &Server{dbConn: dbConn, authConn: authConn}
 }
 
 func (s *Server) Run(address string) error {
@@ -48,6 +50,9 @@ func (s *Server) Run(address string) error {
 	}
 	defer logFile.Close()
 
+	// ===== Microservice usecase =====
+	authClient := generatedAuth.NewAuthServiceClient(s.authConn)
+	sessionClient := generatedAuth.NewSessionServiceClient(s.authConn)
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
@@ -58,30 +63,27 @@ func (s *Server) Run(address string) error {
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
-	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
 	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
 	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo, websocketUsecase)
-	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controllers
-	httpDelivery.NewAuthController(apiRouter, authUsecase)
-	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionUsecase)
-	httpDelivery.NewUserController(apiRouter, userUsecase, sessionUsecase)
-	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionUsecase)
-	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionUsecase)
+	httpDelivery.NewAuthController(apiRouter, authClient, sessionClient)
+	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionClient)
+	httpDelivery.NewUserController(apiRouter, userUsecase, sessionClient)
+	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionClient)
+	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionClient)
 
 	// ===== WebSocket =====
-	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase)
+	websocketDelivery.NewWebsocketController(mainRouter, sessionClient, websocketUsecase)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
