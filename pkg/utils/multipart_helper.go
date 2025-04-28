@@ -31,10 +31,9 @@ func SavePhoto(file multipart.File, folderName string) (string, error) {
 	if ok := IsImageFile(file); !ok {
 		return "", ErrNotImage
 	}
-
+	
 	filenameUUID := uuid.New()
 	path := config.UPLOAD_DIR + folderName + "/" + filenameUUID.String() + ".png"
-
 	dst, err := os.Create(path)
 	if err != nil {
 		return "", ErrSavingImage
