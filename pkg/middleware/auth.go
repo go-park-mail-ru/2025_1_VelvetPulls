@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/google/uuid"
 )
 
-func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.Handler {
+func AuthMiddleware(sessionClient generatedAuth.SessionServiceClient) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := utils.GetSessionCookie(r)
@@ -18,13 +18,15 @@ func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.H
 				return
 			}
 
-			userIDString, err := sessionUC.CheckLogin(r.Context(), token)
+			resp, err := sessionClient.CheckLogin(r.Context(), &generatedAuth.CheckLoginRequest{
+				SessionId: token,
+			})
 			if err != nil {
 				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid session", false)
 				return
 			}
 
-			userID, err := uuid.Parse(userIDString)
+			userID, err := uuid.Parse(resp.UserId)
 			if err != nil {
 				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid user ID", false)
 				return
@@ -36,7 +38,7 @@ func AuthMiddleware(sessionUC usecase.ISessionUsecase) func(http.Handler) http.H
 	}
 }
 
-func AuthMiddlewareWS(sessionUC usecase.ISessionUsecase) func(http.HandlerFunc) http.HandlerFunc {
+func AuthMiddlewareWS(sessionClient generatedAuth.SessionServiceClient) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			token, err := utils.GetSessionCookie(r)
@@ -45,13 +47,15 @@ func AuthMiddlewareWS(sessionUC usecase.ISessionUsecase) func(http.HandlerFunc) 
 				return
 			}
 
-			userIDStr, err := sessionUC.CheckLogin(r.Context(), token)
+			resp, err := sessionClient.CheckLogin(r.Context(), &generatedAuth.CheckLoginRequest{
+				SessionId: token,
+			})
 			if err != nil {
 				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Invalid session", false)
 				return
 			}
 
-			userID, err := uuid.Parse(userIDStr)
+			userID, err := uuid.Parse(resp.UserId)
 			if err != nil {
 				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid user ID", false)
 				return

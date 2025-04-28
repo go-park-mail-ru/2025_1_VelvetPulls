@@ -17,11 +17,8 @@ import (
 // IUserRepo описывает операции для работы с пользователями
 type IUserRepo interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
-	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
-	CreateUser(ctx context.Context, user *model.User) (uuid.UUID, error)
-	UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (newURL, oldURL string, err error)
+	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (string, string, error)
 }
 
 // userRepo реализует IUserRepo через PostgreSQL
@@ -68,12 +65,7 @@ func (r *userRepo) getUserByField(ctx context.Context, field string, value inter
 func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
 	return r.getUserByField(ctx, "username", username)
 }
-func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	return r.getUserByField(ctx, "email", email)
-}
-func (r *userRepo) GetUserByPhone(ctx context.Context, phone string) (*model.User, error) {
-	return r.getUserByField(ctx, "phone", phone)
-}
+
 func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	if id == uuid.Nil {
 		utils.GetLoggerFromCtx(ctx).Warn("invalid uuid provided")

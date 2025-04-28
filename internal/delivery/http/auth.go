@@ -4,37 +4,28 @@ import (
 	"net/http"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
-	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
-	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type authController struct {
-	authUsecase usecase.IAuthUsecase
+	authClient    authpb.AuthServiceClient
+	sessionClient authpb.SessionServiceClient
 }
 
-func NewAuthController(r *mux.Router, authUsecase usecase.IAuthUsecase) {
+func NewAuthController(r *mux.Router, authClient authpb.AuthServiceClient, sessionClient authpb.SessionServiceClient) {
 	controller := &authController{
-		authUsecase: authUsecase,
+		authClient:    authClient,
+		sessionClient: sessionClient,
 	}
 	r.Handle("/register", http.HandlerFunc(controller.Register)).Methods(http.MethodPost)
 	r.Handle("/login", http.HandlerFunc(controller.Login)).Methods(http.MethodPost)
 	r.Handle("/logout", http.HandlerFunc(controller.Logout)).Methods(http.MethodDelete)
 }
 
-// Register регистрирует нового пользователя
-// @Summary Регистрация нового пользователя
-// @Description Регистрирует нового пользователя по данным, переданным в запросе и возвращает token
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param user body model.RegisterCredentials true "Данные для регистрации пользователя"
-// @Success 201 {object} utils.JSONResponse
-// @Failure 400 {object} utils.JSONResponse
-// @Failure 500 {object} utils.JSONResponse
-// @Router /api/register [post]
 func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
@@ -45,30 +36,23 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, err := c.authUsecase.RegisterUser(r.Context(), creds)
+	resp, err := c.authClient.RegisterUser(r.Context(), &authpb.RegisterUserRequest{
+		Username:        creds.Username,
+		Password:        creds.Password,
+		ConfirmPassword: creds.Password,
+		Phone:           creds.Phone,
+	})
 	if err != nil {
-		code, errMsg := apperrors.GetErrAndCodeToSend(err)
-		logger.Error("Registration failed", zap.String("error", errMsg.Error()))
-		utils.SendJSONResponse(w, r, code, errMsg, false)
+		logger.Error("gRPC Register error", zap.Error(err))
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	utils.SetSessionCookie(w, sessionID)
-	logger.Info("User registered successfully")
+	utils.SetSessionCookie(w, resp.GetSessionId())
 	utils.SendJSONResponse(w, r, http.StatusCreated, "Registration successful", true)
 }
 
-// Login авторизовывает пользователя
-// @Summary Авторизация пользователя
-// @Description Авторизовывает, аутентифицирует существующего пользователя и возвращает token
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param user body model.LoginCredentials true "Данные для авторизации пользователя"
-// @Success 200 {object} utils.JSONResponse
-// @Failure 400 {object} utils.JSONResponse
-// @Failure 500 {object} utils.JSONResponse
-// @Router /api/login [post]
 func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
@@ -79,45 +63,41 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, err := c.authUsecase.LoginUser(r.Context(), creds)
+	resp, err := c.authClient.LoginUser(r.Context(), &authpb.LoginUserRequest{
+		Username: creds.Username,
+		Password: creds.Password,
+	})
 	if err != nil {
-		code, errMsg := apperrors.GetErrAndCodeToSend(err)
-		logger.Error("Login failed", zap.String("error", errMsg.Error()))
-		utils.SendJSONResponse(w, r, code, errMsg, false)
+		logger.Error("gRPC Login error", zap.Error(err))
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	utils.SetSessionCookie(w, sessionID)
-	logger.Info("User logged in successfully")
+	utils.SetSessionCookie(w, resp.GetSessionId())
 	utils.SendJSONResponse(w, r, http.StatusOK, "Login successful", true)
 }
 
-// Logout завершает сеанс пользователя
-// @Summary Выход пользователя
-// @Description Завершает текущую сессию пользователя, удаляя cookie сессии
-// @Tags Auth
-// @Success 200 {object} utils.JSONResponse
-// @Failure 400 {object} utils.JSONResponse
-// @Failure 500 {object} utils.JSONResponse
-// @Router /api/logout [delete]
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
 	sessionID, err := utils.GetSessionCookie(r)
 	if err != nil {
-		logger.Warn("Unauthorized logout attempt")
+		logger.Warn("Missing session cookie")
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Unauthorized", false)
 		return
 	}
 
-	if err := c.authUsecase.LogoutUser(r.Context(), sessionID); err != nil {
-		code, errMsg := apperrors.GetErrAndCodeToSend(err)
-		logger.Error("Logout failed", zap.String("error", errMsg.Error()))
-		utils.SendJSONResponse(w, r, code, errMsg, false)
+	_, err = c.authClient.LogoutUser(r.Context(), &authpb.LogoutUserRequest{
+		SessionId: sessionID,
+	})
+	if err != nil {
+		logger.Error("gRPC Logout error", zap.Error(err))
+		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
 	utils.DeleteSessionCookie(w)
-	logger.Info("User logged out successfully")
 	utils.SendJSONResponse(w, r, http.StatusOK, "Logout successful", true)
 }

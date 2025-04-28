@@ -9,6 +9,8 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	servererrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/server_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var errToCode = map[error]int{
@@ -74,4 +76,41 @@ func GetErrAndCodeToSend(err error) (int, error) {
 		return http.StatusInternalServerError, servererrors.ErrInternalServer
 	}
 	return code, source
+}
+
+func GrpcCodeToHttp(grpcCode codes.Code) int {
+	switch grpcCode {
+	case codes.OK:
+		return http.StatusOK
+	case codes.InvalidArgument:
+		return http.StatusBadRequest
+	case codes.Unauthenticated:
+		return http.StatusUnauthorized
+	case codes.PermissionDenied:
+		return http.StatusForbidden
+	case codes.NotFound:
+		return http.StatusNotFound
+	case codes.AlreadyExists:
+		return http.StatusConflict
+	case codes.Internal:
+		return http.StatusInternalServerError
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// UnpackGrpcError извлекает сообщение и код из gRPC-ошибки
+func UnpackGrpcError(err error) (int, string) {
+	if err == nil {
+		return http.StatusOK, ""
+	}
+
+	// Пытаемся распарсить gRPC-статус
+	st, ok := status.FromError(err)
+	if ok {
+		return GrpcCodeToHttp(st.Code()), st.Message()
+	}
+
+	code, err := GetErrAndCodeToSend(err)
+	return code, err.Error()
 }

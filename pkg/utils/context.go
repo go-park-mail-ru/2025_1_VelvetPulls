@@ -26,3 +26,7 @@ func GetLoggerFromCtx(ctx context.Context) *zap.Logger {
 func GetUserIDFromCtx(ctx context.Context) uuid.UUID {
 	return ctx.Value(USER_ID_KEY).(uuid.UUID)
 }
+
+func WithLogger(ctx context.Context, logger *zap.Logger) context.Context {
+	return context.WithValue(ctx, LOGGER_ID_KEY, logger)
+}

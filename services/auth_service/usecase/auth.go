@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
 	"go.uber.org/zap"
 )
 
@@ -16,13 +16,13 @@ type IAuthUsecase interface {
 }
 
 type AuthUsecase struct {
-	userRepo    repository.IUserRepo
+	authRepo    repository.IAuthRepo
 	sessionRepo repository.ISessionRepo
 }
 
-func NewAuthUsecase(userRepo repository.IUserRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
+func NewAuthUsecase(authRepo repository.IAuthRepo, sessionRepo repository.ISessionRepo) IAuthUsecase {
 	return &AuthUsecase{
-		userRepo:    userRepo,
+		authRepo:    authRepo,
 		sessionRepo: sessionRepo,
 	}
 }
@@ -36,11 +36,11 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 		return "", err
 	}
 
-	if _, err := uc.userRepo.GetUserByUsername(ctx, values.Username); err == nil {
+	if _, err := uc.authRepo.GetUserByUsername(ctx, values.Username); err == nil {
 		return "", ErrUsernameIsTaken
 	}
 
-	if _, err := uc.userRepo.GetUserByPhone(ctx, values.Phone); err == nil {
+	if _, err := uc.authRepo.GetUserByPhone(ctx, values.Phone); err == nil {
 		return "", ErrPhoneIsTaken
 	}
 
@@ -56,7 +56,7 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 		Phone:    values.Phone,
 	}
 
-	userID, err := uc.userRepo.CreateUser(ctx, user)
+	userID, err := uc.authRepo.CreateUser(ctx, user)
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +76,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", err
 	}
 
-	user, err := uc.userRepo.GetUserByUsername(ctx, values.Username)
+	user, err := uc.authRepo.GetUserByUsername(ctx, values.Username)
 	if err != nil {
 		return "", ErrInvalidUsername
 	}
@@ -86,7 +86,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", ErrInvalidPassword
 	}
 
-	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.ID.String())
+	sessionID, err := uc.sessionRepo.CreateSession(ctx, user.ID)
 	if err != nil {
 		return "", err
 	}

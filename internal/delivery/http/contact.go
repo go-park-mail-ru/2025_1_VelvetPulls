@@ -8,24 +8,25 @@ import (
 	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type contactController struct {
-	sessionUsecase usecase.ISessionUsecase
+	sessionClient  authpb.SessionServiceClient
 	contactUsecase usecase.IContactUsecase
 }
 
-func NewContactController(r *mux.Router, contactUsecase usecase.IContactUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewContactController(r *mux.Router, contactUsecase usecase.IContactUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &contactController{
 		contactUsecase: contactUsecase,
-		sessionUsecase: sessionUsecase,
+		sessionClient:  sessionClient,
 	}
 
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetContacts))).Methods(http.MethodGet)
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.AddContact))).Methods(http.MethodPost)
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.DeleteContact))).Methods(http.MethodDelete)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetContacts))).Methods(http.MethodGet)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddContact))).Methods(http.MethodPost)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteContact))).Methods(http.MethodDelete)
 }
 
 // GetContacts получает список контактов пользователя

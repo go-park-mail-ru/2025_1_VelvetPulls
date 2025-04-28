@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"log"
 	"time"
@@ -11,7 +10,8 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/server"
 	_ "github.com/lib/pq"
 	"github.com/nats-io/nats.go"
-	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // @title Keftegram backend API
@@ -43,21 +43,15 @@ func main() {
 
 	defer dbConn.Close()
 
-	// Подключение к Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     config.GetRedisAddr(),
-		Password: config.Redis.Password,
-	})
-
-	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		log.Fatal("Failed to ping Redis:", err)
+	authConn, err := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to AuthService: %v", err)
 	}
-
-	defer redisClient.Close()
+	defer authConn.Close()
 
 	log.Printf("Starting server on %s", config.PORT)
 
-	s := server.NewServer(dbConn, redisClient, nc)
+	s := server.NewServer(dbConn, authConn, nc)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
