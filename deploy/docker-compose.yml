@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres
+    image: postgres:latest
     environment:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASS}
@@ -10,15 +10,16 @@ services:
     env_file:
       - ../.env
     ports:
-      - "${DATABASE_PORT}:${DATABASE_PORT}" 
+      - "${DATABASE_PORT}:${DATABASE_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${DATABASE_USER} -d $${DATABASE_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      start_period: 3s
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis
+    image: redis:latest
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     environment:
@@ -28,9 +29,20 @@ services:
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping"]
+      start_period: 3s
       interval: 1s
       timeout: 3s
       retries: 30
+
+  nats:
+    image: nats:2.10.16-alpine3.19
+    command: -m 8222
+    healthcheck:
+      test: wget http://localhost:8222/healthz -q -S -O -
+      start_period: 3s
+      retries: 3
+      timeout: 3s
+      interval: 14s
 
   app:
     build:
@@ -57,5 +69,7 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     restart: unless-stopped

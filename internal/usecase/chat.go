@@ -10,6 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type ChatUsecase struct {
+	chatRepo  repository.IChatRepo
+	wsUsecase IWebsocketUsecase
+}
+
+// IChatUsecase describes chat operations
 type IChatUsecase interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error)
 	GetChatInfo(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.ChatInfo, error)
@@ -20,89 +26,55 @@ type IChatUsecase interface {
 	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
 }
 
-type ChatUsecase struct {
-	chatRepo  repository.IChatRepo
-	wsUsecase IWebsocketUsecase
-}
-
+// NewChatUsecase constructs ChatUsecase
 func NewChatUsecase(chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IChatUsecase {
 	return &ChatUsecase{chatRepo: chatRepo, wsUsecase: wsUsecase}
 }
 
+// GetChats returns summary for each chat
 func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Getting chats for user", zap.String("userID", userID.String()))
+	logger.Info("GetChats", zap.String("userID", userID.String()))
 
 	chats, _, err := uc.chatRepo.GetChats(ctx, userID)
 	if err != nil {
-		logger.Error("Failed to get chats from repository", zap.Error(err))
+		logger.Error("repo.GetChats failed", zap.Error(err))
 		return nil, err
 	}
 
 	for i := range chats {
-		if chats[i].Type == "dialog" {
-			users, err := uc.chatRepo.GetUsersFromChat(ctx, chats[i].ID)
-			if err != nil {
-				logger.Error("Failed to get users from chat",
-					zap.String("chatID", chats[i].ID.String()),
-					zap.Error(err))
-				return nil, err
-			}
-
-			for _, user := range users {
-				if user.ID != userID {
-					chats[i].Title = user.Username
-					chats[i].AvatarPath = user.AvatarPath
-					break
-				}
-			}
+		if model.ChatType(chats[i].Type) == model.ChatTypeDialog {
+			uc.decorateDialog(ctx, &chats[i], userID)
 		}
 	}
 
-	logger.Info("Successfully retrieved chats", zap.Int("count", len(chats)))
+	logger.Info("GetChats done", zap.Int("count", len(chats)))
 	return chats, nil
 }
 
+// GetChatInfo loads full info and enforces membership
 func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Getting chat info",
-		zap.String("userID", userID.String()),
-		zap.String("chatID", chatID.String()))
+	logger.Info("GetChatInfo", zap.String("chatID", chatID.String()))
 
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
-	if err != nil {
-		logger.Error("Failed to get user role in chat", zap.Error(err))
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
 		return nil, err
-	}
-	if role != "owner" && role != "member" {
-		logger.Warn("Permission denied for user in chat",
-			zap.String("role", role))
-		return nil, ErrPermissionDenied
 	}
 
 	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
-		logger.Error("Failed to get chat by ID", zap.Error(err))
 		return nil, err
 	}
 
 	users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
 	if err != nil {
-		logger.Error("Failed to get users from chat", zap.Error(err))
 		return nil, err
 	}
 
-	if chat.Type == "dialog" {
-		for _, user := range users {
-			if user.ID != userID {
-				chat.Title = user.Username
-				chat.AvatarPath = user.AvatarPath
-				break
-			}
-		}
+	if model.ChatType(chat.Type) == model.ChatTypeDialog {
+		uc.decorateDialogInfo(chat, userID, users)
 	}
 
-	logger.Info("Successfully retrieved chat info")
 	return &model.ChatInfo{
 		ID:         chat.ID,
 		AvatarPath: chat.AvatarPath,
@@ -113,298 +85,295 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	}, nil
 }
 
-func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChat) (*model.ChatInfo, error) {
+// CreateChat creates new chat, adds users, initializes WS and publishes event
+func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChat) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Creating chat",
-		zap.String("userID", userID.String()),
-		zap.String("chatType", chat.Type))
+	logger.Info("CreateChat start", zap.String("type", req.Type))
 
-	if err := chat.Validate(); err != nil {
-		logger.Warn("Chat validation failed", zap.Error(err))
+	// Validation
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Avatar != nil && !utils.IsImageFile(*req.Avatar) {
+		return nil, utils.ErrNotImage
+	}
+
+	// For dialogs, reuse existing
+	if req.Type == string(model.ChatTypeDialog) {
+		if info, found := uc.findExistingDialog(ctx, userID, req.DialogUser); found {
+			return info, nil
+		}
+	}
+
+	// Create chat record
+	chatID, avatarURL, err := uc.chatRepo.CreateChat(ctx, req)
+	if err != nil {
 		return nil, err
 	}
 
-	if chat.Avatar != nil {
-		if !utils.IsImageFile(*chat.Avatar) {
-			logger.Warn("Invalid avatar file type")
-			return nil, utils.ErrNotImage
+	// Save avatar file if provided
+	if req.Avatar != nil {
+		if err := utils.RewritePhoto(*req.Avatar, avatarURL); err != nil {
+			logger.Error("CreateChat: RewritePhoto failed", zap.Error(err))
+			return nil, err
 		}
 	}
 
-	if chat.Type == "dialog" {
-		logger.Info("Checking for existing dialog")
-		userChats, _, err := uc.chatRepo.GetChats(ctx, userID)
-		if err != nil {
-			logger.Error("Failed to get user chats", zap.Error(err))
+	// Add initial participant(s)
+	switch model.ChatType(req.Type) {
+	case model.ChatTypeDialog:
+		uc.addDialogUsers(ctx, userID, req.DialogUser, chatID)
+	case model.ChatTypeGroup:
+		uc.addGroupOwner(ctx, userID, chatID)
+	case model.ChatTypeChannel:
+		uc.addChannelOwner(ctx, userID, chatID)
+	}
+
+	// Prepare ChatInfo and publish event
+	info, err := uc.GetChatInfo(ctx, userID, chatID)
+	if err == nil && uc.wsUsecase != nil {
+		uc.wsUsecase.InitChat(chatID, uc.extractUserIDs(info.Users))
+		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: NewChat, Chat: *info})
+	}
+
+	return info, err
+}
+
+// UpdateChat updates chat metadata
+func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *model.UpdateChat) (*model.ChatInfo, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("UpdateChat", zap.String("chatID", req.ID.String()))
+
+	if req.Avatar != nil && !utils.IsImageFile(*req.Avatar) {
+		return nil, utils.ErrNotImage
+	}
+
+	// ownership & existence
+	chat, err := uc.chatRepo.GetChatByID(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if model.ChatType(chat.Type) == model.ChatTypeDialog {
+		return nil, ErrDialogUpdateForbidden
+	}
+	if err := uc.ensureOwner(ctx, userID, req.ID); err != nil {
+		return nil, err
+	}
+
+	// update DB
+	newURL, oldURL, err := uc.chatRepo.UpdateChat(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// save new avatar file if present
+	if req.Avatar != nil && newURL != "" {
+		if err := utils.RewritePhoto(*req.Avatar, newURL); err != nil {
+			logger.Error("UpdateChat: RewritePhoto failed", zap.Error(err))
 			return nil, err
 		}
+	}
 
-		for _, userChat := range userChats {
-			if userChat.Type == "dialog" {
-				users, err := uc.chatRepo.GetUsersFromChat(ctx, userChat.ID)
-				if err != nil {
-					logger.Warn("Failed to get users from chat, skipping",
-						zap.String("chatID", userChat.ID.String()),
-						zap.Error(err))
-					continue
-				}
-				for _, u := range users {
-					if u.Username == chat.DialogUser {
-						logger.Info("Existing dialog found, returning it")
-						return uc.GetChatInfo(ctx, userID, userChat.ID)
+	// cleanup old file
+	uc.handleAvatarCleanup(oldURL)
+
+	// publish update event
+	info, err := uc.GetChatInfo(ctx, userID, req.ID)
+	if err == nil && uc.wsUsecase != nil {
+		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: UpdateChat, Chat: *info})
+	}
+
+	return info, err
+}
+
+// DeleteChat removes chat
+func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("DeleteChat", zap.String("chatID", chatID.String()))
+
+	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
+		return err
+	}
+	if err := uc.chatRepo.DeleteChat(ctx, chatID); err != nil {
+		return err
+	}
+	if uc.wsUsecase != nil {
+		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: DeleteChat, Chat: model.ChatInfo{ID: chatID}})
+	}
+	return nil
+}
+
+// AddUsersIntoChat adds members
+func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("AddUsersIntoChat", zap.String("chatID", chatID.String()))
+
+	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
+		return nil, err
+	}
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+	if model.ChatType(chat.Type) == model.ChatTypeDialog {
+		return nil, ErrDialogAddUsers
+	}
+
+	added, notAdded := uc.modifyMembers(ctx, chatID, usernames, true)
+
+	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
+}
+
+// DeleteUserFromChat removes members
+func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
+	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
+		return nil, err
+	}
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+	if model.ChatType(chat.Type) == model.ChatTypeDialog {
+		return nil, ErrDialogDeleteUsers
+	}
+	deleted, _ := uc.modifyMembers(ctx, chatID, usernames, false)
+	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
+}
+
+// --- Private Helpers ---
+
+func (uc *ChatUsecase) decorateDialog(ctx context.Context, chat *model.Chat, me uuid.UUID) {
+	users, err := uc.chatRepo.GetUsersFromChat(ctx, chat.ID)
+	if err != nil {
+		zap.L().Warn("decorateDialog: GetUsersFromChat failed", zap.Error(err))
+		return
+	}
+	for _, u := range users {
+		if u.ID != me {
+			chat.Title = u.Username
+			chat.AvatarPath = u.AvatarPath
+			break
+		}
+	}
+}
+
+func (uc *ChatUsecase) decorateDialogInfo(chat *model.Chat, me uuid.UUID, users []model.UserInChat) {
+	for _, u := range users {
+		if u.ID != me {
+			chat.Title = u.Username
+			chat.AvatarPath = u.AvatarPath
+			break
+		}
+	}
+}
+
+func (uc *ChatUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	if err != nil {
+		return err
+	}
+	if !model.UserRoleInChat(role).IsMember() {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
+func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	if err != nil {
+		return err
+	}
+	if model.UserRoleInChat(role) != model.RoleOwner {
+		return ErrOnlyOwnerCanModify
+	}
+	return nil
+}
+
+func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, otherUsername string) (*model.ChatInfo, bool) {
+	chats, _, err := uc.chatRepo.GetChats(ctx, me)
+	if err != nil {
+		zap.L().Warn("findExistingDialog: GetChats failed", zap.Error(err))
+		return nil, false
+	}
+	for _, c := range chats {
+		if model.ChatType(c.Type) == model.ChatTypeDialog {
+			users, err := uc.chatRepo.GetUsersFromChat(ctx, c.ID)
+			if err != nil {
+				continue
+			}
+			for _, u := range users {
+				if u.Username == otherUsername {
+					info, err := uc.GetChatInfo(ctx, me, c.ID)
+					if err == nil {
+						return info, true
 					}
 				}
 			}
 		}
 	}
-
-	chatID, avatarNewURL, err := uc.chatRepo.CreateChat(ctx, chat)
-	if err != nil {
-		logger.Error("Failed to create chat in repository", zap.Error(err))
-		return nil, err
-	}
-
-	logger.Info("Chat created, adding users", zap.String("chatID", chatID.String()))
-	switch chat.Type {
-	case "dialog":
-		if err := uc.chatRepo.AddUserToChatByID(ctx, userID, "owner", chatID); err != nil {
-			logger.Error("Failed to add owner to dialog", zap.Error(err))
-			return nil, ErrAddOwnerToDialog
-		}
-
-		if err := uc.chatRepo.AddUserToChatByUsername(ctx, chat.DialogUser, "owner", chatID); err != nil {
-			logger.Error("Failed to add participant to dialog", zap.Error(err))
-			return nil, ErrAddParticipantToDialog
-		}
-
-	case "group":
-		if chat.Avatar != nil {
-			if !utils.IsImageFile(*chat.Avatar) {
-				logger.Warn("Invalid avatar file type for group")
-				return nil, utils.ErrNotImage
-			}
-		}
-
-		if avatarNewURL != "" && chat.Avatar != nil {
-			if err := utils.RewritePhoto(*chat.Avatar, avatarNewURL); err != nil {
-				logger.Error("Failed to rewrite avatar photo", zap.Error(err))
-				return nil, err
-			}
-		}
-
-		if err := uc.chatRepo.AddUserToChatByID(ctx, userID, "owner", chatID); err != nil {
-			logger.Error("Failed to add owner to group", zap.Error(err))
-			return nil, ErrAddOwnerToGroup
-		}
-	}
-
-	logger.Info("Chat successfully created")
-	chatinfo, err := uc.GetChatInfo(ctx, userID, chatID)
-	// fmt.Println(err)
-	// if err == nil {
-	// 	uc.sendEvent(ctx, NewChat, chatinfo)
-	// }
-
-	return chatinfo, err
+	return nil, false
 }
 
-func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error) {
-	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Updating chat",
-		zap.String("userID", userID.String()),
-		zap.String("chatID", chat.ID.String()))
-
-	chatFromDB, err := uc.chatRepo.GetChatByID(ctx, chat.ID)
+func (uc *ChatUsecase) addDialogUsers(ctx context.Context, me uuid.UUID, otherUsername string, chatID uuid.UUID) {
+	// owner is the one who started
+	uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
+	// other user is a member
+	err := uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
 	if err != nil {
-		logger.Error("Failed to get chat from DB", zap.Error(err))
-		return nil, err
+		zap.L().Warn("addDialogUsers: AddUserByUsername failed", zap.String("user", otherUsername), zap.Error(err))
 	}
-
-	if chatFromDB.Type == "dialog" {
-		logger.Warn("Attempt to update dialog")
-		return nil, ErrDialogUpdateForbidden
-	}
-
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chat.ID)
-	if err != nil {
-		logger.Error("Failed to get user role in chat", zap.Error(err))
-		return nil, err
-	}
-	if role != "owner" {
-		logger.Warn("User is not owner, can't modify chat",
-			zap.String("role", role))
-		return nil, ErrOnlyOwnerCanModify
-	}
-
-	if chat.Avatar != nil {
-		if !utils.IsImageFile(*chat.Avatar) {
-			logger.Warn("Invalid avatar file type")
-			return nil, utils.ErrNotImage
-		}
-	}
-
-	avatarNewURL, avatarOldURL, err := uc.chatRepo.UpdateChat(ctx, chat)
-	if err != nil {
-		logger.Error("Failed to update chat in repository", zap.Error(err))
-		return nil, err
-	}
-
-	if avatarNewURL != "" && chat.Avatar != nil {
-		if err := utils.RewritePhoto(*chat.Avatar, avatarNewURL); err != nil {
-			logger.Error("Failed to rewrite avatar photo", zap.Error(err))
-			return nil, err
-		}
-		if avatarOldURL != "" {
-			go func() {
-				if err := utils.RemovePhoto(avatarOldURL); err != nil {
-					logger.Warn("Failed to remove old avatar photo",
-						zap.String("path", avatarOldURL),
-						zap.Error(err))
-				}
-			}()
-		}
-	}
-
-	logger.Info("Chat successfully updated")
-	return uc.GetChatInfo(ctx, userID, chat.ID)
 }
 
-func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
-	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Deleting chat",
-		zap.String("userID", userID.String()),
-		zap.String("chatID", chatID.String()))
-
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, chatID uuid.UUID) {
+	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
-		logger.Error("Failed to get user role in chat", zap.Error(err))
-		return err
+		zap.L().Warn("addGroupOwner: AddUserToChatByID failed", zap.Error(err))
 	}
-	if role != "owner" {
-		logger.Warn("User is not owner, can't delete chat",
-			zap.String("role", role))
-		return ErrOnlyOwnerCanDelete
-	}
-
-	if err := uc.chatRepo.DeleteChat(ctx, chatID); err != nil {
-		logger.Error("Failed to delete chat from repository", zap.Error(err))
-		return err
-	}
-
-	logger.Info("Chat successfully deleted")
-	return nil
 }
 
-func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
-	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Adding users to chat",
-		zap.String("userID", userID.String()),
-		zap.String("chatID", chatID.String()),
-		zap.Int("usersCount", len(usernames)))
-
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, chatID uuid.UUID) {
+	err := uc.chatRepo.AddUserToChatByID(ctx, ownerID, string(model.RoleOwner), chatID)
 	if err != nil {
-		logger.Error("Failed to get chat by ID", zap.Error(err))
-		return nil, err
+		zap.L().Warn("addChannelOwner: AddUserToChatByID failed", zap.String("chatID", chatID.String()), zap.Error(err))
 	}
+}
 
-	if chat.Type == "dialog" {
-		logger.Warn("Attempt to add users to dialog")
-		return nil, ErrDialogAddUsers
+func (uc *ChatUsecase) extractUserIDs(users []model.UserInChat) []uuid.UUID {
+	ids := make([]uuid.UUID, len(users))
+	for i, u := range users {
+		ids[i] = u.ID
 	}
+	return ids
+}
 
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
-	if err != nil {
-		logger.Error("Failed to get user role in chat", zap.Error(err))
-		return nil, err
-	}
-	if role != "owner" {
-		logger.Warn("User is not owner, can't add users",
-			zap.String("role", role))
-		return nil, ErrOnlyOwnerCanAddUsers
-	}
-
-	var added, notAdded []string
-	for _, username := range usernames {
-		if err := uc.chatRepo.AddUserToChatByUsername(ctx, username, "member", chatID); err != nil {
-			logger.Warn("Failed to add user to chat",
-				zap.String("targetUser", username),
-				zap.Error(err))
-			notAdded = append(notAdded, username)
+func (uc *ChatUsecase) modifyMembers(ctx context.Context, chatID uuid.UUID, names []string, add bool) ([]string, []string) {
+	var (
+		success []string
+		failed  []string
+	)
+	for _, name := range names {
+		var err error
+		if add {
+			err = uc.chatRepo.AddUserToChatByUsername(ctx, name, string(model.RoleMember), chatID)
 		} else {
-			logger.Info("User added to chat",
-				zap.String("targetUser", username))
-			added = append(added, username)
+			err = uc.chatRepo.RemoveUserFromChatByUsername(ctx, name, chatID)
 		}
-	}
-
-	logger.Info("Users addition completed",
-		zap.Int("added", len(added)),
-		zap.Int("notAdded", len(notAdded)))
-	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
-}
-
-func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
-	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Deleting users from chat",
-		zap.String("userID", userID.String()),
-		zap.String("chatID", chatID.String()),
-		zap.Int("usersCount", len(usernamesDelete)))
-
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
-	if err != nil {
-		logger.Error("Failed to get chat by ID", zap.Error(err))
-		return nil, err
-	}
-
-	if chat.Type == "dialog" {
-		logger.Warn("Attempt to delete users from dialog")
-		return nil, ErrDialogDeleteUsers
-	}
-
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
-	if err != nil {
-		logger.Error("Failed to get user role in chat", zap.Error(err))
-		return nil, err
-	}
-	if role != "owner" {
-		logger.Warn("User is not owner, can't delete users",
-			zap.String("role", role))
-		return nil, ErrOnlyOwnerCanDeleteUsers
-	}
-
-	var deleted []string
-	for _, username := range usernamesDelete {
-		if err := uc.chatRepo.RemoveUserFromChatByUsername(ctx, username, chatID); err == nil {
-			logger.Info("User removed from chat",
-				zap.String("targetUserID", username))
-			deleted = append(deleted, username)
+		if err != nil {
+			failed = append(failed, name)
 		} else {
-			logger.Warn("Failed to remove user from chat",
-				zap.String("targetUserID", username),
-				zap.Error(err))
+			success = append(success, name)
 		}
 	}
-
-	logger.Info("Users deletion completed",
-		zap.Int("deleted", len(deleted)))
-	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
+	return success, failed
 }
 
-// func (uc *ChatUsecase) sendEvent(ctx context.Context, action string, chat *model.ChatInfo) {
-// 	logger := utils.GetLoggerFromCtx(ctx)
-
-// 	newEvent := model.ChatEvent{
-// 		Action: action,
-// 		Chat:   *chat,
-// 	}
-// 	fmt.Println(newEvent)
-// 	if uc.wsUsecase != nil {
-// 		uc.wsUsecase.SendChatEvent(newEvent)
-// 		fmt.Println(newEvent)
-// 		logger.Info("WebSocket event sent", zap.String("action", action), zap.String("chatId", chat.ID.String()))
-// 	} else {
-// 		fmt.Println("pizdos")
-// 		logger.Warn("wsUsecase is nil, event not sent")
-// 	}
-// }
+// handleAvatarCleanup removes only old avatar
+func (uc *ChatUsecase) handleAvatarCleanup(oldURL string) {
+	if oldURL != "" {
+		go func(url string) {
+			if err := utils.RemovePhoto(url); err != nil {
+				zap.L().Warn("Old avatar remove failed", zap.String("url", url), zap.Error(err))
+			}
+		}(oldURL)
+	}
+}

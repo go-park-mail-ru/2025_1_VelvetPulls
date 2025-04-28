@@ -15,6 +15,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	"github.com/gorilla/mux"
+	"github.com/nats-io/nats.go"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
 )
@@ -37,10 +38,11 @@ type IServer interface {
 type Server struct {
 	dbConn   *sql.DB
 	authConn *grpc.ClientConn
+	nc       *nats.Conn
 }
 
-func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn) IServer {
-	return &Server{dbConn: dbConn, authConn: authConn}
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, nc: nc}
 }
 
 func (s *Server) Run(address string) error {
@@ -53,6 +55,7 @@ func (s *Server) Run(address string) error {
 	// ===== Microservice usecase =====
 	authClient := generatedAuth.NewAuthServiceClient(s.authConn)
 	sessionClient := generatedAuth.NewSessionServiceClient(s.authConn)
+
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
@@ -69,7 +72,7 @@ func (s *Server) Run(address string) error {
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
+	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo, s.nc)
 	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
 	chatUsecase := usecase.NewChatUsecase(chatRepo, websocketUsecase)
 	userUsecase := usecase.NewUserUsecase(userRepo)
@@ -83,7 +86,7 @@ func (s *Server) Run(address string) error {
 	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionClient)
 
 	// ===== WebSocket =====
-	websocketDelivery.NewWebsocketController(mainRouter, sessionClient, websocketUsecase)
+	websocketDelivery.NewWebsocketController(mainRouter, sessionClient, websocketUsecase, s.nc)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()

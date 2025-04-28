@@ -14,7 +14,7 @@ func AuthMiddleware(sessionClient generatedAuth.SessionServiceClient) func(http.
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := utils.GetSessionCookie(r)
 			if err != nil {
-				utils.SendJSONResponse(w, http.StatusUnauthorized, "Unauthorized", false)
+				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Unauthorized", false)
 				return
 			}
 
@@ -22,13 +22,13 @@ func AuthMiddleware(sessionClient generatedAuth.SessionServiceClient) func(http.
 				SessionId: token,
 			})
 			if err != nil {
-				utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid session", false)
+				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid session", false)
 				return
 			}
 
 			userID, err := uuid.Parse(resp.UserId)
 			if err != nil {
-				utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid user ID", false)
+				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid user ID", false)
 				return
 			}
 
@@ -43,7 +43,7 @@ func AuthMiddlewareWS(sessionClient generatedAuth.SessionServiceClient) func(htt
 		return func(w http.ResponseWriter, r *http.Request) {
 			token, err := utils.GetSessionCookie(r)
 			if err != nil {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Unauthorized", false)
 				return
 			}
 
@@ -51,13 +51,13 @@ func AuthMiddlewareWS(sessionClient generatedAuth.SessionServiceClient) func(htt
 				SessionId: token,
 			})
 			if err != nil {
-				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Invalid session", false)
 				return
 			}
 
 			userID, err := uuid.Parse(resp.UserId)
 			if err != nil {
-				http.Error(w, "Invalid user ID", http.StatusBadRequest)
+				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid user ID", false)
 				return
 			}
 

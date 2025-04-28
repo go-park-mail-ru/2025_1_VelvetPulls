@@ -32,7 +32,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	var creds model.RegisterCredentials
 	if err := utils.ParseJSONRequest(r, &creds); err != nil {
 		logger.Warn("Invalid request data", zap.Error(err))
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request data", false)
 		return
 	}
 
@@ -45,12 +45,12 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("gRPC Register error", zap.Error(err))
 		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
-		utils.SendJSONResponse(w, code, msg, false)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
 	utils.SetSessionCookie(w, resp.GetSessionId())
-	utils.SendJSONResponse(w, http.StatusCreated, "Registration successful", true)
+	utils.SendJSONResponse(w, r, http.StatusCreated, "Registration successful", true)
 }
 
 func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	var creds model.LoginCredentials
 	if err := utils.ParseJSONRequest(r, &creds); err != nil {
 		logger.Warn("Invalid request data", zap.Error(err))
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request data", false)
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request data", false)
 		return
 	}
 
@@ -70,12 +70,12 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("gRPC Login error", zap.Error(err))
 		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
-		utils.SendJSONResponse(w, code, msg, false)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
 	utils.SetSessionCookie(w, resp.GetSessionId())
-	utils.SendJSONResponse(w, http.StatusOK, "Login successful", true)
+	utils.SendJSONResponse(w, r, http.StatusOK, "Login successful", true)
 }
 
 func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	sessionID, err := utils.GetSessionCookie(r)
 	if err != nil {
 		logger.Warn("Missing session cookie")
-		utils.SendJSONResponse(w, http.StatusBadRequest, "Unauthorized", false)
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Unauthorized", false)
 		return
 	}
 
@@ -94,10 +94,10 @@ func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("gRPC Logout error", zap.Error(err))
 		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
-		utils.SendJSONResponse(w, code, msg, false)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
 	utils.DeleteSessionCookie(w)
-	utils.SendJSONResponse(w, http.StatusOK, "Logout successful", true)
+	utils.SendJSONResponse(w, r, http.StatusOK, "Logout successful", true)
 }

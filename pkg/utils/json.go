@@ -2,8 +2,9 @@ package utils
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 // JSONResponse - структура для унифицированного ответа.
@@ -20,7 +21,9 @@ func ParseJSONRequest(r *http.Request, v interface{}) error {
 }
 
 // SendJSONResponse отправляет JSON-ответ с полем `status`.
-func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, success bool) error {
+func SendJSONResponse(w http.ResponseWriter, r *http.Request, statusCode int, v interface{}, success bool) {
+	logger := GetLoggerFromCtx(r.Context())
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -29,12 +32,10 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 	}
 
 	if success {
-		// Если структура умеет себя санитизировать — даём ей это сделать
 		if s, ok := v.(Sanitizable); ok {
 			s.Sanitize()
 		}
 
-		// Если строка — санитизируем через строгий
 		if str, ok := v.(string); ok {
 			response.Data = SanitizeString(str)
 		} else {
@@ -51,7 +52,8 @@ func SendJSONResponse(w http.ResponseWriter, statusCode int, v interface{}, succ
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return errors.New("failed to encode JSON response: " + err.Error())
+		if logger != nil {
+			logger.Error("failed to encode JSON response", zap.Error(err))
+		}
 	}
-	return nil
 }

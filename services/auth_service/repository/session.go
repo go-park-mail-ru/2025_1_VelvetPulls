@@ -24,26 +24,27 @@ func NewSessionRepo(redisClient *redis.Client) ISessionRepo {
 }
 
 func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessionID string) (string, error) {
-	// logger := utils.GetLoggerFromCtx(ctx)
-	// logger.Info("Getting user ID by session token")
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("Getting user ID by session token")
 
 	userID, err := r.redisClient.Get(ctx, sessionID).Result()
 	if err == redis.Nil {
-		// logger.Error("Session not found")
+		logger.Error("Session not found")
 		return "", ErrSessionNotFound
 	} else if err != nil {
-		// logger.Error("Error during Redis operation")
+		logger.Error("Error during Redis operation")
 		return "", ErrDatabaseOperation
 	}
 	return userID, nil
 }
+
 func (r *sessionRepo) CreateSession(ctx context.Context, userID uuid.UUID) (string, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Creating new session")
 
 	sessionId := uuid.NewString()
 
-	err := r.redisClient.Set(ctx, sessionId, userID, config.CookieDuration).Err()
+	err := r.redisClient.Set(ctx, sessionId, userID.String(), config.CookieDuration).Err()
 	if err != nil {
 		logger.Error("Error creating session in Redis")
 		return "", ErrDatabaseOperation

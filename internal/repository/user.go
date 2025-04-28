@@ -14,45 +14,52 @@ import (
 	"go.uber.org/zap"
 )
 
+// IUserRepo описывает операции для работы с пользователями
 type IUserRepo interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (string, string, error)
 }
 
+// userRepo реализует IUserRepo через PostgreSQL
 type userRepo struct {
 	db *sql.DB
 }
 
+// NewUserRepo создаёт новый репозиторий пользователей
 func NewUserRepo(db *sql.DB) IUserRepo {
 	return &userRepo{db: db}
 }
 
-func (r *userRepo) getUserByField(ctx context.Context, field, value string) (*model.User, error) {
+// getUserByField объединяет логику поиска пользователя по любому полю
+func (r *userRepo) getUserByField(ctx context.Context, field string, value interface{}) (*model.User, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	if value == "" {
-		logger.Warn("Field value is empty", zap.String("field", field))
+	if value == "" || value == uuid.Nil {
+		logger.Warn("empty lookup value", zap.String("field", field))
 		return nil, ErrEmptyField
 	}
 
-	var user model.User
-	query := fmt.Sprintf(`SELECT id, avatar_path, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`, field)
-	logger.Info("Executing query to get user by field")
-	row := r.db.QueryRowContext(ctx, query, value)
+	query := fmt.Sprintf(
+		`SELECT id, avatar_path, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`,
+		field,
+	)
+	logger.Info("executing user lookup", zap.String("field", field))
 
-	err := row.Scan(
-		&user.ID, &user.AvatarPath, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt,
+	var u model.User
+	err := r.db.QueryRowContext(ctx, query, value).Scan(
+		&u.ID, &u.AvatarPath, &u.FirstName, &u.LastName,
+		&u.Username, &u.Phone, &u.Email, &u.Password,
+		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Warn("User not found")
+			logger.Warn("user not found", zap.String("field", field))
 			return nil, ErrUserNotFound
 		}
-		logger.Error("Database operation failed")
+		logger.Error("lookup failed", zap.Error(err))
 		return nil, ErrDatabaseOperation
 	}
-	logger.Info("User found")
-	return &user, nil
+	return &u, nil
 }
 
 func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
@@ -61,85 +68,82 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*mod
 
 func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	if id == uuid.Nil {
-		logger := utils.GetLoggerFromCtx(ctx)
-		logger.Warn("Invalid UUID provided")
+		utils.GetLoggerFromCtx(ctx).Warn("invalid uuid provided")
 		return nil, ErrInvalidUUID
 	}
 	return r.getUserByField(ctx, "id", id.String())
 }
 
-func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (string, error) {
+func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (uuid.UUID, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("creating user")
 
-	if user == nil {
-		logger.Warn("User data is empty")
-		return "", ErrEmptyField
-	}
-	if user.Username == "" || user.Phone == "" || user.Password == "" {
-		logger.Warn("Missing required fields for user creation")
-		return "", ErrEmptyField
+	if user == nil || user.Username == "" || user.Phone == "" || user.Password == "" {
+		logger.Warn("missing required fields for create")
+		return uuid.Nil, ErrEmptyField
 	}
 
 	query := `INSERT INTO public.user (username, phone, password) VALUES ($1, $2, $3) RETURNING id`
-	logger.Info("Executing query to create a user")
-	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&userID)
+	var id uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			logger.Warn("User with the same username or phone already exists")
-			return "", ErrRecordAlreadyExists
+			logger.Warn("user exists", zap.Error(err))
+			return uuid.Nil, ErrRecordAlreadyExists
 		}
-		logger.Error("Database operation failed")
-		return "", ErrDatabaseOperation
+		logger.Error("create failed", zap.Error(err))
+		return uuid.Nil, ErrDatabaseOperation
 	}
-	return userID.String(), nil
+	return id, nil
 }
 
 func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (string, string, error) {
-	logger := utils.GetLoggerFromCtx(ctx)
+	// проверяем входные параметры
 	if profile == nil {
-		logger.Warn("Profile data is empty")
+		utils.GetLoggerFromCtx(ctx).Warn("empty profile data")
 		return "", "", ErrEmptyField
 	}
 	if profile.ID == uuid.Nil {
-		logger.Warn("Invalid UUID provided")
+		utils.GetLoggerFromCtx(ctx).Warn("invalid uuid provided")
 		return "", "", ErrInvalidUUID
 	}
 
+	// теперь безопасно получаем logger и логируем ID
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("updating user", zap.String("userID", profile.ID.String()))
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		logger.Error("Failed to start transaction", zap.Error(err))
+		logger.Error("begin tx failed", zap.Error(err))
 		return "", "", ErrDatabaseOperation
 	}
 
-	var updates []string
-	var args []interface{}
-	argIndex := 1
-	var avatarOldURL, avatarNewURL string
+	var (
+		updates              []string
+		args                 []interface{}
+		idx                  = 1
+		oldAvatar, newAvatar string
+	)
 
+	// обновление аватара
 	if profile.Avatar != nil {
-		logger.Info("Updating avatar")
-		var oldUrl *string
-		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&oldUrl)
+		logger.Info("updating avatar")
+		var current *string
+		err = tx.QueryRowContext(ctx, "SELECT avatar_path FROM public.user WHERE id = $1 FOR UPDATE", profile.ID).Scan(&current)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			logger.Error("Failed to get current avatar path", zap.Error(err))
-			if rbErr := tx.Rollback(); rbErr != nil {
-				logger.Error("Rollback failed", zap.Error(rbErr))
-			}
+			rollbackTx(logger, tx)
 			return "", "", ErrDatabaseOperation
 		}
-
-		if oldUrl != nil {
-			avatarOldURL = *oldUrl
+		if current != nil {
+			oldAvatar = *current
 		}
-
-		avatarDir := "./uploads/avatar/"
-		avatarNewURL = avatarDir + uuid.New().String() + ".png"
-		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
-		args = append(args, avatarNewURL)
-		argIndex++
+		newAvatar = fmt.Sprintf("./uploads/avatar/%s.png", uuid.New().String())
+		updates = append(updates, fmt.Sprintf("avatar_path = $%d", idx))
+		args = append(args, newAvatar)
+		idx++
 	}
 
+	// обновление полей
 	fields := map[string]*string{
 		"first_name": profile.FirstName,
 		"last_name":  profile.LastName,
@@ -147,73 +151,53 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		"phone":      profile.Phone,
 		"email":      profile.Email,
 	}
-
-	for field, value := range fields {
-		if value != nil {
-			if *value == "" {
-				logger.Warn("Field value is empty")
-				if rbErr := tx.Rollback(); rbErr != nil {
-					logger.Error("Rollback failed", zap.Error(rbErr))
-				}
+	for field, ptr := range fields {
+		if ptr != nil {
+			if *ptr == "" {
+				rollbackTx(logger, tx)
 				return "", "", ErrEmptyField
 			}
-			updates = append(updates, fmt.Sprintf("%s = $%d", field, argIndex))
-			args = append(args, *value)
-			argIndex++
+			updates = append(updates, fmt.Sprintf("%s = $%d", field, idx))
+			args = append(args, *ptr)
+			idx++
 		}
 	}
 
 	if len(updates) == 0 {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			logger.Error("Rollback failed", zap.Error(rbErr))
-		}
+		rollbackTx(logger, tx)
 		return "", "", nil
 	}
 
-	updates = append(updates, fmt.Sprintf("updated_at = $%d", argIndex))
+	updates = append(updates, fmt.Sprintf("updated_at = $%d", idx))
 	args = append(args, time.Now())
-	argIndex++
+	idx++
 
-	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
+	// финальный запрос
 	args = append(args, profile.ID)
+	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), idx)
 
-	logger.Info("Executing update query inside transaction")
 	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			logger.Warn("Attempt to update to existing values", zap.Error(err))
-			if rbErr := tx.Rollback(); rbErr != nil {
-				logger.Error("Rollback failed", zap.Error(rbErr))
-			}
+			logger.Warn("duplicate update attempt", zap.Error(err))
+			rollbackTx(logger, tx)
 			return "", "", ErrRecordAlreadyExists
 		}
-		logger.Error("Database operation failed", zap.Error(err))
-		if rbErr := tx.Rollback(); rbErr != nil {
-			logger.Error("Rollback failed", zap.Error(rbErr))
-		}
+		logger.Error("update failed", zap.Error(err))
+		rollbackTx(logger, tx)
 		return "", "", ErrDatabaseOperation
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		logger.Error("Failed to get affected rows count", zap.Error(err))
-		if rbErr := tx.Rollback(); rbErr != nil {
-			logger.Error("Rollback failed", zap.Error(rbErr))
-		}
-		return "", "", ErrDatabaseOperation
-	}
-	if rowsAffected == 0 {
-		logger.Warn("No rows affected, update failed")
-		if rbErr := tx.Rollback(); rbErr != nil {
-			logger.Error("Rollback failed", zap.Error(rbErr))
-		}
+	if n, _ := res.RowsAffected(); n == 0 {
+		logger.Warn("no rows affected on update")
+		rollbackTx(logger, tx)
 		return "", "", ErrUpdateFailed
 	}
 
 	if err := tx.Commit(); err != nil {
-		logger.Error("Failed to commit transaction", zap.Error(err))
+		logger.Error("commit failed", zap.Error(err))
 		return "", "", ErrDatabaseOperation
 	}
 
-	return avatarNewURL, avatarOldURL, nil
+	return newAvatar, oldAvatar, nil
 }

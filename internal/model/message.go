@@ -19,15 +19,23 @@ const (
 )
 
 type Message struct {
-	ID              uuid.UUID  `json:"id"`
+	ID              uuid.UUID  `json:"id,omitempty"`
 	ParentMessageID *uuid.UUID `json:"parent_message_id,omitempty"`
-	ChatID          uuid.UUID  `json:"chat_id"`
-	UserID          uuid.UUID  `json:"user_id"`
-	Body            string     `json:"body"`
-	SentAt          time.Time  `json:"sent_at"`
-	IsRedacted      bool       `json:"is_redacted"`
-	AvatarPath      *string    `json:"avatar_path"`
+	ChatID          uuid.UUID  `json:"chat_id,omitempty"`
+	UserID          uuid.UUID  `json:"user_id,omitempty"`
+	Body            string     `json:"body,omitempty"`
+	SentAt          time.Time  `json:"sent_at,omitempty"`
+	IsRedacted      bool       `json:"is_redacted,omitempty"`
+	AvatarPath      *string    `json:"avatar_path,omitempty"`
 	Username        string     `json:"user,omitempty"`
+}
+
+type LastMessage struct {
+	ID       uuid.UUID `json:"id,omitempty"`
+	UserID   uuid.UUID `json:"user_id,omitempty"`
+	Body     string    `json:"body,omitempty"`
+	SentAt   time.Time `json:"sent_at,omitempty"`
+	Username string    `json:"user,omitempty"`
 }
 
 type MessageInput struct {
