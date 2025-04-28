@@ -42,7 +42,7 @@ type Server struct {
 }
 
 func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, nc *nats.Conn) IServer {
-	return &Server{dbConn: dbConn, nc: nc}
+	return &Server{dbConn: dbConn, authConn: authConn, nc: nc}
 }
 
 func (s *Server) Run(address string) error {

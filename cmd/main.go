@@ -43,9 +43,9 @@ func main() {
 
 	defer dbConn.Close()
 
-	authConn, err := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("Failed to connect to AuthService: %v", err)
+	authConn, errAuth := grpc.NewClient("auth:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if errAuth != nil {
+		log.Fatalf("Failed to connect to AuthService: %v", errAuth)
 	}
 	defer authConn.Close()
 

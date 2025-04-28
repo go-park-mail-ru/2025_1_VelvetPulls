@@ -44,7 +44,7 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("gRPC Register error", zap.Error(err))
-		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		code, msg := apperrors.UnpackGrpcError(err)
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
@@ -69,7 +69,7 @@ func (c *authController) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("gRPC Login error", zap.Error(err))
-		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		code, msg := apperrors.UnpackGrpcError(err)
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
@@ -93,7 +93,7 @@ func (c *authController) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("gRPC Logout error", zap.Error(err))
-		code, msg := apperrors.UnpackGrpcError(err) // Используем новую функцию
+		code, msg := apperrors.UnpackGrpcError(err)
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
