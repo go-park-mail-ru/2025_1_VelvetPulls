@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/usecase"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/nats-io/nats.go"

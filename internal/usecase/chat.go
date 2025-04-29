@@ -2,17 +2,20 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
 type ChatUsecase struct {
-	chatRepo  repository.IChatRepo
-	wsUsecase IWebsocketUsecase
+	chatRepo repository.IChatRepo
+	nc       *nats.Conn
 }
 
 // IChatUsecase describes chat operations
@@ -27,8 +30,8 @@ type IChatUsecase interface {
 }
 
 // NewChatUsecase constructs ChatUsecase
-func NewChatUsecase(chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IChatUsecase {
-	return &ChatUsecase{chatRepo: chatRepo, wsUsecase: wsUsecase}
+func NewChatUsecase(chatRepo repository.IChatRepo, nc *nats.Conn) IChatUsecase {
+	return &ChatUsecase{chatRepo: chatRepo, nc: nc}
 }
 
 // GetChats returns summary for each chat
@@ -131,10 +134,9 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	// Prepare ChatInfo and publish event
 	info, err := uc.GetChatInfo(ctx, userID, chatID)
-	if err == nil && uc.wsUsecase != nil {
-		uc.wsUsecase.InitChat(chatID, uc.extractUserIDs(info.Users))
-		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: NewChat, Chat: *info})
-	}
+
+	data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
+	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
 
 	return info, err
 }
@@ -179,9 +181,8 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	// publish update event
 	info, err := uc.GetChatInfo(ctx, userID, req.ID)
-	if err == nil && uc.wsUsecase != nil {
-		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: UpdateChat, Chat: *info})
-	}
+	data, _ := json.Marshal(model.ChatEvent{Action: utils.UpdateChat, Chat: *info})
+	uc.nc.Publish(fmt.Sprintf("chat.%s.events", req.ID.String()), data)
 
 	return info, err
 }
@@ -197,9 +198,10 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID)
 	if err := uc.chatRepo.DeleteChat(ctx, chatID); err != nil {
 		return err
 	}
-	if uc.wsUsecase != nil {
-		uc.wsUsecase.PublishChatEvent(model.ChatEvent{Action: DeleteChat, Chat: model.ChatInfo{ID: chatID}})
-	}
+
+	ce := model.ChatEvent{Action: utils.DeleteChat, Chat: model.ChatInfo{ID: chatID}}
+	data, _ := json.Marshal(ce)
+	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
 	return nil
 }
 

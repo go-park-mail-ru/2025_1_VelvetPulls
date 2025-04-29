@@ -5,30 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/model"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-)
-
-const (
-	AddWebsocketUser    = "addWebsocketUser"
-	DeleteWebsocketUser = "deleteWebsocketUser"
-)
-
-const (
-	NewChat     = "newChat"
-	UpdateChat  = "updateChat"
-	DeleteChat  = "deleteChat"
-	AddUsers    = "addUsers"
-	RemoveUsers = "removeUsers"
-)
-
-const (
-	NewMessage    = "newMessage"
-	UpdateMessage = "updateMessage"
-	DeleteMessage = "deleteMessage"
 )
 
 // IWebsocketUsecase defines methods to manage WebSocket channels and NATS integration
@@ -44,7 +25,6 @@ type IWebsocketUsecase interface {
 // WebsocketUsecase implements IWebsocketUsecase using NATS for transport
 type WebsocketUsecase struct {
 	nc            *nats.Conn
-	chatRepo      repository.IChatRepo
 	onlineChats   map[uuid.UUID]model.ChatInfoWS      // chatID -> ChatInfoWS{Events, Users}
 	onlineUsers   map[uuid.UUID][]chan model.AnyEvent // userID -> slice of event channels
 	subscriptions map[uuid.UUID][]*nats.Subscription  // chatID -> NATS subscriptions
@@ -52,10 +32,9 @@ type WebsocketUsecase struct {
 }
 
 // NewWebsocketUsecase creates a new WebsocketUsecase
-func NewWebsocketUsecase(chatRepo repository.IChatRepo, nc *nats.Conn) IWebsocketUsecase {
+func NewWebsocketUsecase(nc *nats.Conn) IWebsocketUsecase {
 	return &WebsocketUsecase{
 		nc:            nc,
-		chatRepo:      chatRepo,
 		onlineChats:   make(map[uuid.UUID]model.ChatInfoWS),
 		onlineUsers:   make(map[uuid.UUID][]chan model.AnyEvent),
 		subscriptions: make(map[uuid.UUID][]*nats.Subscription),
@@ -174,11 +153,11 @@ func (w *WebsocketUsecase) handleMembershipEvents(chatID uuid.UUID) {
 		w.mu.Lock()
 		chatInfo := w.onlineChats[chatID]
 		switch ev.Action {
-		case AddWebsocketUser:
+		case utils.AddWebsocketUser:
 			for _, uid := range ev.Users {
 				chatInfo.Users[uid] = struct{}{}
 			}
-		case DeleteWebsocketUser:
+		case utils.DeleteWebsocketUser:
 			for _, uid := range ev.Users {
 				delete(chatInfo.Users, uid)
 			}
