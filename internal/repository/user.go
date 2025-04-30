@@ -143,6 +143,21 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		idx++
 	}
 
+	// обновление пароля
+	if profile.Password != "" {
+		logger.Info("updating password")
+		// Хешируем новый пароль
+		hashedPassword, err := utils.HashAndSalt(profile.Password)
+		if err != nil {
+			rollbackTx(logger, tx)
+			return "", "", ErrDatabaseOperation
+		}
+
+		updates = append(updates, fmt.Sprintf("password = $%d", idx))
+		args = append(args, hashedPassword)
+		idx++
+	}
+
 	// обновление полей
 	fields := map[string]*string{
 		"first_name": profile.FirstName,

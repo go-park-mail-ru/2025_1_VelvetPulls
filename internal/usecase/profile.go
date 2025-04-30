@@ -63,17 +63,27 @@ func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username st
 
 func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateUserProfile) error {
 	logger := utils.GetLoggerFromCtx(ctx)
+	if req == nil {
+		logger.Error("UpdateUserProfile received nil request")
+		return repository.ErrEmptyField
+	}
+
 	logger.Info("UpdateUserProfile start", zap.String("userID", req.ID.String()))
+
+	if req.ID == uuid.Nil {
+		logger.Error("Invalid UUID")
+		return repository.ErrInvalidUUID
+	}
 
 	if err := req.Validate(); err != nil {
 		logger.Error("Validation failed", zap.Error(err))
-		return err
+		return repository.ErrInvalidInput
 	}
 
 	if req.Avatar != nil {
 		if !utils.IsImageFile(*req.Avatar) {
 			logger.Error("Invalid avatar file type")
-			return utils.ErrNotImage
+			return repository.ErrInvalidInput
 		}
 	}
 
@@ -86,7 +96,7 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateU
 	if req.Avatar != nil && newURL != "" {
 		if err := utils.RewritePhoto(*req.Avatar, newURL); err != nil {
 			logger.Error("RewritePhoto failed", zap.Error(err))
-			return err
+			return repository.ErrDatabaseOperation
 		}
 		uc.handleAvatarCleanup(oldURL)
 	}
