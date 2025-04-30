@@ -50,8 +50,13 @@ func main() {
 	defer authConn.Close()
 
 	log.Printf("Starting server on %s", config.PORT)
+	chatConn, err := grpc.NewClient("search:8083", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to ChatService: %v", err)
+	}
+	defer chatConn.Close()
 
-	s := server.NewServer(dbConn, authConn, nc)
+	s := server.NewServer(dbConn, authConn, chatConn, nc)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
