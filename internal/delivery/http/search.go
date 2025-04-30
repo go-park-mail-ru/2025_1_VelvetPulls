@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
+	mw "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
 	chatpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto"
@@ -24,38 +25,16 @@ func NewSearchController(r *mux.Router, searchClient chatpb.ChatServiceClient, s
 	}
 
 	// Чат
-	r.Handle("/search", http.HandlerFunc(controller.SearchChats)).Methods(http.MethodGet)
-	r.Handle("/search/{chat_id}/messages", http.HandlerFunc(controller.SearchMessages)).Methods(http.MethodGet)
+	r.Handle("/search", mw.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SearchChats))).Methods(http.MethodGet)
+	r.Handle("/search/{chat_id}/messages", mw.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SearchMessages))).Methods(http.MethodGet)
 
 	// Контакты
-	r.Handle("/search/contacts", http.HandlerFunc(controller.SearchContacts)).Methods(http.MethodGet)
+	r.Handle("/search/contacts", mw.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SearchContacts))).Methods(http.MethodGet)
 }
-
-// func (c *searchController) AuthMiddleware(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		sessionID, err := utils.GetSessionCookie(r)
-// 		if err != nil {
-// 			utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Unauthorized", false)
-// 			return
-// 		}
-
-// 		userID, err := c.sessionClient.GetSession(r.Context(), &authpb.GetSessionRequest{
-// 			SessionId: sessionID,
-// 		})
-// 		if err != nil {
-// 			code, msg := apperrors.UnpackGrpcError(err)
-// 			utils.SendJSONResponse(w, r, code, msg, false)
-// 			return
-// 		}
-
-// 		ctx := context.WithValue(r.Context(), "userID", userID.GetUserId())
-// 		next.ServeHTTP(w, r.WithContext(ctx))
-// 	})
-// }
 
 func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	userID := r.Context().Value("userID").(string)
+	userID := utils.GetUserIDFromCtx(r.Context()).String()
 
 	query := r.URL.Query().Get("query")
 	types := r.URL.Query()["type"]
@@ -105,7 +84,7 @@ func (c *searchController) SearchMessages(w http.ResponseWriter, r *http.Request
 
 func (c *searchController) SearchContacts(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	userID := r.Context().Value("userID").(string)
+	userID := utils.GetUserIDFromCtx(r.Context()).String()
 
 	query := r.URL.Query().Get("query")
 
