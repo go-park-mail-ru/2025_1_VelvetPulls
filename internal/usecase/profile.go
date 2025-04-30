@@ -10,24 +10,20 @@ import (
 	"go.uber.org/zap"
 )
 
-// IUserUsecase описывает операции над профилем пользователя
 type IUserUsecase interface {
 	GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error)
 	GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error
 }
 
-// UserUsecase реализует логику работы с профилем пользователя
 type UserUsecase struct {
 	userRepo repository.IUserRepo
 }
 
-// NewUserUsecase создаёт экземпляр UserUsecase
 func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
 	return &UserUsecase{userRepo: userRepo}
 }
 
-// fetchProfile возвращает унифицированную модель GetUserProfile
 func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *model.GetUserProfile {
 	return &model.GetUserProfile{
 		FirstName:  user.FirstName,
@@ -39,7 +35,6 @@ func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *mode
 	}
 }
 
-// GetUserProfileByID возвращает профиль по ID
 func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetUserProfileByID start", zap.String("userID", id.String()))
@@ -53,7 +48,6 @@ func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*m
 	return profile, nil
 }
 
-// GetUserProfileByUsername возвращает профиль по username
 func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetUserProfileByUsername start", zap.String("username", username))
@@ -67,18 +61,15 @@ func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username st
 	return profile, nil
 }
 
-// UpdateUserProfile обновляет данные пользователя и аватар
 func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateUserProfile) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("UpdateUserProfile start", zap.String("userID", req.ID.String()))
 
-	// валидация входных данных
 	if err := req.Validate(); err != nil {
 		logger.Error("Validation failed", zap.Error(err))
 		return err
 	}
 
-	// проверка формата аватара
 	if req.Avatar != nil {
 		if !utils.IsImageFile(*req.Avatar) {
 			logger.Error("Invalid avatar file type")
@@ -86,14 +77,12 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateU
 		}
 	}
 
-	// обновление в репозитории
 	newURL, oldURL, err := uc.userRepo.UpdateUser(ctx, req)
 	if err != nil {
 		logger.Error("UpdateUser failed", zap.Error(err))
 		return err
 	}
 
-	// если появился новый аватар — сохраняем и удаляем старый
 	if req.Avatar != nil && newURL != "" {
 		if err := utils.RewritePhoto(*req.Avatar, newURL); err != nil {
 			logger.Error("RewritePhoto failed", zap.Error(err))

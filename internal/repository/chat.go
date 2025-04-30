@@ -25,6 +25,7 @@ type IChatRepo interface {
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
 	GetUsersFromChat(ctx context.Context, chatId uuid.UUID) ([]model.UserInChat, error)
 	RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error
+	RemoveUserFromChatByID(ctx context.Context, userID, chatID uuid.UUID) error
 }
 
 type chatRepository struct {
@@ -284,6 +285,11 @@ func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, usern
 	if err := r.db.QueryRowContext(ctx, `SELECT id FROM public.user WHERE username = $1`, username).Scan(&userID); err != nil {
 		return err
 	}
+	_, err := r.db.ExecContext(ctx, `DELETE FROM user_chat WHERE user_id = $1 AND chat_id = $2`, userID, chatID)
+	return err
+}
+
+func (r *chatRepository) RemoveUserFromChatByID(ctx context.Context, userID, chatID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM user_chat WHERE user_id = $1 AND chat_id = $2`, userID, chatID)
 	return err
 }

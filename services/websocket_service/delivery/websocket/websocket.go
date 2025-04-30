@@ -41,7 +41,6 @@ func NewWebsocketController(r *mux.Router, sessionClient authpb.SessionServiceCl
 
 	r.HandleFunc("/ws", middleware.AuthMiddlewareWS(sessionClient)(controller.WebsocketConnection)).Methods("GET")
 }
-
 func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
@@ -68,7 +67,8 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 			logger.Error("unmarshal user event", zap.Error(err))
 			return
 		}
-		eventChan <- anyEv
+		// Обработка события для конкретного пользователя
+		c.handleUserEvent(anyEv, eventChan)
 	})
 	if err != nil {
 		logger.Error("Subscribe user.* failed", zap.Error(err))
@@ -91,7 +91,7 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 				logger.Error("unmarshal message event", zap.Error(err))
 				return
 			}
-			eventChan <- model.AnyEvent{TypeOfEvent: me.Action, Event: me}
+			c.handleMessageEvent(me, eventChan)
 
 		case "events":
 			var ce model.ChatEvent
@@ -99,7 +99,7 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 				logger.Error("unmarshal chat event", zap.Error(err))
 				return
 			}
-			eventChan <- model.AnyEvent{TypeOfEvent: ce.Action, Event: ce}
+			c.handleChatEvent(ce, eventChan)
 		}
 	})
 	if err != nil {
@@ -145,4 +145,16 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 			}
 		}
 	}
+}
+
+func (c *WebsocketController) handleUserEvent(event model.AnyEvent, eventChan chan model.AnyEvent) {
+	eventChan <- event
+}
+
+func (c *WebsocketController) handleMessageEvent(event model.MessageEvent, eventChan chan model.AnyEvent) {
+	eventChan <- model.AnyEvent{TypeOfEvent: event.Action, Event: event}
+}
+
+func (c *WebsocketController) handleChatEvent(event model.ChatEvent, eventChan chan model.AnyEvent) {
+	eventChan <- model.AnyEvent{TypeOfEvent: event.Action, Event: event}
 }

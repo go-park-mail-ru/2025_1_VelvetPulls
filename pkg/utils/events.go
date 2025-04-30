@@ -11,6 +11,7 @@ const (
 	DeleteChat  = "deleteChat"
 	AddUsers    = "addUsers"
 	RemoveUsers = "removeUsers"
+	LeaveChat   = "leaveChat"
 )
 
 const (
