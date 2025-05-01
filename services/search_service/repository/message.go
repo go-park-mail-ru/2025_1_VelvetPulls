@@ -25,25 +25,20 @@ func (r *MessageRepo) SearchMessages(
 ) ([]model.Message, int, error) {
 	// Поиск сообщений
 	querySQL := `
-		SELECT 
-			m.id,
-			m.body,
-			m.user_id,
-			m.sent_at,
-			u.username
-		FROM message m
-		JOIN public.user u ON m.user_id = u.id
-		WHERE m.chat_id = $1 AND m.body ILIKE $2
-		ORDER BY m.sent_at DESC
-		LIMIT $3 OFFSET $4
-	`
+        SELECT 
+            m.id,
+            m.body,
+            m.user_id,
+            m.sent_at,
+            u.username
+        FROM message m
+        JOIN public.user u ON m.user_id = u.id
+        WHERE m.chat_id = $1 
+            AND m.body ILIKE $2
+        ORDER BY sent_at DESC
+        LIMIT $3 OFFSET $4`
 
-	rows, err := r.db.QueryContext(ctx, querySQL,
-		chatID,
-		"%"+query+"%",
-		limit,
-		offset,
-	)
+	rows, err := r.db.QueryContext(ctx, querySQL, chatID, "%"+query+"%", limit, offset)
 	if err != nil {
 		return nil, 0, ErrSearchMessages
 	}
@@ -70,8 +65,9 @@ func (r *MessageRepo) SearchMessages(
 	countSQL := `
 		SELECT COUNT(*) 
 		FROM message 
-		WHERE chat_id = $1 AND body ILIKE $2
-	`
+		WHERE chat_id = $1 
+			AND to_tsvector('russian', body) 
+			@@ plainto_tsquery('russian', $2)`
 	err = r.db.QueryRowContext(ctx, countSQL, chatID, "%"+query+"%").Scan(&total)
 	if err != nil {
 		return nil, 0, ErrSearchMessagesCount

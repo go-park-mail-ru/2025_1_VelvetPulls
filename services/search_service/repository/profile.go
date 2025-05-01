@@ -17,18 +17,21 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 func (r *UserRepo) SearchUsers(ctx context.Context, query string) ([]model.UserProfile, error) {
 	querySQL := `
-		SELECT 
-			id, 
-			username, 
-			first_name, 
-			last_name, 
-			avatar_path 
-		FROM public.user
-		WHERE username ILIKE $1 
-			OR first_name ILIKE $1 
-			OR last_name ILIKE $1
-		LIMIT 50
-	`
+        SELECT 
+            username, 
+            first_name, 
+            last_name, 
+            avatar_path 
+        FROM public.user
+        WHERE 
+            username ILIKE $1 OR
+            first_name ILIKE $1 OR 
+            last_name ILIKE $1
+        ORDER BY 
+            username ILIKE $1 DESC,
+            first_name ILIKE $1 DESC,
+            last_name ILIKE $1 DESC
+        LIMIT 50`
 
 	rows, err := r.db.QueryContext(ctx, querySQL, "%"+query+"%")
 	if err != nil {

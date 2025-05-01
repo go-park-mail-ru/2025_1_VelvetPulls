@@ -27,10 +27,11 @@ func (r *ContactRepo) SearchContacts(ctx context.Context, userID uuid.UUID, quer
 		FROM contact c
 		JOIN public.user u ON c.contact_id = u.id
 		WHERE c.user_id = $1 
-			AND (u.username ILIKE $2 
-				OR u.first_name ILIKE $2 
-				OR u.last_name ILIKE $2)
-	`
+			AND (
+				u.username ILIKE $2 OR
+				u.first_name ILIKE $2 OR 
+				u.last_name ILIKE $2
+			)`
 
 	rows, err := r.db.QueryContext(ctx, querySQL, userID, "%"+query+"%")
 	if err != nil {
