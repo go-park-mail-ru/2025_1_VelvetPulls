@@ -2,12 +2,14 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -21,11 +23,11 @@ type IMessageUsecase interface {
 type MessageUsecase struct {
 	messageRepo repository.IMessageRepo
 	chatRepo    repository.IChatRepo
-	wsUsecase   IWebsocketUsecase
+	nc          *nats.Conn
 }
 
-func NewMessageUsecase(msgRepo repository.IMessageRepo, chatRepo repository.IChatRepo, wsUsecase IWebsocketUsecase) IMessageUsecase {
-	return &MessageUsecase{messageRepo: msgRepo, chatRepo: chatRepo, wsUsecase: wsUsecase}
+func NewMessageUsecase(msgRepo repository.IMessageRepo, chatRepo repository.IChatRepo, nc *nats.Conn) IMessageUsecase {
+	return &MessageUsecase{messageRepo: msgRepo, chatRepo: chatRepo, nc: nc}
 }
 
 func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
@@ -49,7 +51,6 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
-	// проверка прав отправки
 	if err := uc.ensureCanSend(ctx, userID, chatID); err != nil {
 		logger.Warn("Access denied при попытке отправить сообщение", zap.Error(err))
 		return err
@@ -60,11 +61,7 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 		return fmt.Errorf("%w: %v", ErrMessageValidationFailed, err)
 	}
 
-	msg := &model.Message{
-		ChatID: chatID,
-		UserID: userID,
-		Body:   input.Message,
-	}
+	msg := &model.Message{ChatID: chatID, UserID: userID, Body: input.Message}
 
 	saved, err := uc.messageRepo.CreateMessage(ctx, msg)
 	if err != nil {
@@ -72,7 +69,11 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 		return fmt.Errorf("%w: %v", ErrMessageCreationFailed, err)
 	}
 
-	uc.publishEvent(ctx, NewMessage, saved)
+	// publish new-message event
+	e := model.MessageEvent{Action: utils.NewMessage, Message: *saved}
+	data, _ := json.Marshal(e)
+	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
+	uc.nc.Publish(subj, data)
 	return nil
 }
 
@@ -102,7 +103,11 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 		return fmt.Errorf("%w: %v", ErrMessageUpdateFailed, err)
 	}
 
-	uc.publishEvent(ctx, UpdateMessage, updated)
+	// publish update-message event
+	e := model.MessageEvent{Action: utils.UpdateMessage, Message: *updated}
+	data, _ := json.Marshal(e)
+	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
+	uc.nc.Publish(subj, data)
 	return nil
 }
 
@@ -132,22 +137,12 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 		return fmt.Errorf("%w: %v", ErrMessageDeleteFailed, err)
 	}
 
-	uc.publishEvent(ctx, DeleteMessage, deleted)
+	// publish delete-message event
+	e := model.MessageEvent{Action: utils.DeleteMessage, Message: *deleted}
+	data, _ := json.Marshal(e)
+	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
+	uc.nc.Publish(subj, data)
 	return nil
-}
-
-func (uc *MessageUsecase) publishEvent(ctx context.Context, action string, message *model.Message) {
-	logger := utils.GetLoggerFromCtx(ctx)
-	event := model.MessageEvent{Action: action, Message: *message}
-
-	if uc.wsUsecase == nil {
-		logger.Warn("wsUsecase не инициализирован, событие не отправлено")
-		return
-	}
-
-	if err := uc.wsUsecase.PublishMessage(event); err != nil {
-		logger.Error("PublishMessage failed", zap.Error(err))
-	}
 }
 
 // ensureMember проверяет, что пользователь является участником чата
@@ -162,17 +157,13 @@ func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.
 	return nil
 }
 
-// ensureCanSend проверяет, что пользователь может отправлять сообщения:
-// - в диалоге или группе любой участник
-// - в канале только владелец
+// ensureCanSend проверяет, что пользователь может отправлять сообщения
 func (uc *MessageUsecase) ensureCanSend(ctx context.Context, userID, chatID uuid.UUID) error {
 	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
 		return err
 	}
-	// если это канал
 	if chat.Type == string(model.ChatTypeChannel) {
-		// только владелец может
 		role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
 		if err != nil {
 			return err
@@ -182,6 +173,5 @@ func (uc *MessageUsecase) ensureCanSend(ctx context.Context, userID, chatID uuid
 		}
 		return nil
 	}
-	// иначе участник
 	return uc.ensureMember(ctx, userID, chatID)
 }

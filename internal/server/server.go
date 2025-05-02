@@ -7,7 +7,6 @@ import (
 	"time"
 
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
@@ -43,8 +42,13 @@ type Server struct {
 	nc         *nats.Conn
 }
 
+
 func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
 	return &Server{dbConn: dbConn, authConn: authConn, searchConn: searchConn, nc: nc}
+=======
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, authConn: authConn, nc: nc}
+
 }
 
 func (s *Server) Run(address string) error {
@@ -74,9 +78,8 @@ func (s *Server) Run(address string) error {
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo, s.nc)
-	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
-	chatUsecase := usecase.NewChatUsecase(chatRepo, websocketUsecase)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, s.nc)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, s.nc)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
@@ -87,9 +90,6 @@ func (s *Server) Run(address string) error {
 	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionClient)
 	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionClient)
 	httpDelivery.NewSearchController(apiRouter, searchClient, sessionClient)
-
-	// ===== WebSocket =====
-	websocketDelivery.NewWebsocketController(mainRouter, sessionClient, websocketUsecase, s.nc)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()

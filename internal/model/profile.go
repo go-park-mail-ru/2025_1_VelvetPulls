@@ -26,11 +26,12 @@ type UpdateUserProfile struct {
 	Username  *string         `json:"username" valid:"optional,alphanum,length(3|20)"`
 	Phone     *string         `json:"phone" valid:"optional"`
 	Email     *string         `json:"email,omitempty" valid:"optional,email"`
+	Password  string          `json:"password,omitempty" valid:"optional,stringlength(8|100)"`
 }
 
 func (up *UpdateUserProfile) Validate() error {
 	if up.FirstName == nil && up.LastName == nil && up.Username == nil &&
-		up.Phone == nil && up.Email == nil && up.Avatar == nil {
+		up.Phone == nil && up.Email == nil && up.Avatar == nil && up.Password == "" {
 		return errors.Join(ErrValidation, errors.New("at least one field must be provided for update"))
 	}
 

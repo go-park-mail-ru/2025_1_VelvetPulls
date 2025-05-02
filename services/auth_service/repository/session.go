@@ -37,7 +37,6 @@ func (r *sessionRepo) GetUserIDByToken(ctx context.Context, sessionID string) (s
 	}
 	return userID, nil
 }
-
 func (r *sessionRepo) CreateSession(ctx context.Context, userID uuid.UUID) (string, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Creating new session")

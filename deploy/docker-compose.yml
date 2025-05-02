@@ -86,3 +86,17 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+
+  websocket:
+    build:
+      context: ../
+      dockerfile: ./deploy/websocket.Dockerfile
+    ports:
+      - "8082:8082"
+    env_file:
+      - ../.env
+    depends_on:
+      nats:
+
+        condition: service_healthy
+    restart: unless-stopped

@@ -11,12 +11,12 @@ type Validator interface {
 }
 
 type LoginCredentials struct {
-	Username string `json:"username" valid:"required,alphanum,length(3|20)"`
+	Username string `json:"username" valid:"required,length(3|20),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 	Password string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 }
 
 type RegisterCredentials struct {
-	Username        string `json:"username" valid:"required,alphanum,length(3|20)"`
+	Username        string `json:"username" valid:"required,length(3|20),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 	Password        string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 	ConfirmPassword string `json:"confirm_password" valid:"required,length(8|32)"`
 	Phone           string `json:"phone" valid:"required,numeric,length(10|15)"`

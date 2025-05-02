@@ -25,6 +25,5 @@ func (uc *SessionUsecase) CheckLogin(ctx context.Context, token string) (string,
 	if err != nil {
 		return "", err
 	}
-
 	return userID, nil
 }

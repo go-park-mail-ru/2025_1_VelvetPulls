@@ -36,6 +36,7 @@ func main() {
 
 	defer redisClient.Close()
 
+	log.Printf("Starting server on :8081")
 	s := server.NewServer(dbConn, redisClient)
 	if err := s.Run(":8081"); err != nil {
 		log.Fatal("Failed to run server:", err)

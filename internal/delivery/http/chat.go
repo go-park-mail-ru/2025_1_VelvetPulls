@@ -34,6 +34,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionC
 	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
+	r.Handle("/chat/{chat_id}/leave", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.LeaveChat))).Methods(http.MethodPost)
 }
 
 // GetChats возвращает список чатов пользователя
@@ -340,4 +341,38 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 	}
 
 	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+}
+
+// LeaveChat позволяет текущему пользователю выйти из чата
+// @Summary Выйти из чата
+// @Description Удаляет текущего пользователя из участников чата (если он не владелец)
+// @Tags Chat
+// @Produce json
+// @Param chat_id path string true "ID чата"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/leave [post]
+func (c *chatController) LeaveChat(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
+	chatID, err := uuid.Parse(mux.Vars(r)["chat_id"])
+	if err != nil {
+		logger.Error("Invalid chat ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("LeaveChat", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+
+	if err := c.chatUsecase.LeaveChat(r.Context(), userID, chatID); err != nil {
+		logger.Error("Failed to leave chat", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "left chat successfully", true)
 }
