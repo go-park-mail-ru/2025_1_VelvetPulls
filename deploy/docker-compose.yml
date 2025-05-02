@@ -74,6 +74,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  search:
+    build:
+      context: ../
+      dockerfile: ./deploy/search.Dockerfile
+    ports:
+      - "8083:8083"
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   websocket:
     build:
       context: ../
@@ -84,5 +97,6 @@ services:
       - ../.env
     depends_on:
       nats:
+
         condition: service_healthy
     restart: unless-stopped

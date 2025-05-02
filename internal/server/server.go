@@ -13,6 +13,7 @@ import (
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
+	searchpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto"
 	"github.com/gorilla/mux"
 	"github.com/nats-io/nats.go"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -35,13 +36,19 @@ type IServer interface {
 }
 
 type Server struct {
-	dbConn   *sql.DB
-	authConn *grpc.ClientConn
-	nc       *nats.Conn
+	dbConn     *sql.DB
+	authConn   *grpc.ClientConn
+	searchConn *grpc.ClientConn
+	nc         *nats.Conn
 }
 
+
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, authConn: authConn, searchConn: searchConn, nc: nc}
+=======
 func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, nc *nats.Conn) IServer {
 	return &Server{dbConn: dbConn, authConn: authConn, nc: nc}
+
 }
 
 func (s *Server) Run(address string) error {
@@ -54,7 +61,7 @@ func (s *Server) Run(address string) error {
 	// ===== Microservice usecase =====
 	authClient := generatedAuth.NewAuthServiceClient(s.authConn)
 	sessionClient := generatedAuth.NewSessionServiceClient(s.authConn)
-
+	searchClient := searchpb.NewChatServiceClient(s.searchConn)
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
@@ -82,6 +89,7 @@ func (s *Server) Run(address string) error {
 	httpDelivery.NewUserController(apiRouter, userUsecase, sessionClient)
 	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionClient)
 	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionClient)
+	httpDelivery.NewSearchController(apiRouter, searchClient, sessionClient)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
