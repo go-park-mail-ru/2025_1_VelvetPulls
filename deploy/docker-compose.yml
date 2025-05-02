@@ -97,6 +97,5 @@ services:
       - ../.env
     depends_on:
       nats:
-
         condition: service_healthy
     restart: unless-stopped

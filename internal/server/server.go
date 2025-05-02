@@ -42,13 +42,8 @@ type Server struct {
 	nc         *nats.Conn
 }
 
-
 func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
 	return &Server{dbConn: dbConn, authConn: authConn, searchConn: searchConn, nc: nc}
-=======
-func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, nc *nats.Conn) IServer {
-	return &Server{dbConn: dbConn, authConn: authConn, nc: nc}
-
 }
 
 func (s *Server) Run(address string) error {
