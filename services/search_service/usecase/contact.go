@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/repository"
 	"github.com/google/uuid"
@@ -22,5 +23,6 @@ func (uc *ContactUsecase) SearchContacts(ctx context.Context, userIDStr string, 
 		return nil, model.ErrValidation
 	}
 
+	metrics.IncBusinessOp("search_contacts")
 	return uc.repo.SearchContacts(ctx, userID, query)
 }

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/repository"
 )
@@ -20,5 +21,6 @@ func (uc *UserUsecase) SearchUsers(ctx context.Context, query string) ([]model.U
 		return nil, model.ErrValidation
 	}
 
+	metrics.IncBusinessOp("search_users")
 	return uc.repo.SearchUsers(ctx, query)
 }

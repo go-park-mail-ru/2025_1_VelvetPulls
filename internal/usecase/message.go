@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -44,6 +45,7 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 		logger.Error("GetMessages failed", zap.Error(err))
 		return nil, err
 	}
+	metrics.IncBusinessOp("get_messages")
 	return msgs, nil
 }
 
@@ -74,6 +76,8 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
 	uc.nc.Publish(subj, data)
+
+	metrics.IncBusinessOp("send_message")
 	return nil
 }
 
@@ -108,6 +112,8 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
 	uc.nc.Publish(subj, data)
+
+	metrics.IncBusinessOp("update_message")
 	return nil
 }
 
@@ -142,6 +148,8 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
 	uc.nc.Publish(subj, data)
+
+	metrics.IncBusinessOp("delete_message")
 	return nil
 }
 
