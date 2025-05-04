@@ -3,14 +3,18 @@ package server
 import (
 	"database/sql"
 	"net"
+	"net/http"
 	"os"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/grpc"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -45,6 +49,24 @@ func (s *Server) Run(address string) error {
 	}
 	defer logFile.Close()
 
+	// Запускаем HTTP сервер для метрик
+	go func() {
+		metricsRouter := http.NewServeMux()
+		metricsRouter.Handle("/metrics", promhttp.Handler())
+
+		metricsServer := &http.Server{
+			Addr:    ":9091",
+			Handler: metricsRouter,
+		}
+
+		utils.Logger.Info("Starting metrics server on :9091")
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			utils.Logger.Error("Metrics server error",
+				zap.Error(err),
+			)
+		}
+	}()
+
 	// Repos
 	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	authRepo := repository.NewAuthRepo(s.dbConn)
@@ -53,11 +75,14 @@ func (s *Server) Run(address string) error {
 	authUsecase := usecase.NewAuthUsecase(authRepo, sessionRepo)
 	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
 
-	// gRPC server
+	// gRPC server с метриками
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			middleware.RequestIDInterceptor(),
 			middleware.AccessLogInterceptor(),
+			metrics.GrpcErrorCounterInterceptor(),
+			metrics.GrpcHitCounterInterceptor(),
+			metrics.GrpcTimingInterceptor(),
 		),
 	)
 
