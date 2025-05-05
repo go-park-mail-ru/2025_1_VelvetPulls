@@ -6,14 +6,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc"
 )
-
-var HttpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: "http_response_time_seconds",
-	Help: "Duration of HTTP requests.",
-}, []string{"path", "method"})
 
 func TimingHistogramMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -24,12 +18,6 @@ func TimingHistogramMiddleware(next http.Handler) http.Handler {
 		timer.ObserveDuration()
 	})
 }
-
-var GrpcDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name:    "grpc_response_time_seconds",
-	Help:    "Duration of gRPC requests.",
-	Buckets: prometheus.DefBuckets,
-}, []string{"method"})
 
 func GrpcTimingInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {

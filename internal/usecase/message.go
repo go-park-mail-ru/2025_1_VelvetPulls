@@ -90,6 +90,11 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 		return err
 	}
 
+	if err := input.Validate(); err != nil {
+		logger.Error("Validation failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessageValidationFailed, err)
+	}
+
 	message, err := uc.messageRepo.GetMessage(ctx, messageID)
 	if err != nil {
 		logger.Error("GetMessage failed", zap.Error(err))

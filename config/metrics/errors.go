@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
@@ -24,14 +23,6 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-var ErrorCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "errors_amount_count",
-		Help: "Accumulates outgoing errors",
-	},
-	[]string{"path", "method", "status"},
-)
-
 func ErrorCounterMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rw := NewResponseWriter(w)
@@ -47,11 +38,20 @@ func GrpcErrorCounterInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		resp, err := handler(ctx, req)
 		st, _ := status.FromError(err)
-		ErrorCounter.WithLabelValues(
-			info.FullMethod,              // path
-			"grpc",                       // method
-			strconv.Itoa(int(st.Code())), // status
+
+		GrpcErrorCounter.WithLabelValues(
+			info.FullMethod,
+			strconv.Itoa(int(st.Code())),
 		).Inc()
+
+		if err != nil {
+			ErrorCounter.WithLabelValues(
+				info.FullMethod,
+				"grpc",
+				strconv.Itoa(int(st.Code())),
+			).Inc()
+		}
+
 		return resp, err
 	}
 }
