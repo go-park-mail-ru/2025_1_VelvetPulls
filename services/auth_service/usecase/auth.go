@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
@@ -64,6 +65,7 @@ func (uc *AuthUsecase) RegisterUser(ctx context.Context, values model.RegisterCr
 	if err != nil {
 		return "", err
 	}
+	metrics.IncBusinessOp("registration")
 	return sessionID, nil
 }
 
@@ -90,11 +92,14 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", err
 	}
 
+	metrics.IncBusinessOp("login")
 	return sessionID, nil
 }
 
 func (uc *AuthUsecase) LogoutUser(ctx context.Context, sessionId string) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("User logout")
+
+	metrics.IncBusinessOp("logout")
 	return uc.sessionRepo.DeleteSession(ctx, sessionId)
 }

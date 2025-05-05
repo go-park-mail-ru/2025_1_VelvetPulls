@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/repository"
 	"github.com/google/uuid"
@@ -28,5 +29,6 @@ func (uc *MessageUsecase) SearchMessages(
 		return nil, 0, model.ErrValidation
 	}
 
+	metrics.IncBusinessOp("search_messages")
 	return uc.repo.SearchMessages(ctx, chatID, query, limit, offset)
 }

@@ -3,14 +3,18 @@ package server
 import (
 	"database/sql"
 	"net"
+	"net/http"
 	"os"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	grpcDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/grpc"
 	search "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/usecase"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -44,6 +48,24 @@ func (s *Server) Run(port string) error {
 	}
 	defer logFile.Close()
 
+	// Запускаем HTTP сервер для метрик
+	go func() {
+		metricsRouter := http.NewServeMux()
+		metricsRouter.Handle("/metrics", promhttp.Handler())
+
+		metricsServer := &http.Server{
+			Addr:    ":9091",
+			Handler: metricsRouter,
+		}
+
+		utils.Logger.Info("Starting metrics server on :9091")
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			utils.Logger.Error("Metrics server error",
+				zap.Error(err),
+			)
+		}
+	}()
+
 	// Инициализация репозиториев
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
@@ -61,6 +83,9 @@ func (s *Server) Run(port string) error {
 		grpc.ChainUnaryInterceptor(
 			middleware.RequestIDInterceptor(),
 			middleware.AccessLogInterceptor(),
+			metrics.GrpcErrorCounterInterceptor(),
+			metrics.GrpcHitCounterInterceptor(),
+			metrics.GrpcTimingInterceptor(),
 		),
 	)
 

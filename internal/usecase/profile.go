@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -45,6 +46,7 @@ func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*m
 		return nil, err
 	}
 	profile := uc.fetchProfile(ctx, user)
+	metrics.IncBusinessOp("get_self_profile")
 	return profile, nil
 }
 
@@ -58,6 +60,7 @@ func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username st
 		return nil, err
 	}
 	profile := uc.fetchProfile(ctx, user)
+	metrics.IncBusinessOp("get_profile")
 	return profile, nil
 }
 
@@ -102,6 +105,7 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateU
 	}
 
 	logger.Info("UpdateUserProfile done", zap.String("userID", req.ID.String()))
+	metrics.IncBusinessOp("update_profile")
 	return nil
 }
 

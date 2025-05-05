@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/repository"
 )
 
@@ -25,5 +26,7 @@ func (uc *SessionUsecase) CheckLogin(ctx context.Context, token string) (string,
 	if err != nil {
 		return "", err
 	}
+
+	metrics.IncBusinessOp("check_login")
 	return userID, nil
 }

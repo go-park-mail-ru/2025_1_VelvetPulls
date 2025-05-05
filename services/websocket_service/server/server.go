@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/usecase"
 	"github.com/gorilla/mux"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -51,8 +53,13 @@ func (s *Server) Run(address string) error {
 
 	mainRouter := mux.NewRouter()
 
+	mainRouter.Handle("/metrics", promhttp.Handler())
+
 	mainRouter.Use(middleware.RequestIDMiddleware)
 	mainRouter.Use(middleware.AccessLogMiddleware)
+	mainRouter.Use(metrics.TimingHistogramMiddleware) // Замер времени выполнения
+	mainRouter.Use(metrics.HitCounterMiddleware)      // Счетчик запросов
+	mainRouter.Use(metrics.ErrorCounterMiddleware)    // Счетчик ошибок
 
 	// Usecases
 	websocketUsecase := usecase.NewWebsocketUsecase(s.nc)
