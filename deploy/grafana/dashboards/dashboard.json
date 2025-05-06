@@ -5,7 +5,7 @@
           "builtIn": 1,
           "datasource": {
             "type": "datasource",
-            "uid": "grafana"
+            "uid": "Prometheus"
           },
           "enable": true,
           "hide": true,
@@ -43,7 +43,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Resource pressure via PSI",
         "fieldConfig": {
@@ -113,7 +113,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -129,7 +129,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -146,7 +146,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -163,7 +163,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -184,7 +184,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Overall CPU busy percentage (averaged across all cores)",
         "fieldConfig": {
@@ -253,7 +253,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -273,7 +273,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "System load  over all CPU cores together",
         "fieldConfig": {
@@ -342,7 +342,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -362,7 +362,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Real RAM usage excluding cache and reclaimable memory",
         "fieldConfig": {
@@ -421,7 +421,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -441,7 +441,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Percentage of swap space currently used by the system",
         "fieldConfig": {
@@ -510,7 +510,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -528,7 +528,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "",
         "fieldConfig": {
@@ -589,7 +589,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -606,7 +606,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "",
         "fieldConfig": {
@@ -672,7 +672,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -690,7 +690,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "",
         "fieldConfig": {
@@ -756,7 +756,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -774,7 +774,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "",
         "fieldConfig": {
@@ -840,7 +840,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -871,7 +871,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "CPU time spent busy vs idle, split by activity type",
         "fieldConfig": {
@@ -1029,7 +1029,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "exemplar": false,
@@ -1046,7 +1046,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
@@ -1061,7 +1061,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"iowait\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
@@ -1075,7 +1075,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=~\".*irq\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
@@ -1089,7 +1089,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\",  mode!='idle',mode!='user',mode!='system',mode!='iowait',mode!='irq',mode!='softirq'}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
@@ -1103,7 +1103,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"idle\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
@@ -1121,7 +1121,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "RAM and swap usage overview, including caches",
         "fieldConfig": {
@@ -1275,7 +1275,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "node_memory_MemTotal_bytes{instance=\"$node\",job=\"$job\"}",
@@ -1290,7 +1290,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "node_memory_MemTotal_bytes{instance=\"$node\",job=\"$job\"} - node_memory_MemFree_bytes{instance=\"$node\",job=\"$job\"} - (node_memory_Cached_bytes{instance=\"$node\",job=\"$job\"} + node_memory_Buffers_bytes{instance=\"$node\",job=\"$job\"} + node_memory_SReclaimable_bytes{instance=\"$node\",job=\"$job\"})",
@@ -1305,7 +1305,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "node_memory_Cached_bytes{instance=\"$node\",job=\"$job\"} + node_memory_Buffers_bytes{instance=\"$node\",job=\"$job\"} + node_memory_SReclaimable_bytes{instance=\"$node\",job=\"$job\"}",
@@ -1319,7 +1319,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "node_memory_MemFree_bytes{instance=\"$node\",job=\"$job\"}",
@@ -1333,7 +1333,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "(node_memory_SwapTotal_bytes{instance=\"$node\",job=\"$job\"} - node_memory_SwapFree_bytes{instance=\"$node\",job=\"$job\"})",
@@ -1351,7 +1351,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Per-interface network traffic (receive and transmit) in bits per second",
         "fieldConfig": {
@@ -1444,7 +1444,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "rate(node_network_receive_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])*8",
@@ -1458,7 +1458,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "rate(node_network_transmit_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])*8",
@@ -1476,7 +1476,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "description": "Percentage of filesystem space used for each mounted device",
         "fieldConfig": {
@@ -1558,7 +1558,7 @@
           {
             "datasource": {
               "type": "prometheus",
-              "uid": "aekxydv9zgtfke"
+              "uid": "Prometheus"
             },
             "editorMode": "code",
             "expr": "((node_filesystem_size_bytes{instance=\"$node\", job=\"$job\", device!~\"rootfs\"} - node_filesystem_avail_bytes{instance=\"$node\", job=\"$job\", device!~\"rootfs\"}) / node_filesystem_size_bytes{instance=\"$node\", job=\"$job\", device!~\"rootfs\"}) * 100",
@@ -1589,7 +1589,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -1684,7 +1684,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -1804,7 +1804,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -1888,7 +1888,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -1985,7 +1985,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2050,7 +2050,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2115,7 +2115,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2180,7 +2180,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2245,7 +2245,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2323,7 +2323,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2400,7 +2400,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2490,7 +2490,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "aekxydv9zgtfke"
+          "uid": "Prometheus"
         },
         "fieldConfig": {
           "defaults": {
@@ -2602,7 +2602,7 @@
           },
           "datasource": {
             "type": "prometheus",
-            "uid": "aekxydv9zgtfke"
+            "uid": "Prometheus"
           },
           "definition": "",
           "includeAll": false,
@@ -2625,7 +2625,7 @@
           },
           "datasource": {
             "type": "prometheus",
-            "uid": "aekxydv9zgtfke"
+            "uid": "Prometheus"
           },
           "definition": "label_values(node_uname_info{job=\"$job\"}, nodename)",
           "includeAll": false,
@@ -2648,7 +2648,7 @@
           },
           "datasource": {
             "type": "prometheus",
-            "uid": "aekxydv9zgtfke"
+            "uid": "Prometheus"
           },
           "definition": "label_values(node_uname_info{job=\"$job\", nodename=\"$nodename\"}, instance)",
           "includeAll": false,
@@ -2691,6 +2691,6 @@
     "timepicker": {},
     "timezone": "browser",
     "title": "Keftegram",
-    "uid": "rYdddlPWks",
+    "uid": "Prometheus",
     "version": 26
   }
