@@ -14,29 +14,38 @@ import (
 )
 
 var errToCode = map[error]int{
-	// HTTP errors
+	// HTTP/server level
 	servererrors.ErrInvalidRequestData: http.StatusBadRequest, // 400
 
-	// Usecase errors
-	usecase.ErrUsernameIsTaken:         http.StatusConflict,            // 409
-	usecase.ErrPhoneIsTaken:            http.StatusConflict,            // 409
-	usecase.ErrHashPassword:            http.StatusInternalServerError, // 500
-	usecase.ErrInvalidUsername:         http.StatusBadRequest,          // 400
-	usecase.ErrInvalidPassword:         http.StatusBadRequest,          // 400
-	usecase.ErrPermissionDenied:        http.StatusForbidden,
-	usecase.ErrDialogUpdateForbidden:   http.StatusBadRequest,
-	usecase.ErrOnlyOwnerCanModify:      http.StatusForbidden,
-	usecase.ErrDialogAddUsers:          http.StatusBadRequest,
-	usecase.ErrDialogDeleteUsers:       http.StatusBadRequest,
-	usecase.ErrChatCreationFailed:      http.StatusInternalServerError,
-	usecase.ErrAddOwnerToDialog:        http.StatusInternalServerError,
-	usecase.ErrAddParticipantToDialog:  http.StatusInternalServerError,
-	usecase.ErrAddOwnerToGroup:         http.StatusInternalServerError,
-	usecase.ErrOnlyOwnerCanDelete:      http.StatusForbidden,
-	usecase.ErrOnlyOwnerCanAddUsers:    http.StatusForbidden,
-	usecase.ErrOnlyOwnerCanDeleteUsers: http.StatusForbidden,
+	// Usecase level
+	usecase.ErrUsernameIsTaken: http.StatusConflict,            // 409
+	usecase.ErrPhoneIsTaken:    http.StatusConflict,            // 409
+	usecase.ErrHashPassword:    http.StatusInternalServerError, // 500
+	usecase.ErrInvalidUsername: http.StatusBadRequest,          // 400
+	usecase.ErrInvalidPassword: http.StatusBadRequest,          // 400
 
-	// Repository errors
+	usecase.ErrPermissionDenied:        http.StatusForbidden,           // 403
+	usecase.ErrDialogUpdateForbidden:   http.StatusBadRequest,          // 400
+	usecase.ErrOnlyOwnerCanModify:      http.StatusForbidden,           // 403
+	usecase.ErrDialogAddUsers:          http.StatusBadRequest,          // 400
+	usecase.ErrDialogDeleteUsers:       http.StatusBadRequest,          // 400
+	usecase.ErrChatCreationFailed:      http.StatusInternalServerError, // 500
+	usecase.ErrAddOwnerToDialog:        http.StatusInternalServerError, // 500
+	usecase.ErrAddParticipantToDialog:  http.StatusInternalServerError, // 500
+	usecase.ErrAddOwnerToGroup:         http.StatusInternalServerError, // 500
+	usecase.ErrOnlyOwnerCanDelete:      http.StatusForbidden,           // 403
+	usecase.ErrOnlyOwnerCanAddUsers:    http.StatusForbidden,           // 403
+	usecase.ErrOnlyOwnerCanDeleteUsers: http.StatusForbidden,           // 403
+
+	usecase.ErrMessageValidationFailed: http.StatusBadRequest,          // 400
+	usecase.ErrMessageCreationFailed:   http.StatusInternalServerError, // 500
+	usecase.ErrMessageNotFound:         http.StatusNotFound,            // 404
+	usecase.ErrMessageAccessDenied:     http.StatusForbidden,           // 403
+	usecase.ErrMessageUpdateFailed:     http.StatusInternalServerError, // 500
+	usecase.ErrMessageDeleteFailed:     http.StatusInternalServerError, // 500
+	usecase.ErrMessagePublishFailed:    http.StatusInternalServerError, // 500
+
+	// Repository level
 	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
 	repository.ErrSelfContact:         http.StatusBadRequest,          // 400
 	repository.ErrUserNotFound:        http.StatusNotFound,            // 404
@@ -48,6 +57,7 @@ var errToCode = map[error]int{
 	repository.ErrDatabaseOperation:   http.StatusInternalServerError, // 500
 	repository.ErrDatabaseScan:        http.StatusInternalServerError, // 500
 
+	// Utils level
 	utils.ErrNotImage:      http.StatusBadRequest,          // 400
 	utils.ErrSavingImage:   http.StatusInternalServerError, // 500
 	utils.ErrUpdatingImage: http.StatusInternalServerError, // 500
@@ -98,7 +108,6 @@ func UnpackGrpcError(err error) (int, string) {
 		return http.StatusOK, ""
 	}
 
-	// Пытаемся распарсить gRPC-статус
 	st, ok := status.FromError(err)
 	if ok {
 		return GrpcCodeToHttp(st.Code()), st.Message()
