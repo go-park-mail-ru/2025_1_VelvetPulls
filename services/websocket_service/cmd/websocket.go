@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/server"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/websocket_service/internal/server"
 	_ "github.com/lib/pq"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"

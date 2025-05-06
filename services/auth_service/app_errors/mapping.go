@@ -3,8 +3,8 @@ package apperrors
 import (
 	"errors"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/usecase"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/usecase"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
