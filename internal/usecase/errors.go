@@ -21,4 +21,12 @@ var (
 	ErrOnlyOwnerCanDelete      = errors.New("only chat owner can delete chat")
 	ErrOnlyOwnerCanAddUsers    = errors.New("only chat owner can add users")
 	ErrOnlyOwnerCanDeleteUsers = errors.New("only chat owner can delete users")
+
+	ErrMessageValidationFailed = errors.New("message validation failed")
+	ErrMessageCreationFailed   = errors.New("failed to create message")
+	ErrMessageNotFound         = errors.New("message not found")
+	ErrMessageAccessDenied     = errors.New("user is not the author of the message")
+	ErrMessageUpdateFailed     = errors.New("failed to update message")
+	ErrMessageDeleteFailed     = errors.New("failed to delete message")
+	ErrMessagePublishFailed    = errors.New("failed to publish message event")
 )

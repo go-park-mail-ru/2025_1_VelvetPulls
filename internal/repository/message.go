@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/google/uuid"
@@ -11,7 +10,10 @@ import (
 
 type IMessageRepo interface {
 	GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error)
+	GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error)
 	CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error)
+	UpdateMessage(ctx context.Context, messageID uuid.UUID, newBody string) (*model.Message, error)
+	DeleteMessage(ctx context.Context, messageID uuid.UUID) (*model.Message, error)
 }
 
 type messageRepo struct {
@@ -42,7 +44,7 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 
 	rows, err := r.db.QueryContext(ctx, query, chatID)
 	if err != nil {
-		return nil, fmt.Errorf("GetMessages: query failed: %w", err)
+		return nil, ErrDatabaseOperation
 	}
 	defer rows.Close()
 
@@ -63,7 +65,7 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 			&msg.Username,
 			&msg.AvatarPath,
 		); err != nil {
-			return nil, fmt.Errorf("GetMessages: scan failed: %w", err)
+			return nil, ErrDatabaseScan
 		}
 
 		if parentMsgID.Valid {
@@ -77,13 +79,13 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("GetMessages: rows iteration failed: %w", err)
+		return nil, ErrDatabaseOperation
 	}
 
 	return messages, nil
 }
 
-func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Message, error) {
+func (r *messageRepo) GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error) {
 	query := `
 	SELECT 
 		m.id,
@@ -114,9 +116,8 @@ func (r *messageRepo) getMessage(ctx context.Context, id uuid.UUID) (*model.Mess
 		&msg.Username,
 		&msg.AvatarPath,
 	)
-	fmt.Println(err)
 	if err != nil {
-		return nil, fmt.Errorf("getMessage: failed to get message: %w", err)
+		return nil, ErrDatabaseOperation
 	}
 
 	if parentMsgID.Valid {
@@ -140,17 +141,46 @@ func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message)
 		message.UserID,
 		message.ChatID,
 		message.Body,
-	).Scan(
-		&message.ID,
-	)
+	).Scan(&message.ID)
 	if err != nil {
-		return nil, fmt.Errorf("CreateMessage: insert failed: %w", err)
+		return nil, ErrDatabaseOperation
 	}
-	fmt.Println(message.ID)
-	messageOut, err := r.getMessage(ctx, message.ID)
-	fmt.Println(err)
+	messageOut, err := r.GetMessage(ctx, message.ID)
 	if err != nil {
 		return nil, err
 	}
 	return messageOut, nil
+}
+
+func (r *messageRepo) UpdateMessage(ctx context.Context, messageID uuid.UUID, newBody string) (*model.Message, error) {
+	query := `
+		UPDATE message
+		SET body = $1, is_redacted = true
+		WHERE id = $2
+		RETURNING id
+	`
+
+	var updatedID uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, newBody, messageID).Scan(&updatedID)
+	if err != nil {
+		return nil, ErrUpdateFailed
+	}
+
+	return r.GetMessage(ctx, updatedID)
+}
+
+func (r *messageRepo) DeleteMessage(ctx context.Context, messageID uuid.UUID) (*model.Message, error) {
+	query := `
+		DELETE FROM message
+		WHERE id = $1
+		RETURNING id
+	`
+
+	var deletedID uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, messageID).Scan(&deletedID)
+	if err != nil {
+		return nil, ErrDatabaseOperation
+	}
+
+	return &model.Message{ID: deletedID}, nil
 }

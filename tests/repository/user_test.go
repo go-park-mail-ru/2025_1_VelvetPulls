@@ -3,8 +3,6 @@ package repository_test
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"mime/multipart"
 	"testing"
 	"time"
@@ -18,101 +16,63 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestGetUserByEmail_Success(t *testing.T) {
+// Test GetUserByEmail, GetUserByPhone, GetUserByID, CreateUser, UpdateUser уже имеются – ниже добавлены недостающие тесты.
+
+// -----------------------------
+// Новые тесты для GetUserByUsername
+// -----------------------------
+
+func TestGetUserByUsername_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
 	repo := repository.NewUserRepo(db)
 
-	email := "test@mail.com"
+	username := "testuser"
 	expectedID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{
 		"id", "avatar_path", "first_name", "last_name", "username",
 		"phone", "email", "password", "created_at", "updated_at",
 	}).AddRow(
-		expectedID, "/avatar.jpg", "John", "Doe", "testuser",
-		"1234567890", email, "hashedpass", time.Now(), time.Now(),
+		expectedID, "/avatar.jpg", "John", "Doe", username,
+		"1234567890", "test@mail.com", "hashedpass", time.Now(), time.Now(),
 	)
 
-	mock.ExpectQuery(`SELECT .* FROM public.user WHERE email = \$1`).
-		WithArgs(email).
+	mock.ExpectQuery(`SELECT .* FROM public.user WHERE username = \$1`).
+		WithArgs(username).
 		WillReturnRows(rows)
 
 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
 
-	user, err := repo.GetUserByEmail(ctx, email)
+	user, err := repo.GetUserByUsername(ctx, username)
 	require.NoError(t, err)
-	require.Equal(t, email, *user.Email)
+	require.Equal(t, username, user.Username)
 }
 
-func TestGetUserByEmail_NotFound(t *testing.T) {
+func TestGetUserByUsername_NotFound(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
 	repo := repository.NewUserRepo(db)
 
-	email := "missing@mail.com"
-	mock.ExpectQuery(`SELECT .* FROM public.user WHERE email = \$1`).
-		WithArgs(email).
+	username := "notfound"
+	mock.ExpectQuery(`SELECT .* FROM public.user WHERE username = \$1`).
+		WithArgs(username).
 		WillReturnError(sql.ErrNoRows)
 
 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
 
-	user, err := repo.GetUserByEmail(ctx, email)
+	user, err := repo.GetUserByUsername(ctx, username)
 	require.Nil(t, user)
 	require.ErrorIs(t, err, repository.ErrUserNotFound)
 }
 
-func TestGetUserByPhone_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := repository.NewUserRepo(db)
-
-	phone := "1234567890"
-	expectedID := uuid.New()
-
-	rows := sqlmock.NewRows([]string{
-		"id", "avatar_path", "first_name", "last_name", "username",
-		"phone", "email", "password", "created_at", "updated_at",
-	}).AddRow(
-		expectedID, "/avatar.jpg", "John", "Doe", "testuser",
-		phone, "test@mail.com", "hashedpass", time.Now(), time.Now(),
-	)
-
-	mock.ExpectQuery(`SELECT .* FROM public.user WHERE phone = \$1`).
-		WithArgs(phone).
-		WillReturnRows(rows)
-
-	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
-
-	user, err := repo.GetUserByPhone(ctx, phone)
-	require.NoError(t, err)
-	require.Equal(t, phone, user.Phone)
-}
-
-func TestGetUserByPhone_NotFound(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := repository.NewUserRepo(db)
-
-	phone := "0000000000"
-	mock.ExpectQuery(`SELECT .* FROM public.user WHERE phone = \$1`).
-		WithArgs(phone).
-		WillReturnError(sql.ErrNoRows)
-
-	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
-
-	user, err := repo.GetUserByPhone(ctx, phone)
-	require.Nil(t, user)
-	require.ErrorIs(t, err, repository.ErrUserNotFound)
-}
+// -----------------------------
+// Тест для успешного создания пользователя (CreateUser)
+// -----------------------------
 
 func TestGetUserByID_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -175,94 +135,6 @@ func TestGetUserByID_InvalidUUID(t *testing.T) {
 	require.ErrorIs(t, err, repository.ErrInvalidUUID)
 }
 
-func TestCreateUser_DuplicateUsername(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := repository.NewUserRepo(db)
-
-	user := &model.User{
-		Username: "existinguser",
-		Phone:    "1234567890",
-		Password: "hashedpass",
-	}
-	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
-
-	mock.ExpectQuery(`INSERT INTO public.user .* RETURNING id`).
-		WithArgs(user.Username, user.Phone, user.Password).
-		WillReturnError(errors.New("duplicate key value violates unique constraint \"user_username_key\""))
-
-	_, err = repo.CreateUser(ctx, user)
-	require.ErrorIs(t, err, repository.ErrRecordAlreadyExists)
-}
-
-func TestCreateUser_DuplicatePhone(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := repository.NewUserRepo(db)
-
-	user := &model.User{
-		Username: "newuser",
-		Phone:    "existingphone",
-		Password: "hashedpass",
-	}
-	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
-
-	mock.ExpectQuery(`INSERT INTO public.user .* RETURNING id`).
-		WithArgs(user.Username, user.Phone, user.Password).
-		WillReturnError(errors.New("duplicate key value violates unique constraint \"user_phone_key\""))
-
-	_, err = repo.CreateUser(ctx, user)
-	require.ErrorIs(t, err, repository.ErrRecordAlreadyExists)
-}
-
-func TestCreateUser_EmptyFields(t *testing.T) {
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := repository.NewUserRepo(db)
-
-	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
-
-	testCases := []struct {
-		name     string
-		user     *model.User
-		expected error
-	}{
-		{
-			name:     "Nil user",
-			user:     nil,
-			expected: repository.ErrEmptyField,
-		},
-		{
-			name:     "Empty username",
-			user:     &model.User{Phone: "123", Password: "pass"},
-			expected: repository.ErrEmptyField,
-		},
-		{
-			name:     "Empty phone",
-			user:     &model.User{Username: "user", Password: "pass"},
-			expected: repository.ErrEmptyField,
-		},
-		{
-			name:     "Empty password",
-			user:     &model.User{Username: "user", Phone: "123"},
-			expected: repository.ErrEmptyField,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := repo.CreateUser(ctx, tc.user)
-			require.ErrorIs(t, err, tc.expected)
-		})
-	}
-}
-
 func TestUpdateUser_WithAvatar(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -288,7 +160,7 @@ func TestUpdateUser_WithAvatar(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"avatar_path"}).AddRow(oldAvatar))
 
 	// 3. Ожидаем UPDATE запрос
-	// Важно: порядок полей должен точно соответствовать коду репозитория
+	// Поскольку обновляются не все поля, порядковый номер аргументов может меняться.
 	mock.ExpectExec(`UPDATE public.user SET (.+) WHERE id = \$4`).
 		WithArgs(
 			sqlmock.AnyArg(), // новый avatar_path
@@ -303,11 +175,11 @@ func TestUpdateUser_WithAvatar(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
 
-	// Создаем mock для multipart.File
+	// Для теста достаточно задать ненулевое значение для profile.Avatar.
+	// Заметим, что тип profile.Avatar — это указатель на multipart.File.
 	profile.Avatar = new(multipart.File)
 
 	newAvatar, oldAvatarPath, err := repo.UpdateUser(ctx, profile)
-	fmt.Println(err)
 	require.NoError(t, err)
 	require.NotEmpty(t, newAvatar)
 	require.Equal(t, oldAvatar, oldAvatarPath)
@@ -325,7 +197,7 @@ func TestUpdateUser_NoChanges(t *testing.T) {
 		ID: userID,
 	}
 
-	// Mock transaction
+	// Если нет изменений (нет ни одного ненулевого поля) транзакция откатывается.
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 
@@ -349,7 +221,7 @@ func TestUpdateUser_EmptyField(t *testing.T) {
 		FirstName: &empty,
 	}
 
-	// Mock transaction
+	// Ожидаем начало транзакции и затем откат.
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 

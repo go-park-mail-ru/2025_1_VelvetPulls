@@ -3,10 +3,12 @@ package usecase
 import (
 	"context"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type IUserUsecase interface {
@@ -20,91 +22,101 @@ type UserUsecase struct {
 }
 
 func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
-	return &UserUsecase{
-		userRepo: userRepo,
+	return &UserUsecase{userRepo: userRepo}
+}
+
+func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *model.GetUserProfile {
+	return &model.GetUserProfile{
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Username:   user.Username,
+		Phone:      user.Phone,
+		Email:      user.Email,
+		AvatarPath: user.AvatarPath,
 	}
 }
 
 func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Fetching user profile")
+	logger.Info("GetUserProfileByID start", zap.String("userID", id.String()))
 
 	user, err := uc.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		logger.Error("Error fetching user profile")
+		logger.Error("GetUserByID failed", zap.Error(err))
 		return nil, err
 	}
-
-	profile := &model.GetUserProfile{
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		Username:   user.Username,
-		Phone:      user.Phone,
-		Email:      user.Email,
-		AvatarPath: user.AvatarPath,
-	}
-
+	profile := uc.fetchProfile(ctx, user)
+	metrics.IncBusinessOp("get_self_profile")
 	return profile, nil
 }
 
 func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Fetching user profile")
+	logger.Info("GetUserProfileByUsername start", zap.String("username", username))
 
 	user, err := uc.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
-		logger.Error("Error fetching user profile")
+		logger.Error("GetUserByUsername failed", zap.Error(err))
 		return nil, err
 	}
-
-	profile := &model.GetUserProfile{
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		Username:   user.Username,
-		Phone:      user.Phone,
-		Email:      user.Email,
-		AvatarPath: user.AvatarPath,
-	}
-
+	profile := uc.fetchProfile(ctx, user)
+	metrics.IncBusinessOp("get_profile")
 	return profile, nil
 }
 
-func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error {
+func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateUserProfile) error {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("Updating user profile")
-
-	if err := profile.Validate(); err != nil {
-		logger.Error("Validation failed")
-		return err
+	if req == nil {
+		logger.Error("UpdateUserProfile received nil request")
+		return repository.ErrEmptyField
 	}
 
-	if profile.Avatar != nil {
-		if !utils.IsImageFile(*profile.Avatar) {
+	logger.Info("UpdateUserProfile start", zap.String("userID", req.ID.String()))
+
+	if req.ID == uuid.Nil {
+		logger.Error("Invalid UUID")
+		return repository.ErrInvalidUUID
+	}
+
+	if err := req.Validate(); err != nil {
+		logger.Error("Validation failed", zap.Error(err))
+		return repository.ErrInvalidInput
+	}
+
+	if req.Avatar != nil {
+		if !utils.IsImageFile(*req.Avatar) {
 			logger.Error("Invalid avatar file type")
-			return utils.ErrNotImage
+			return repository.ErrInvalidInput
 		}
 	}
 
-	avatarNewURL, avatarOldURL, err := uc.userRepo.UpdateUser(ctx, profile)
+	newURL, oldURL, err := uc.userRepo.UpdateUser(ctx, req)
 	if err != nil {
-		logger.Error("Error updating user profile")
+		logger.Error("UpdateUser failed", zap.Error(err))
 		return err
 	}
 
-	// Если есть новый аватар, сохраняем его и удаляем старый
-	if avatarNewURL != "" && profile.Avatar != nil {
-		if err := utils.RewritePhoto(*profile.Avatar, avatarNewURL); err != nil {
-			logger.Error("Error rewriting photo")
-			return err
+	if req.Avatar != nil && newURL != "" {
+		if err := utils.RewritePhoto(*req.Avatar, newURL); err != nil {
+			logger.Error("RewritePhoto failed", zap.Error(err))
+			return repository.ErrDatabaseOperation
 		}
-		if avatarOldURL != "" {
-			go func() {
-				if err := utils.RemovePhoto(avatarOldURL); err != nil {
-					logger.Error("Error removing old avatar")
-				}
-			}()
-		}
+		uc.handleAvatarCleanup(oldURL)
 	}
 
+	logger.Info("UpdateUserProfile done", zap.String("userID", req.ID.String()))
+	metrics.IncBusinessOp("update_profile")
 	return nil
+}
+
+// --- Private Helpers ---
+
+func (uc *UserUsecase) handleAvatarCleanup(oldURL string) {
+	if oldURL != "" {
+		go func(url string) {
+			if err := utils.RemovePhoto(url); err != nil {
+				zap.L().Warn("Old avatar remove failed", zap.String("url", url), zap.Error(err))
+			}
+		}(oldURL)
+	}
 }

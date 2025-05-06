@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
@@ -9,24 +8,25 @@ import (
 	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type contactController struct {
-	sessionUsecase usecase.ISessionUsecase
+	sessionClient  authpb.SessionServiceClient
 	contactUsecase usecase.IContactUsecase
 }
 
-func NewContactController(r *mux.Router, contactUsecase usecase.IContactUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewContactController(r *mux.Router, contactUsecase usecase.IContactUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &contactController{
 		contactUsecase: contactUsecase,
-		sessionUsecase: sessionUsecase,
+		sessionClient:  sessionClient,
 	}
 
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetContacts))).Methods(http.MethodGet)
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.AddContact))).Methods(http.MethodPost)
-	r.Handle("/contacts", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.DeleteContact))).Methods(http.MethodDelete)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetContacts))).Methods(http.MethodGet)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddContact))).Methods(http.MethodPost)
+	r.Handle("/contacts", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteContact))).Methods(http.MethodDelete)
 }
 
 // GetContacts получает список контактов пользователя
@@ -40,21 +40,18 @@ func NewContactController(r *mux.Router, contactUsecase usecase.IContactUsecase,
 func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Fetching contacts")
+
+	logger.Info("GetContacts called", zap.String("userID", userID.String()))
 
 	contacts, err := c.contactUsecase.GetUserContacts(r.Context(), userID)
 	if err != nil {
 		logger.Error("Failed to get contacts", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, errToSend := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, contacts, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, contacts, true)
 }
 
 // AddContact добавляет новый контакт
@@ -71,29 +68,24 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Adding new contact")
+
+	logger.Info("AddContact called", zap.String("userID", userID.String()))
 
 	var contact model.RequestContact
-	if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
+	if err := utils.ParseJSONRequest(r, &contact); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
 
 	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username); err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, errToSend := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, "Contact added successfully", true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, "Contact added successfully", true)
 }
 
 // DeleteContact удаляет контакт пользователя
@@ -110,27 +102,22 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 func (c *contactController) DeleteContact(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Deleting contact")
+
+	logger.Info("DeleteContact called", zap.String("userID", userID.String()))
 
 	var contact model.RequestContact
-	if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
+	if err := utils.ParseJSONRequest(r, &contact); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
 
 	if err := c.contactUsecase.RemoveUserContact(r.Context(), userID, contact.Username); err != nil {
 		logger.Error("Failed to delete contact", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, errToSend := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, "Contact deleted successfully", true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, "Contact deleted successfully", true)
 }

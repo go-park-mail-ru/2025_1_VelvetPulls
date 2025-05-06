@@ -27,10 +27,16 @@ var Cors = struct {
 	AllowedMethods string
 	AllowedHeaders string
 }{
-	AllowedOrigin:  "http://90.156.217.108:80",
+	AllowedOrigin:  "http://localhost:8088",
 	AllowedMethods: "GET, POST, PUT, DELETE",
-	AllowedHeaders: "Content-Type, Authorization",
+	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token",
 }
+
+var (
+	NATSURL  = "nats://nats:4222"
+	NATSUser = ""
+	NATSPass = ""
+)
 
 var Postgre = struct {
 	User     string

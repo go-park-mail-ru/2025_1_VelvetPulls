@@ -2,6 +2,8 @@ DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TYPE chat_type AS ENUM ('dialog', 'group', 'channel');
 CREATE TYPE user_type AS ENUM ('owner', 'member');
@@ -12,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.user (
     avatar_path TEXT CHECK (avatar_path IS NULL OR (LENGTH(avatar_path) > 0 AND LENGTH(avatar_path) <= 255)),
     first_name TEXT CHECK (LENGTH(first_name) > 0 AND LENGTH(first_name) <= 50),
     last_name TEXT CHECK (LENGTH(last_name) > 0 AND LENGTH(last_name) <= 50),
-    username TEXT UNIQUE NOT NULL CHECK (LENGTH(username) >= 3 AND LENGTH(username) <= 30 AND username ~ '^[a-zA-Z0-9_]+$'),
+    username TEXT UNIQUE NOT NULL CHECK (LENGTH(username) >= 3 AND LENGTH(username) <= 30 AND username ~ '^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$'),
     phone TEXT UNIQUE NOT NULL CHECK (phone ~ '^[0-9]{10,15}$'),
     email TEXT UNIQUE CHECK (email IS NULL OR (LENGTH(email) <= 255 AND email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')),
     password TEXT NOT NULL CHECK (LENGTH(password) >= 8 AND LENGTH(password) <= 72),
@@ -90,3 +92,12 @@ CREATE TABLE IF NOT EXISTS public.message_payload (
     file_path TEXT NOT NULL CHECK (LENGTH(file_path) > 0 AND LENGTH(file_path) <= 255),
     FOREIGN KEY (message_id) REFERENCES public.message(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+DROP INDEX IF EXISTS idx_user_search_gin;
+DROP INDEX IF EXISTS idx_chat_title_gin;
+CREATE INDEX idx_user_username_trgm ON public.user USING gin (username gin_trgm_ops);
+CREATE INDEX idx_user_first_name_trgm ON public.user USING gin (first_name gin_trgm_ops);
+CREATE INDEX idx_user_last_name_trgm ON public.user USING gin (last_name gin_trgm_ops);
+
+CREATE INDEX idx_chat_title_trgm ON chat USING gin (title gin_trgm_ops);
+CREATE INDEX idx_message_body_trgm ON message USING gin (body gin_trgm_ops);

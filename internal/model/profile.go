@@ -10,27 +10,28 @@ import (
 )
 
 type GetUserProfile struct {
-	AvatarPath *string `json:"avatar_path"`
-	FirstName  *string `json:"first_name"`
-	LastName   *string `json:"last_name"`
+	AvatarPath *string `json:"avatar_path,omitempty"`
+	FirstName  *string `json:"first_name,omitempty"`
+	LastName   *string `json:"last_name,omitempty"`
 	Username   string  `json:"username"`
 	Phone      string  `json:"phone"`
-	Email      *string `json:"email"`
+	Email      *string `json:"email,omitempty"`
 }
 
 type UpdateUserProfile struct {
 	ID        uuid.UUID       `json:"id"`
 	Avatar    *multipart.File `json:"-" valid:"-"`
-	FirstName *string         `json:"first_name" valid:"optional,stringlength(1|50)"`
-	LastName  *string         `json:"last_name" valid:"optional,stringlength(1|50)"`
+	FirstName *string         `json:"first_name,omitempty" valid:"optional,stringlength(1|50)"`
+	LastName  *string         `json:"last_name,omitempty" valid:"optional,stringlength(1|50)"`
 	Username  *string         `json:"username" valid:"optional,alphanum,length(3|20)"`
 	Phone     *string         `json:"phone" valid:"optional"`
-	Email     *string         `json:"email" valid:"optional,email"`
+	Email     *string         `json:"email,omitempty" valid:"optional,email"`
+	Password  string          `json:"password,omitempty" valid:"optional,stringlength(8|100)"`
 }
 
 func (up *UpdateUserProfile) Validate() error {
 	if up.FirstName == nil && up.LastName == nil && up.Username == nil &&
-		up.Phone == nil && up.Email == nil && up.Avatar == nil {
+		up.Phone == nil && up.Email == nil && up.Avatar == nil && up.Password == "" {
 		return errors.Join(ErrValidation, errors.New("at least one field must be provided for update"))
 	}
 

@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/pkg/authpb";
+
+import "google/protobuf/empty.proto";
+
+service AuthService {
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  rpc LogoutUser(LogoutUserRequest) returns (google.protobuf.Empty);
+}
+
+service SessionService {
+  rpc CheckLogin(CheckLoginRequest) returns (CheckLoginResponse);
+}
+
+message RegisterUserRequest {
+  string username        = 1;
+  string password        = 2;
+  string confirm_password = 3;
+  string phone           = 4;
+}
+
+message RegisterUserResponse {
+  string session_id = 1;
+}
+
+message LoginUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginUserResponse {
+  string session_id = 1;
+}
+
+message LogoutUserRequest {
+  string session_id = 1;
+}
+
+message CheckLoginRequest {
+  string session_id = 1;
+}
+
+message CheckLoginResponse {
+  string user_id = 1;
+}

@@ -10,15 +10,13 @@ import (
 	"testing"
 	"time"
 
+	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/delivery/mock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-
-	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/delivery/mock"
-
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	"go.uber.org/mock/gomock"
 	"go.uber.org/zap"
 )

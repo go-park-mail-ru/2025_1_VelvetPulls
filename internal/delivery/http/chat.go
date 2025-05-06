@@ -10,29 +10,31 @@ import (
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type chatController struct {
-	sessionUsecase usecase.ISessionUsecase
-	chatUsecase    usecase.IChatUsecase
+	sessionClient authpb.SessionServiceClient
+	chatUsecase   usecase.IChatUsecase
 }
 
-func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionUsecase usecase.ISessionUsecase) {
+func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionClient authpb.SessionServiceClient) {
 	controller := &chatController{
-		chatUsecase:    chatUsecase,
-		sessionUsecase: sessionUsecase,
+		chatUsecase:   chatUsecase,
+		sessionClient: sessionClient,
 	}
 
-	r.Handle("/chats", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetChats))).Methods(http.MethodGet)
-	r.Handle("/chat", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.CreateChat))).Methods(http.MethodPost)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.GetChat))).Methods(http.MethodGet)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
-	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
-	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
-	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionUsecase)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
+	r.Handle("/chats", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetChats))).Methods(http.MethodGet)
+	r.Handle("/chat", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.CreateChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetChat))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
+	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
+	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
+	r.Handle("/chat/{chat_id}/leave", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.LeaveChat))).Methods(http.MethodPost)
 }
 
 // GetChats возвращает список чатов пользователя
@@ -47,21 +49,17 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionU
 func (c *chatController) GetChats(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Fetching user chats")
+	logger.Info("GetChats", zap.String("userID", userID.String()))
 
 	chats, err := c.chatUsecase.GetChats(r.Context(), userID)
 	if err != nil {
 		logger.Error("Failed to get user chats", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, chats, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, chats, true)
 }
 
 // CreateChat создает новый чат
@@ -78,26 +76,20 @@ func (c *chatController) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Router /chat [post]
 func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	ctx := r.Context()
-	userID := utils.GetUserIDFromCtx(ctx)
-	logger.Info("Creating new chat")
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("CreateChat", zap.String("userID", userID.String()))
 
 	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
 		logger.Error("Failed to parse multipart form", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Request too large or malformed", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
 		return
 	}
 
-	var requestData model.CreateChatRequest
-	jsonString := r.FormValue("chat_data")
-	if jsonString != "" {
-		if err := json.Unmarshal([]byte(jsonString), &requestData); err != nil {
+	var req model.CreateChatRequest
+	if data := r.FormValue("chat_data"); data != "" {
+		if err := json.Unmarshal([]byte(data), &req); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
-			if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat data format", false); sendErr != nil {
-				logger.Error("Failed to send error response", zap.Error(sendErr))
-			}
+			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
 			return
 		}
 	}
@@ -105,43 +97,33 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 	avatar, _, err := r.FormFile("avatar")
 	if err != nil && err != http.ErrMissingFile {
 		logger.Error("Invalid avatar file", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid avatar file", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid avatar file", false)
 		return
 	}
 	defer func() {
 		if avatar != nil {
-			if err := avatar.Close(); err != nil {
-				logger.Error("Failed to close avatar file", zap.Error(err))
-			}
+			_ = avatar.Close()
 		}
 	}()
 
 	chatData := model.CreateChat{
-		Type:       requestData.Type,
-		Title:      requestData.Title,
-		DialogUser: requestData.DialogUser,
-		Avatar:     nil,
+		Type:       req.Type,
+		Title:      req.Title,
+		DialogUser: req.DialogUser,
 	}
-
 	if avatar != nil {
 		chatData.Avatar = &avatar
 	}
 
-	chatInfo, err := c.chatUsecase.CreateChat(ctx, userID, &chatData)
+	chatInfo, err := c.chatUsecase.CreateChat(r.Context(), userID, &chatData)
 	if err != nil {
 		logger.Error("Failed to create chat", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusCreated, chatInfo, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusCreated, chatInfo, true)
 }
 
 // GetChat возвращает информацию о чате
@@ -158,32 +140,25 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 // @Router /chat/{chat_id} [get]
 func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
-	if err != nil {
-		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Fetching chat info", zap.String("chatID", chatID.String()))
+	logger.Info("GetChat", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
 	chatInfo, err := c.chatUsecase.GetChatInfo(r.Context(), userID, chatID)
 	if err != nil {
 		logger.Error("Failed to get chat info", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, chatInfo, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
 }
 
 // UpdateChat обновляет информацию о чате
@@ -202,38 +177,28 @@ func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 // @Router /chat/{chat_id} [put]
 func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
-	if err != nil {
-		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
-	userID := utils.GetUserIDFromCtx(ctx)
-	logger.Info("Updating chat", zap.String("chatID", chatID.String()))
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("UpdateChat", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
 	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
 		logger.Error("Failed to parse multipart form", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Request too large or malformed", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
 		return
 	}
 
-	var chatData model.UpdateChat
-	chatData.ID = chatID
-
-	jsonString := r.FormValue("chat_data")
-	if jsonString != "" {
-		if err := json.Unmarshal([]byte(jsonString), &chatData); err != nil {
+	var payload model.UpdateChat
+	payload.ID = chatID
+	if data := r.FormValue("chat_data"); data != "" {
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
-			if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat data format", false); sendErr != nil {
-				logger.Error("Failed to send error response", zap.Error(sendErr))
-			}
+			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
 			return
 		}
 	}
@@ -241,36 +206,23 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	avatar, _, err := r.FormFile("avatar")
 	if err != nil && err != http.ErrMissingFile {
 		logger.Error("Invalid avatar file", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid avatar file", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid avatar file", false)
 		return
 	}
-	defer func() {
-		if avatar != nil {
-			if err := avatar.Close(); err != nil {
-				logger.Error("Failed to close avatar file", zap.Error(err))
-			}
-		}
-	}()
-
 	if avatar != nil {
-		chatData.Avatar = &avatar
+		defer avatar.Close()
+		payload.Avatar = &avatar
 	}
 
-	chatInfo, err := c.chatUsecase.UpdateChat(ctx, userID, &chatData)
+	chatInfo, err := c.chatUsecase.UpdateChat(r.Context(), userID, &payload)
 	if err != nil {
 		logger.Error("Failed to update chat", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, chatInfo, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
 }
 
 // DeleteChat удаляет чат
@@ -285,25 +237,20 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 // @Router /chat/{chat_id} [delete]
 func (c *chatController) DeleteChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
-	if err != nil {
-		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Deleting chat", zap.String("chatID", chatID.String()))
+	logger.Info("DeleteChat", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
 	if err := c.chatUsecase.DeleteChat(r.Context(), userID, chatID); err != nil {
 		logger.Error("Failed to delete chat", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
@@ -325,43 +272,32 @@ func (c *chatController) DeleteChat(w http.ResponseWriter, r *http.Request) {
 // @Router /chat/{chat_id}/users [post]
 func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
-	if err != nil {
-		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
 	var usernames []string
 	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Adding users to chat",
-		zap.String("chatID", chatID.String()),
-		zap.Any("usernames", usernames))
+	logger.Info("AddUsersToChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 
 	result, err := c.chatUsecase.AddUsersIntoChat(r.Context(), userID, usernames, chatID)
 	if err != nil {
 		logger.Error("Failed to add users to chat", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, result, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
-	}
+	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
 }
 
 // RemoveUsersFromChat удаляет пользователей из чата
@@ -379,41 +315,64 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 // @Router /chat/{chat_id}/users [delete]
 func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
-	if err != nil {
-		logger.Error("Invalid chat ID format", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid chat ID", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
 		return
 	}
 
 	var usernames []string
 	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
-		if sendErr := utils.SendJSONResponse(w, http.StatusBadRequest, "Invalid request body", false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("Removing users from chat",
-		zap.String("chatID", chatID.String()),
-		zap.Any("usernames", usernames))
+	logger.Info("RemoveUsersFromChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 
 	result, err := c.chatUsecase.DeleteUserFromChat(r.Context(), userID, usernames, chatID)
 	if err != nil {
 		logger.Error("Failed to remove users from chat", zap.Error(err))
-		code, err := apperrors.GetErrAndCodeToSend(err)
-		if sendErr := utils.SendJSONResponse(w, code, err, false); sendErr != nil {
-			logger.Error("Failed to send error response", zap.Error(sendErr))
-		}
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
 
-	if sendErr := utils.SendJSONResponse(w, http.StatusOK, result, true); sendErr != nil {
-		logger.Error("Failed to send success response", zap.Error(sendErr))
+	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+}
+
+// LeaveChat позволяет текущему пользователю выйти из чата
+// @Summary Выйти из чата
+// @Description Удаляет текущего пользователя из участников чата (если он не владелец)
+// @Tags Chat
+// @Produce json
+// @Param chat_id path string true "ID чата"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/leave [post]
+func (c *chatController) LeaveChat(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
+	chatID, err := uuid.Parse(mux.Vars(r)["chat_id"])
+	if err != nil {
+		logger.Error("Invalid chat ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
 	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("LeaveChat", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+
+	if err := c.chatUsecase.LeaveChat(r.Context(), userID, chatID); err != nil {
+		logger.Error("Failed to leave chat", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "left chat successfully", true)
 }

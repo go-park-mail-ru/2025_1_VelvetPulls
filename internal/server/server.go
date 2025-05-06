@@ -6,15 +6,20 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	websocketDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
+	searchpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/proto"
 	"github.com/gorilla/mux"
-	"github.com/redis/go-redis/v9"
+	"github.com/nats-io/nats.go"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"google.golang.org/grpc"
 )
 
 func setupLogger() (*os.File, error) {
@@ -33,12 +38,14 @@ type IServer interface {
 }
 
 type Server struct {
-	dbConn      *sql.DB
-	redisClient *redis.Client
+	dbConn     *sql.DB
+	authConn   *grpc.ClientConn
+	searchConn *grpc.ClientConn
+	nc         *nats.Conn
 }
 
-func NewServer(dbConn *sql.DB, redisClient *redis.Client) IServer {
-	return &Server{dbConn: dbConn, redisClient: redisClient}
+func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, authConn: authConn, searchConn: searchConn, nc: nc}
 }
 
 func (s *Server) Run(address string) error {
@@ -48,40 +55,43 @@ func (s *Server) Run(address string) error {
 	}
 	defer logFile.Close()
 
+	// ===== Microservice usecase =====
+	authClient := generatedAuth.NewAuthServiceClient(s.authConn)
+	sessionClient := generatedAuth.NewSessionServiceClient(s.authConn)
+	searchClient := searchpb.NewChatServiceClient(s.searchConn)
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
+	mainRouter.Handle("/metrics", promhttp.Handler())
+
 	mainRouter.Use(middleware.RequestIDMiddleware)
 	mainRouter.Use(middleware.AccessLogMiddleware)
+	mainRouter.Use(metrics.TimingHistogramMiddleware) // Замер времени выполнения
+	mainRouter.Use(metrics.HitCounterMiddleware)      // Счетчик запросов
+	mainRouter.Use(metrics.ErrorCounterMiddleware)    // Счетчик ошибок
 
 	// ===== API Subrouter =====
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
-	sessionRepo := repository.NewSessionRepo(s.redisClient)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo)
-	websocketUsecase := usecase.NewWebsocketUsecase(chatRepo)
-	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, websocketUsecase)
-	chatUsecase := usecase.NewChatUsecase(chatRepo)
-	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, s.nc)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, s.nc)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controllers
-	httpDelivery.NewAuthController(apiRouter, authUsecase)
-	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionUsecase)
-	httpDelivery.NewUserController(apiRouter, userUsecase, sessionUsecase)
-	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionUsecase)
-	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionUsecase)
-
-	// ===== WebSocket =====
-	websocketDelivery.NewWebsocketController(mainRouter, sessionUsecase, websocketUsecase)
+	httpDelivery.NewAuthController(apiRouter, authClient, sessionClient)
+	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionClient)
+	httpDelivery.NewUserController(apiRouter, userUsecase, sessionClient)
+	httpDelivery.NewMessageController(apiRouter, messageUsecase, sessionClient)
+	httpDelivery.NewContactController(apiRouter, contactUsecase, sessionClient)
+	httpDelivery.NewSearchController(apiRouter, searchClient, sessionClient)
 
 	// ===== Uploads =====
 	uploadsRouter := mainRouter.PathPrefix("/uploads").Subrouter()
@@ -90,11 +100,7 @@ func (s *Server) Run(address string) error {
 	// Swagger
 	apiRouter.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler).Methods(http.MethodGet)
 
-	// CSRF
-	apiRouter.HandleFunc("/csrf", httpDelivery.GetCSRFTokenHandler).Methods(http.MethodGet)
-
 	handler := middleware.CorsMiddleware(mainRouter)
-	// handler = middleware.CSRFMiddleware(config.CSRF.IsProduction, []byte(config.CSRF.CsrfAuthKey))(handler)
 
 	// Server with CORS applied globally
 	httpServer := &http.Server{
