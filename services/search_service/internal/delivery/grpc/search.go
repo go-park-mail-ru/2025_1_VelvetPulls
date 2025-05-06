@@ -40,46 +40,35 @@ func (h *ChatHandler) SearchUserChats(
 	ctx context.Context,
 	req *search.SearchUserChatsRequest,
 ) (*search.SearchUserChatsResponse, error) {
-	const method = "SearchUserChats"
-	logger := utils.GetLoggerFromCtx(ctx)
-	chats, err := h.chatUC.SearchUserChats(ctx, req.GetUserId(), req.GetQuery(), req.GetTypes())
+	chatsGrouped, err := h.chatUC.SearchUserChats(ctx, req.UserId, req.Query)
 	if err != nil {
-		logger.Error(method, zap.Error(err))
-		if errors.Is(err, model.ErrValidation) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil, status.Error(codes.Internal, "internal server error")
+		return nil, status.Error(codes.Internal, "search failed")
 	}
 
 	resp := &search.SearchUserChatsResponse{
-		Chats: make([]*search.Chat, 0, len(chats)),
+		Dialogs:  make([]*search.Chat, 0),
+		Groups:   make([]*search.Chat, 0),
+		Channels: make([]*search.Chat, 0),
 	}
 
-	for _, c := range chats {
-		chatPB := &search.Chat{
-			Id:        c.ID.String(),
-			Type:      c.Type,
-			Title:     c.Title,
-			CreatedAt: c.CreatedAt,
-			UpdatedAt: c.UpdatedAt,
+	if dialogs, ok := chatsGrouped["dialogs"]; ok {
+		for _, c := range dialogs {
+			resp.Dialogs = append(resp.Dialogs, convertChatToPB(c))
 		}
-
-		if c.AvatarPath != nil {
-			chatPB.AvatarPath = *c.AvatarPath
-		}
-
-		if c.LastMessage != nil {
-			chatPB.LastMessage = &search.LastMessage{
-				Id:       c.LastMessage.ID.String(),
-				UserId:   c.LastMessage.UserID.String(),
-				Body:     c.LastMessage.Body,
-				SentAt:   c.LastMessage.SentAt.Format(time.RFC3339),
-				Username: c.LastMessage.Username,
-			}
-		}
-
-		resp.Chats = append(resp.Chats, chatPB)
 	}
+
+	if groups, ok := chatsGrouped["groups"]; ok {
+		for _, c := range groups {
+			resp.Groups = append(resp.Groups, convertChatToPB(c))
+		}
+	}
+
+	if channels, ok := chatsGrouped["channels"]; ok {
+		for _, c := range channels {
+			resp.Channels = append(resp.Channels, convertChatToPB(c))
+		}
+	}
+
 	return resp, nil
 }
 
@@ -205,4 +194,79 @@ func (h *ChatHandler) SearchMessages(
 		resp.Messages = append(resp.Messages, msgPB)
 	}
 	return resp, nil
+}
+
+func convertChatToPB(chat model.Chat) *search.Chat {
+	pbChat := &search.Chat{
+		Id:           chat.ID.String(),
+		Title:        chat.Title,
+		Type:         mapChatTypeToProto(chat.Type),
+		AvatarPath:   getStringPointer(chat.AvatarPath),
+		CreatedAt:    chat.CreatedAt,
+		UpdatedAt:    chat.UpdatedAt,
+		Participants: convertParticipantsToPB(chat.Participants),
+		LastMessage:  convertLastMessageToPB(chat.LastMessage),
+	}
+	return pbChat
+}
+
+// Вспомогательные функции
+
+func mapChatTypeToProto(chatType string) search.ChatType {
+	switch chatType {
+	case "dialog":
+		return search.ChatType_DIALOG
+	case "group":
+		return search.ChatType_GROUP
+	case "channel":
+		return search.ChatType_CHANNEL
+	default:
+		return search.ChatType_DIALOG
+	}
+}
+
+func mapUserRoleToProto(role string) search.UserRole {
+	switch role {
+	case "owner":
+		return search.UserRole_OWNER
+	default:
+		return search.UserRole_MEMBER
+	}
+}
+
+func formatTime(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
+func getStringPointer(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func convertParticipantsToPB(participants []model.UserInChat) []*search.UserInChat {
+	pbParticipants := make([]*search.UserInChat, 0, len(participants))
+	for _, p := range participants {
+		pbParticipants = append(pbParticipants, &search.UserInChat{
+			Id:         p.ID.String(),
+			Username:   p.Username,
+			AvatarPath: getStringPointer(p.AvatarPath),
+		})
+	}
+	return pbParticipants
+}
+
+func convertLastMessageToPB(msg *model.LastMessage) *search.LastMessage {
+	if msg == nil {
+		return nil
+	}
+
+	return &search.LastMessage{
+		Id:       msg.ID.String(),
+		UserId:   msg.UserID.String(),
+		Username: msg.Username,
+		Body:     msg.Body,
+		SentAt:   msg.SentAt.Format(time.RFC3339),
+	}
 }

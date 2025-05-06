@@ -29,13 +29,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatServiceClient interface {
-	// Чат
 	SearchUserChats(ctx context.Context, in *SearchUserChatsRequest, opts ...grpc.CallOption) (*SearchUserChatsResponse, error)
-	// Контакты
 	SearchContacts(ctx context.Context, in *SearchContactsRequest, opts ...grpc.CallOption) (*SearchContactsResponse, error)
-	// Пользователи
 	SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error)
-	// Сообщения
 	SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*SearchMessagesResponse, error)
 }
 
@@ -91,13 +87,9 @@ func (c *chatServiceClient) SearchMessages(ctx context.Context, in *SearchMessag
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility.
 type ChatServiceServer interface {
-	// Чат
 	SearchUserChats(context.Context, *SearchUserChatsRequest) (*SearchUserChatsResponse, error)
-	// Контакты
 	SearchContacts(context.Context, *SearchContactsRequest) (*SearchContactsResponse, error)
-	// Пользователи
 	SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error)
-	// Сообщения
 	SearchMessages(context.Context, *SearchMessagesRequest) (*SearchMessagesResponse, error)
 	mustEmbedUnimplementedChatServiceServer()
 }

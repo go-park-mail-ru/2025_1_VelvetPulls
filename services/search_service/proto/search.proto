@@ -4,19 +4,10 @@ package search;
 
 option go_package = "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto;search";
 
-import "google/protobuf/empty.proto";
-
 service ChatService {
-  // Чат
   rpc SearchUserChats(SearchUserChatsRequest) returns (SearchUserChatsResponse);
-  
-  // Контакты
   rpc SearchContacts(SearchContactsRequest) returns (SearchContactsResponse);
-  
-  // Пользователи
   rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
-  
-  // Сообщения
   rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
 }
 
@@ -36,23 +27,30 @@ enum UserRole {
 message SearchUserChatsRequest {
   string user_id = 1;    // UUID пользователя
   string query = 2;      // Поисковая строка
-  repeated string types = 3; // Фильтр по типам чатов
 }
 
 message SearchUserChatsResponse {
-  repeated Chat chats = 1;
+  repeated Chat dialogs = 1;
+  repeated Chat groups = 2;
+  repeated Chat channels = 3;
 }
 
 message Chat {
   string id = 1;
   string title = 2;
-  string type = 3;
+  ChatType type = 3;
   string avatar_path = 4;
   UserRole user_role = 5;
-  int32 members_count = 6;
+  repeated UserInChat participants = 6;
   string created_at = 7;
   string updated_at = 8;
   LastMessage last_message = 9;
+}
+
+message UserInChat {
+  string id = 1;
+  string username = 2;
+  string avatar_path = 3;
 }
 
 message LastMessage {
@@ -65,8 +63,8 @@ message LastMessage {
 
 // ================== Контакты ==================
 message SearchContactsRequest {
-  string user_id = 1;  // UUID текущего пользователя
-  string query = 2;    // Поисковая строка
+  string user_id = 1;
+  string query = 2;
 }
 
 message SearchContactsResponse {
@@ -83,7 +81,7 @@ message Contact {
 
 // ================== Пользователи ==================
 message SearchUsersRequest {
-  string query = 1;  // Поиск по username/имени
+  string query = 1;
 }
 
 message SearchUsersResponse {
@@ -100,15 +98,15 @@ message User {
 
 // ================== Сообщения ==================
 message SearchMessagesRequest {
-  string chat_id = 1;  // UUID чата
-  string query = 2;    // Поисковая строка
-  int32 limit = 3;     // Пагинация
+  string chat_id = 1;
+  string query = 2;
+  int32 limit = 3;
   int32 offset = 4;
 }
 
 message SearchMessagesResponse {
   repeated Message messages = 1;
-  int32 total = 2;     // Общее количество найденных
+  int32 total = 2;
 }
 
 message Message {

@@ -9,7 +9,6 @@ package search
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -123,7 +122,6 @@ type SearchUserChatsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // UUID пользователя
 	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`                 // Поисковая строка
-	Types         []string               `protobuf:"bytes,3,rep,name=types,proto3" json:"types,omitempty"`                 // Фильтр по типам чатов
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,16 +170,11 @@ func (x *SearchUserChatsRequest) GetQuery() string {
 	return ""
 }
 
-func (x *SearchUserChatsRequest) GetTypes() []string {
-	if x != nil {
-		return x.Types
-	}
-	return nil
-}
-
 type SearchUserChatsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Chats         []*Chat                `protobuf:"bytes,1,rep,name=chats,proto3" json:"chats,omitempty"`
+	Dialogs       []*Chat                `protobuf:"bytes,1,rep,name=dialogs,proto3" json:"dialogs,omitempty"`
+	Groups        []*Chat                `protobuf:"bytes,2,rep,name=groups,proto3" json:"groups,omitempty"`
+	Channels      []*Chat                `protobuf:"bytes,3,rep,name=channels,proto3" json:"channels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,9 +209,23 @@ func (*SearchUserChatsResponse) Descriptor() ([]byte, []int) {
 	return file_search_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SearchUserChatsResponse) GetChats() []*Chat {
+func (x *SearchUserChatsResponse) GetDialogs() []*Chat {
 	if x != nil {
-		return x.Chats
+		return x.Dialogs
+	}
+	return nil
+}
+
+func (x *SearchUserChatsResponse) GetGroups() []*Chat {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *SearchUserChatsResponse) GetChannels() []*Chat {
+	if x != nil {
+		return x.Channels
 	}
 	return nil
 }
@@ -227,10 +234,10 @@ type Chat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Type          ChatType               `protobuf:"varint,3,opt,name=type,proto3,enum=search.ChatType" json:"type,omitempty"`
 	AvatarPath    string                 `protobuf:"bytes,4,opt,name=avatar_path,json=avatarPath,proto3" json:"avatar_path,omitempty"`
 	UserRole      UserRole               `protobuf:"varint,5,opt,name=user_role,json=userRole,proto3,enum=search.UserRole" json:"user_role,omitempty"`
-	MembersCount  int32                  `protobuf:"varint,6,opt,name=members_count,json=membersCount,proto3" json:"members_count,omitempty"`
+	Participants  []*UserInChat          `protobuf:"bytes,6,rep,name=participants,proto3" json:"participants,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	LastMessage   *LastMessage           `protobuf:"bytes,9,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
@@ -282,11 +289,11 @@ func (x *Chat) GetTitle() string {
 	return ""
 }
 
-func (x *Chat) GetType() string {
+func (x *Chat) GetType() ChatType {
 	if x != nil {
 		return x.Type
 	}
-	return ""
+	return ChatType_DIALOG
 }
 
 func (x *Chat) GetAvatarPath() string {
@@ -303,11 +310,11 @@ func (x *Chat) GetUserRole() UserRole {
 	return UserRole_OWNER
 }
 
-func (x *Chat) GetMembersCount() int32 {
+func (x *Chat) GetParticipants() []*UserInChat {
 	if x != nil {
-		return x.MembersCount
+		return x.Participants
 	}
-	return 0
+	return nil
 }
 
 func (x *Chat) GetCreatedAt() string {
@@ -331,6 +338,66 @@ func (x *Chat) GetLastMessage() *LastMessage {
 	return nil
 }
 
+type UserInChat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	AvatarPath    string                 `protobuf:"bytes,3,opt,name=avatar_path,json=avatarPath,proto3" json:"avatar_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserInChat) Reset() {
+	*x = UserInChat{}
+	mi := &file_search_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserInChat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserInChat) ProtoMessage() {}
+
+func (x *UserInChat) ProtoReflect() protoreflect.Message {
+	mi := &file_search_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserInChat.ProtoReflect.Descriptor instead.
+func (*UserInChat) Descriptor() ([]byte, []int) {
+	return file_search_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UserInChat) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UserInChat) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *UserInChat) GetAvatarPath() string {
+	if x != nil {
+		return x.AvatarPath
+	}
+	return ""
+}
+
 type LastMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -344,7 +411,7 @@ type LastMessage struct {
 
 func (x *LastMessage) Reset() {
 	*x = LastMessage{}
-	mi := &file_search_proto_msgTypes[3]
+	mi := &file_search_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +423,7 @@ func (x *LastMessage) String() string {
 func (*LastMessage) ProtoMessage() {}
 
 func (x *LastMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[3]
+	mi := &file_search_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +436,7 @@ func (x *LastMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LastMessage.ProtoReflect.Descriptor instead.
 func (*LastMessage) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{3}
+	return file_search_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LastMessage) GetId() string {
@@ -410,15 +477,15 @@ func (x *LastMessage) GetSentAt() string {
 // ================== Контакты ==================
 type SearchContactsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // UUID текущего пользователя
-	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`                 // Поисковая строка
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchContactsRequest) Reset() {
 	*x = SearchContactsRequest{}
-	mi := &file_search_proto_msgTypes[4]
+	mi := &file_search_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +497,7 @@ func (x *SearchContactsRequest) String() string {
 func (*SearchContactsRequest) ProtoMessage() {}
 
 func (x *SearchContactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[4]
+	mi := &file_search_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +510,7 @@ func (x *SearchContactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchContactsRequest.ProtoReflect.Descriptor instead.
 func (*SearchContactsRequest) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{4}
+	return file_search_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SearchContactsRequest) GetUserId() string {
@@ -469,7 +536,7 @@ type SearchContactsResponse struct {
 
 func (x *SearchContactsResponse) Reset() {
 	*x = SearchContactsResponse{}
-	mi := &file_search_proto_msgTypes[5]
+	mi := &file_search_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +548,7 @@ func (x *SearchContactsResponse) String() string {
 func (*SearchContactsResponse) ProtoMessage() {}
 
 func (x *SearchContactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[5]
+	mi := &file_search_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +561,7 @@ func (x *SearchContactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchContactsResponse.ProtoReflect.Descriptor instead.
 func (*SearchContactsResponse) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{5}
+	return file_search_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SearchContactsResponse) GetContacts() []*Contact {
@@ -517,7 +584,7 @@ type Contact struct {
 
 func (x *Contact) Reset() {
 	*x = Contact{}
-	mi := &file_search_proto_msgTypes[6]
+	mi := &file_search_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +596,7 @@ func (x *Contact) String() string {
 func (*Contact) ProtoMessage() {}
 
 func (x *Contact) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[6]
+	mi := &file_search_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +609,7 @@ func (x *Contact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Contact.ProtoReflect.Descriptor instead.
 func (*Contact) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{6}
+	return file_search_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Contact) GetId() string {
@@ -583,14 +650,14 @@ func (x *Contact) GetAvatarPath() string {
 // ================== Пользователи ==================
 type SearchUsersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"` // Поиск по username/имени
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchUsersRequest) Reset() {
 	*x = SearchUsersRequest{}
-	mi := &file_search_proto_msgTypes[7]
+	mi := &file_search_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +669,7 @@ func (x *SearchUsersRequest) String() string {
 func (*SearchUsersRequest) ProtoMessage() {}
 
 func (x *SearchUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[7]
+	mi := &file_search_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +682,7 @@ func (x *SearchUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchUsersRequest.ProtoReflect.Descriptor instead.
 func (*SearchUsersRequest) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{7}
+	return file_search_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SearchUsersRequest) GetQuery() string {
@@ -634,7 +701,7 @@ type SearchUsersResponse struct {
 
 func (x *SearchUsersResponse) Reset() {
 	*x = SearchUsersResponse{}
-	mi := &file_search_proto_msgTypes[8]
+	mi := &file_search_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +713,7 @@ func (x *SearchUsersResponse) String() string {
 func (*SearchUsersResponse) ProtoMessage() {}
 
 func (x *SearchUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[8]
+	mi := &file_search_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +726,7 @@ func (x *SearchUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchUsersResponse.ProtoReflect.Descriptor instead.
 func (*SearchUsersResponse) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{8}
+	return file_search_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SearchUsersResponse) GetUsers() []*User {
@@ -682,7 +749,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_search_proto_msgTypes[9]
+	mi := &file_search_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +761,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[9]
+	mi := &file_search_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +774,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{9}
+	return file_search_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *User) GetId() string {
@@ -748,9 +815,9 @@ func (x *User) GetAvatarPath() string {
 // ================== Сообщения ==================
 type SearchMessagesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ChatId        string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"` // UUID чата
-	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`                 // Поисковая строка
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`                // Пагинация
+	ChatId        string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset        int32                  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -758,7 +825,7 @@ type SearchMessagesRequest struct {
 
 func (x *SearchMessagesRequest) Reset() {
 	*x = SearchMessagesRequest{}
-	mi := &file_search_proto_msgTypes[10]
+	mi := &file_search_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -770,7 +837,7 @@ func (x *SearchMessagesRequest) String() string {
 func (*SearchMessagesRequest) ProtoMessage() {}
 
 func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[10]
+	mi := &file_search_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -783,7 +850,7 @@ func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SearchMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{10}
+	return file_search_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SearchMessagesRequest) GetChatId() string {
@@ -817,14 +884,14 @@ func (x *SearchMessagesRequest) GetOffset() int32 {
 type SearchMessagesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"` // Общее количество найденных
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchMessagesResponse) Reset() {
 	*x = SearchMessagesResponse{}
-	mi := &file_search_proto_msgTypes[11]
+	mi := &file_search_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -836,7 +903,7 @@ func (x *SearchMessagesResponse) String() string {
 func (*SearchMessagesResponse) ProtoMessage() {}
 
 func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[11]
+	mi := &file_search_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -849,7 +916,7 @@ func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesResponse.ProtoReflect.Descriptor instead.
 func (*SearchMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{11}
+	return file_search_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SearchMessagesResponse) GetMessages() []*Message {
@@ -880,7 +947,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_search_proto_msgTypes[12]
+	mi := &file_search_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +959,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_search_proto_msgTypes[12]
+	mi := &file_search_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +972,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_search_proto_rawDescGZIP(), []int{12}
+	return file_search_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Message) GetId() string {
@@ -954,26 +1021,33 @@ var File_search_proto protoreflect.FileDescriptor
 
 const file_search_proto_rawDesc = "" +
 	"\n" +
-	"\fsearch.proto\x12\x06search\x1a\x1bgoogle/protobuf/empty.proto\"]\n" +
+	"\fsearch.proto\x12\x06search\"G\n" +
 	"\x16SearchUserChatsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +
-	"\x05types\x18\x03 \x03(\tR\x05types\"=\n" +
-	"\x17SearchUserChatsResponse\x12\"\n" +
-	"\x05chats\x18\x01 \x03(\v2\f.search.ChatR\x05chats\"\xab\x02\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\"\x91\x01\n" +
+	"\x17SearchUserChatsResponse\x12&\n" +
+	"\adialogs\x18\x01 \x03(\v2\f.search.ChatR\adialogs\x12$\n" +
+	"\x06groups\x18\x02 \x03(\v2\f.search.ChatR\x06groups\x12(\n" +
+	"\bchannels\x18\x03 \x03(\v2\f.search.ChatR\bchannels\"\xd0\x02\n" +
 	"\x04Chat\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1f\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x10.search.ChatTypeR\x04type\x12\x1f\n" +
 	"\vavatar_path\x18\x04 \x01(\tR\n" +
 	"avatarPath\x12-\n" +
-	"\tuser_role\x18\x05 \x01(\x0e2\x10.search.UserRoleR\buserRole\x12#\n" +
-	"\rmembers_count\x18\x06 \x01(\x05R\fmembersCount\x12\x1d\n" +
+	"\tuser_role\x18\x05 \x01(\x0e2\x10.search.UserRoleR\buserRole\x126\n" +
+	"\fparticipants\x18\x06 \x03(\v2\x12.search.UserInChatR\fparticipants\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\tR\tupdatedAt\x126\n" +
-	"\flast_message\x18\t \x01(\v2\x13.search.LastMessageR\vlastMessage\"\x7f\n" +
+	"\flast_message\x18\t \x01(\v2\x13.search.LastMessageR\vlastMessage\"Y\n" +
+	"\n" +
+	"UserInChat\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x1f\n" +
+	"\vavatar_path\x18\x03 \x01(\tR\n" +
+	"avatarPath\"\x7f\n" +
 	"\vLastMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1a\n" +
@@ -1049,44 +1123,49 @@ func file_search_proto_rawDescGZIP() []byte {
 }
 
 var file_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_search_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_search_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_search_proto_goTypes = []any{
 	(ChatType)(0),                   // 0: search.ChatType
 	(UserRole)(0),                   // 1: search.UserRole
 	(*SearchUserChatsRequest)(nil),  // 2: search.SearchUserChatsRequest
 	(*SearchUserChatsResponse)(nil), // 3: search.SearchUserChatsResponse
 	(*Chat)(nil),                    // 4: search.Chat
-	(*LastMessage)(nil),             // 5: search.LastMessage
-	(*SearchContactsRequest)(nil),   // 6: search.SearchContactsRequest
-	(*SearchContactsResponse)(nil),  // 7: search.SearchContactsResponse
-	(*Contact)(nil),                 // 8: search.Contact
-	(*SearchUsersRequest)(nil),      // 9: search.SearchUsersRequest
-	(*SearchUsersResponse)(nil),     // 10: search.SearchUsersResponse
-	(*User)(nil),                    // 11: search.User
-	(*SearchMessagesRequest)(nil),   // 12: search.SearchMessagesRequest
-	(*SearchMessagesResponse)(nil),  // 13: search.SearchMessagesResponse
-	(*Message)(nil),                 // 14: search.Message
+	(*UserInChat)(nil),              // 5: search.UserInChat
+	(*LastMessage)(nil),             // 6: search.LastMessage
+	(*SearchContactsRequest)(nil),   // 7: search.SearchContactsRequest
+	(*SearchContactsResponse)(nil),  // 8: search.SearchContactsResponse
+	(*Contact)(nil),                 // 9: search.Contact
+	(*SearchUsersRequest)(nil),      // 10: search.SearchUsersRequest
+	(*SearchUsersResponse)(nil),     // 11: search.SearchUsersResponse
+	(*User)(nil),                    // 12: search.User
+	(*SearchMessagesRequest)(nil),   // 13: search.SearchMessagesRequest
+	(*SearchMessagesResponse)(nil),  // 14: search.SearchMessagesResponse
+	(*Message)(nil),                 // 15: search.Message
 }
 var file_search_proto_depIdxs = []int32{
-	4,  // 0: search.SearchUserChatsResponse.chats:type_name -> search.Chat
-	1,  // 1: search.Chat.user_role:type_name -> search.UserRole
-	5,  // 2: search.Chat.last_message:type_name -> search.LastMessage
-	8,  // 3: search.SearchContactsResponse.contacts:type_name -> search.Contact
-	11, // 4: search.SearchUsersResponse.users:type_name -> search.User
-	14, // 5: search.SearchMessagesResponse.messages:type_name -> search.Message
-	2,  // 6: search.ChatService.SearchUserChats:input_type -> search.SearchUserChatsRequest
-	6,  // 7: search.ChatService.SearchContacts:input_type -> search.SearchContactsRequest
-	9,  // 8: search.ChatService.SearchUsers:input_type -> search.SearchUsersRequest
-	12, // 9: search.ChatService.SearchMessages:input_type -> search.SearchMessagesRequest
-	3,  // 10: search.ChatService.SearchUserChats:output_type -> search.SearchUserChatsResponse
-	7,  // 11: search.ChatService.SearchContacts:output_type -> search.SearchContactsResponse
-	10, // 12: search.ChatService.SearchUsers:output_type -> search.SearchUsersResponse
-	13, // 13: search.ChatService.SearchMessages:output_type -> search.SearchMessagesResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	4,  // 0: search.SearchUserChatsResponse.dialogs:type_name -> search.Chat
+	4,  // 1: search.SearchUserChatsResponse.groups:type_name -> search.Chat
+	4,  // 2: search.SearchUserChatsResponse.channels:type_name -> search.Chat
+	0,  // 3: search.Chat.type:type_name -> search.ChatType
+	1,  // 4: search.Chat.user_role:type_name -> search.UserRole
+	5,  // 5: search.Chat.participants:type_name -> search.UserInChat
+	6,  // 6: search.Chat.last_message:type_name -> search.LastMessage
+	9,  // 7: search.SearchContactsResponse.contacts:type_name -> search.Contact
+	12, // 8: search.SearchUsersResponse.users:type_name -> search.User
+	15, // 9: search.SearchMessagesResponse.messages:type_name -> search.Message
+	2,  // 10: search.ChatService.SearchUserChats:input_type -> search.SearchUserChatsRequest
+	7,  // 11: search.ChatService.SearchContacts:input_type -> search.SearchContactsRequest
+	10, // 12: search.ChatService.SearchUsers:input_type -> search.SearchUsersRequest
+	13, // 13: search.ChatService.SearchMessages:input_type -> search.SearchMessagesRequest
+	3,  // 14: search.ChatService.SearchUserChats:output_type -> search.SearchUserChatsResponse
+	8,  // 15: search.ChatService.SearchContacts:output_type -> search.SearchContactsResponse
+	11, // 16: search.ChatService.SearchUsers:output_type -> search.SearchUsersResponse
+	14, // 17: search.ChatService.SearchMessages:output_type -> search.SearchMessagesResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_search_proto_init() }
@@ -1100,7 +1179,7 @@ func file_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_proto_rawDesc), len(file_search_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

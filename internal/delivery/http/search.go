@@ -37,14 +37,11 @@ func NewSearchController(r *mux.Router, searchClient chatpb.ChatServiceClient, s
 func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 	userID := utils.GetUserIDFromCtx(r.Context()).String()
-
 	query := r.URL.Query().Get("query")
-	types := r.URL.Query()["type"]
 
 	resp, err := c.searchClient.SearchUserChats(r.Context(), &chatpb.SearchUserChatsRequest{
 		UserId: userID,
 		Query:  query,
-		Types:  types,
 	})
 	if err != nil {
 		logger.Error("gRPC SearchChats error", zap.Error(err))
@@ -53,7 +50,27 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, resp.Chats, true)
+	var allChats []*chatpb.Chat
+	if resp.Dialogs != nil {
+		allChats = append(allChats, resp.Dialogs...)
+	}
+	if resp.Groups != nil {
+		allChats = append(allChats, resp.Groups...)
+	}
+	if resp.Channels != nil {
+		allChats = append(allChats, resp.Channels...)
+	}
+
+	response := map[string]interface{}{
+		"chats": allChats,
+		"counts": map[string]int32{
+			"dialogs":  int32(len(resp.Dialogs)),
+			"groups":   int32(len(resp.Groups)),
+			"channels": int32(len(resp.Channels)),
+		},
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 func (c *searchController) SearchMessages(w http.ResponseWriter, r *http.Request) {
