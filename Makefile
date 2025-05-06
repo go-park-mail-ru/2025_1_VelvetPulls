@@ -5,6 +5,9 @@ GO_CMD = go
 
 COVERAGE_FILE = coverage.out
 
+TEST_DIRS=./tests/... ./internal/... ./services/auth_service/internal/... ./services/search_service/internal/...
+
+
 .PHONY: all
 all: run
 
@@ -26,7 +29,7 @@ clean:
 # Тесты с покрытием
 .PHONY: test
 test:
-	@$(GO_CMD) test ./tests/... \
-		-coverpkg=./internal/usecase,./internal/repository,./internal/delivery/http,./internal/delivery/websocket,./pkg/middleware,./pkg/utils\
+	@$(GO_CMD) test $(TEST_DIRS) \
+		-coverpkg=./internal/delivery,./internal/usecase,./internal/repository,./services/auth_service/internal,./services/search_service/internal,./pkg/middleware,./pkg/utils \
 		-coverprofile=$(COVERAGE_FILE)
 	@$(GO_CMD) tool cover -func=$(COVERAGE_FILE)

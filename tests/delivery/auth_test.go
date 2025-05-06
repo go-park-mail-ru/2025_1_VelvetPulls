@@ -4,7 +4,8 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthUC := mocks.NewMockIAuthUsecase(ctrl)
+// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
+// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
 
 // 	registerData := model.RegisterCredentials{
 // 		Username:        "testuser123",
@@ -14,13 +15,18 @@ package http_test
 // 	}
 // 	sessionID := "test-session-id"
 
-// 	mockAuthUC.EXPECT().
-// 		RegisterUser(gomock.Any(), registerData).
-// 		Return(sessionID, nil)
+// 	// Настройка моков
+// 	mockAuthClient.EXPECT().
+// 		RegisterUser(gomock.Any(), gomock.Any()).
+// 		Return(&proto.RegisterUserResponse{
+// 			SessionId: sessionID,
+// 		}, nil)
 
+// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
-// 	delivery.NewAuthController(router, mockAuthUC)
+// 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
+// 	// Создание запроса
 // 	body, err := json.Marshal(registerData)
 // 	assert.NoError(t, err)
 
@@ -28,9 +34,11 @@ package http_test
 // 	req.Header.Set("Content-Type", "application/json")
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
+// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
+// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 // 	var resp utils.JSONResponse
@@ -49,7 +57,8 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthUC := mocks.NewMockIAuthUsecase(ctrl)
+// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
+// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
 
 // 	loginData := model.LoginCredentials{
 // 		Username: "testuser123",
@@ -57,13 +66,18 @@ package http_test
 // 	}
 // 	sessionID := "test-session-id"
 
-// 	mockAuthUC.EXPECT().
-// 		LoginUser(gomock.Any(), loginData).
-// 		Return(sessionID, nil)
+// 	// Настройка моков
+// 	mockAuthClient.EXPECT().
+// 		LoginUser(gomock.Any(), gomock.Any()).
+// 		Return(&proto.LoginUserResponse{
+// 			SessionId: sessionID,
+// 		}, nil)
 
+// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
-// 	delivery.NewAuthController(router, mockAuthUC)
+// 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
+// 	// Создание запроса
 // 	body, err := json.Marshal(loginData)
 // 	assert.NoError(t, err)
 
@@ -71,9 +85,11 @@ package http_test
 // 	req.Header.Set("Content-Type", "application/json")
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
+// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
+// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusOK, rr.Code)
 
 // 	var resp utils.JSONResponse
@@ -92,17 +108,21 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthUC := mocks.NewMockIAuthUsecase(ctrl)
+// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
+// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
 
 // 	sessionID := "test-session-id"
 
-// 	mockAuthUC.EXPECT().
-// 		LogoutUser(gomock.Any(), sessionID).
-// 		Return(nil)
+// 	// Настройка моков
+// 	mockAuthClient.EXPECT().
+// 		LogoutUser(gomock.Any(), gomock.Any()).
+// 		Return(&proto.LogoutUserResponse{}, nil)
 
+// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
-// 	delivery.NewAuthController(router, mockAuthUC)
+// 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
+// 	// Создание запроса
 // 	req := httptest.NewRequest(http.MethodDelete, "/logout", nil)
 // 	req.AddCookie(&http.Cookie{
 // 		Name:  "token",
@@ -110,9 +130,11 @@ package http_test
 // 	})
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
+// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
+// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusOK, rr.Code)
 
 // 	var resp utils.JSONResponse
@@ -121,6 +143,7 @@ package http_test
 // 	assert.True(t, resp.Status)
 // 	assert.Equal(t, "Logout successful", resp.Data)
 
+// 	// Проверка удаления cookie
 // 	cookies := rr.Result().Cookies()
 // 	assert.NotEmpty(t, cookies)
 // 	assert.Equal(t, "token", cookies[0].Name)
