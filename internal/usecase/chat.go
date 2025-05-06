@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -50,6 +51,7 @@ func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.
 	}
 
 	logger.Info("GetChats done", zap.Int("count", len(chats)))
+	metrics.IncBusinessOp("get_chats")
 	return chats, nil
 }
 
@@ -74,7 +76,7 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	if model.ChatType(chat.Type) == model.ChatTypeDialog {
 		uc.decorateDialogInfo(chat, userID, users)
 	}
-
+	metrics.IncBusinessOp("get_chatinfo")
 	return &model.ChatInfo{
 		ID:         chat.ID,
 		AvatarPath: chat.AvatarPath,
@@ -134,6 +136,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 	data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
 	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
 
+	metrics.IncBusinessOp("create_chat")
 	return info, err
 }
 
@@ -174,6 +177,7 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 	data, _ := json.Marshal(model.ChatEvent{Action: utils.UpdateChat, Chat: *info})
 	uc.nc.Publish(fmt.Sprintf("chat.%s.events", req.ID.String()), data)
 
+	metrics.IncBusinessOp("update_chat")
 	return info, err
 }
 
@@ -191,6 +195,7 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID)
 	ce := model.ChatEvent{Action: utils.DeleteChat, Chat: model.ChatInfo{ID: chatID}}
 	data, _ := json.Marshal(ce)
 	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
+	metrics.IncBusinessOp("delete_chat")
 	return nil
 }
 
@@ -211,6 +216,7 @@ func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, u
 
 	added, notAdded := uc.modifyMembers(ctx, chatID, usernames, true)
 
+	metrics.IncBusinessOp("add_user_into_chat")
 	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
 }
 
@@ -226,6 +232,8 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 		return nil, ErrDialogDeleteUsers
 	}
 	deleted, _ := uc.modifyMembers(ctx, chatID, usernames, false)
+
+	metrics.IncBusinessOp("delete_user_from_chat")
 	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
 }
 
@@ -258,6 +266,7 @@ func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) 
 		uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
 
 		logger.Info("LeaveChat: success")
+		metrics.IncBusinessOp("leave_chat")
 		return nil
 
 	default:

@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/server"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/internal/server"
 	_ "github.com/lib/pq"
 )
 

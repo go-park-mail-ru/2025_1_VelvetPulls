@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
+	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 )
 
@@ -22,7 +22,8 @@ func AuthMiddleware(sessionClient generatedAuth.SessionServiceClient) func(http.
 				SessionId: token,
 			})
 			if err != nil {
-				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid session", false)
+				utils.DeleteSessionCookie(w)
+				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Invalid session", false)
 				return
 			}
 
@@ -51,6 +52,7 @@ func AuthMiddlewareWS(sessionClient generatedAuth.SessionServiceClient) func(htt
 				SessionId: token,
 			})
 			if err != nil {
+				utils.DeleteSessionCookie(w)
 				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Invalid session", false)
 				return
 			}

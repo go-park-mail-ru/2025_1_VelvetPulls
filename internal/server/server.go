@@ -6,14 +6,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/delivery/proto"
-	searchpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto"
+	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
+	searchpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/proto"
 	"github.com/gorilla/mux"
 	"github.com/nats-io/nats.go"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -60,8 +62,13 @@ func (s *Server) Run(address string) error {
 	// ===== Root Router =====
 	mainRouter := mux.NewRouter()
 
+	mainRouter.Handle("/metrics", promhttp.Handler())
+
 	mainRouter.Use(middleware.RequestIDMiddleware)
 	mainRouter.Use(middleware.AccessLogMiddleware)
+	mainRouter.Use(metrics.TimingHistogramMiddleware) // Замер времени выполнения
+	mainRouter.Use(metrics.HitCounterMiddleware)      // Счетчик запросов
+	mainRouter.Use(metrics.ErrorCounterMiddleware)    // Счетчик ошибок
 
 	// ===== API Subrouter =====
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()

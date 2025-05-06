@@ -1,9 +1,7 @@
 # 2025_1_VelvetPulls
-Backend-репозиторий проекта "Telegram" команды "Бархатные тяги"
+Backend-репозиторий проекта "Telegram" команды "Unbeakable guys"
 
 ## Состав команды
-
-[Руслан Новиков](https://github.com/ruslann19) - *Frontend-разработчик*
 
 [Воронов Денис](https://github.com/VDEN5) - *Frontend-разработчик*
 

@@ -9,45 +9,72 @@ services:
       - ../db/migrations:/docker-entrypoint-initdb.d
     env_file:
       - ../.env
-    ports:
-      - "${DATABASE_PORT}:${DATABASE_PORT}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      start_period: 3s
+      start_period: 1s
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:latest
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     env_file:
       - ../.env
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--bind", "0.0.0.0", "--protected-mode", "yes"]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping"]
-      start_period: 3s
+      start_period: 1s
       interval: 1s
       timeout: 3s
       retries: 30
 
   nats:
     image: nats:2.10.16-alpine3.19
-    command: -m 8222
+    command: ["nats-server", "-config", "/etc/nats/nats-server.conf"]
+    volumes:
+      - ./nats/nats-server.conf:/etc/nats/nats-server.conf:ro
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
-      start_period: 3s
+      start_period: 1s
       retries: 3
       timeout: 3s
       interval: 14s
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "8001:9090" 
+    depends_on:
+      - app
+      - auth
+      - search
+      - websocket
+      - node-exporter
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    ports:
+      - "8002:3000"
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
   app:
     build:
       context: ../
-      dockerfile: ./deploy/main.Dockerfile
+      dockerfile: ./deploy/docker/main.Dockerfile
     ports:
       - "${APP_PORT}:${APP_PORT}"
     env_file:
@@ -60,9 +87,7 @@ services:
   auth:
     build:
       context: ../
-      dockerfile: ./deploy/auth.Dockerfile
-    ports:
-      - "8081:8081"
+      dockerfile: ./deploy/docker/auth.Dockerfile
     env_file:
       - ../.env
     depends_on:
@@ -77,9 +102,7 @@ services:
   search:
     build:
       context: ../
-      dockerfile: ./deploy/search.Dockerfile
-    ports:
-      - "8083:8083"
+      dockerfile: ./deploy/docker/search.Dockerfile
     env_file:
       - ../.env
     depends_on:
@@ -90,12 +113,15 @@ services:
   websocket:
     build:
       context: ../
-      dockerfile: ./deploy/websocket.Dockerfile
-    ports:
-      - "8082:8082"
+      dockerfile: ./deploy/docker/websocket.Dockerfile
     env_file:
       - ../.env
     depends_on:
       nats:
         condition: service_healthy
+    restart: unless-stopped
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.8.1
     restart: unless-stopped
