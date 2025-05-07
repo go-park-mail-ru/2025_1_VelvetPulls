@@ -1,201 +1,224 @@
 package http_test
 
-// func TestGetContacts_Success(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
+	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/delivery/mock"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
+)
 
-// 	userID := uuid.New()
-// 	expectedContacts := []model.Contact{
-// 		{
-// 			ID:       uuid.MustParse("140768b8-1f0d-49a6-b7bd-f1f594dda332"),
-// 			Username: "contact1",
-// 		},
-// 		{
-// 			ID:       uuid.MustParse("4ee74e92-d4e6-4486-80db-f16d84a91100"),
-// 			Username: "contact2",
-// 		},
-// 	}
+func TestGetContacts_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-// 	mockContactUC.EXPECT().
-// 		GetUserContacts(gomock.Any(), userID).
-// 		Return(expectedContacts, nil)
+	userID := uuid.New()
+	expectedContacts := []model.Contact{
+		{
+			ID:       uuid.MustParse("140768b8-1f0d-49a6-b7bd-f1f594dda332"),
+			Username: "contact1",
+		},
+		{
+			ID:       uuid.MustParse("4ee74e92-d4e6-4486-80db-f16d84a91100"),
+			Username: "contact2",
+		},
+	}
 
-// 	router := mux.NewRouter()
-// 	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
-// 	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
-// 	req.AddCookie(&http.Cookie{
-// 		Name:  "token",
-// 		Value: "valid-token",
-// 	})
-// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+	mockContactUC.EXPECT().
+		GetUserContacts(gomock.Any(), userID).
+		Return(expectedContacts, nil)
 
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	router := mux.NewRouter()
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
-// 	assert.Equal(t, http.StatusOK, rr.Code)
+	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "valid-token",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	var resp utils.JSONResponse
-// 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
-// 	assert.NoError(t, err)
-// 	assert.True(t, resp.Status)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-// 	var actualContacts []model.Contact
-// 	jsonData, err := json.Marshal(resp.Data)
-// 	assert.NoError(t, err)
-// 	err = json.Unmarshal(jsonData, &actualContacts)
-// 	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rr.Code)
 
-// 	assert.Equal(t, expectedContacts, actualContacts)
-// }
+	var resp utils.JSONResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.True(t, resp.Status)
 
-// func TestAddContact_Success(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	var actualContacts []model.Contact
+	jsonData, err := json.Marshal(resp.Data)
+	assert.NoError(t, err)
+	err = json.Unmarshal(jsonData, &actualContacts)
+	assert.NoError(t, err)
 
-// 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	assert.Equal(t, expectedContacts, actualContacts)
+}
 
-// 	userID := uuid.New()
-// 	contactData := model.RequestContact{
-// 		Username: "new-contact",
-// 	}
+func TestAddContact_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-// 	mockContactUC.EXPECT().
-// 		AddUserContact(gomock.Any(), userID, contactData.Username).
-// 		Return(nil)
+	userID := uuid.New()
+	contactData := model.RequestContact{
+		Username: "new-contact",
+	}
 
-// 	router := mux.NewRouter()
-// 	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
-// 	body, err := json.Marshal(contactData)
-// 	assert.NoError(t, err)
+	mockContactUC.EXPECT().
+		AddUserContact(gomock.Any(), userID, contactData.Username).
+		Return(nil)
 
-// 	req := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBuffer(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	req.AddCookie(&http.Cookie{
-// 		Name:  "token",
-// 		Value: "valid-token",
-// 	})
-// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+	router := mux.NewRouter()
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	body, err := json.Marshal(contactData)
+	assert.NoError(t, err)
 
-// 	assert.Equal(t, http.StatusOK, rr.Code)
+	req := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "valid-token",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	var resp utils.JSONResponse
-// 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
-// 	assert.NoError(t, err)
-// 	assert.True(t, resp.Status)
-// 	assert.Equal(t, "Contact added successfully", resp.Data)
-// }
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-// func TestDeleteContact_Success(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	assert.Equal(t, http.StatusOK, rr.Code)
 
-// 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	var resp utils.JSONResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.True(t, resp.Status)
+	assert.Equal(t, "Contact added successfully", resp.Data)
+}
 
-// 	userID := uuid.New()
-// 	contactData := model.RequestContact{
-// 		Username: "contact-to-delete",
-// 	}
+func TestDeleteContact_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-// 	mockContactUC.EXPECT().
-// 		RemoveUserContact(gomock.Any(), userID, contactData.Username).
-// 		Return(nil)
+	userID := uuid.New()
+	contactData := model.RequestContact{
+		Username: "contact-to-delete",
+	}
 
-// 	router := mux.NewRouter()
-// 	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
-// 	body, err := json.Marshal(contactData)
-// 	assert.NoError(t, err)
+	mockContactUC.EXPECT().
+		RemoveUserContact(gomock.Any(), userID, contactData.Username).
+		Return(nil)
 
-// 	req := httptest.NewRequest(http.MethodDelete, "/contacts", bytes.NewBuffer(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	req.AddCookie(&http.Cookie{
-// 		Name:  "token",
-// 		Value: "valid-token",
-// 	})
-// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+	router := mux.NewRouter()
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	body, err := json.Marshal(contactData)
+	assert.NoError(t, err)
 
-// 	assert.Equal(t, http.StatusOK, rr.Code)
+	req := httptest.NewRequest(http.MethodDelete, "/contacts", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "valid-token",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	var resp utils.JSONResponse
-// 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
-// 	assert.NoError(t, err)
-// 	assert.True(t, resp.Status)
-// 	assert.Equal(t, "Contact deleted successfully", resp.Data)
-// }
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-// func TestGetContacts_Unauthorized(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	assert.Equal(t, http.StatusOK, rr.Code)
 
-// 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	var resp utils.JSONResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.True(t, resp.Status)
+	assert.Equal(t, "Contact deleted successfully", resp.Data)
+}
 
-// 	router := mux.NewRouter()
-// 	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+func TestGetContacts_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
-// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
-// 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-// }
+	router := mux.NewRouter()
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
-// func TestAddContact_InvalidBody(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
 
-// 	// The middleware should check the token first
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(uuid.New().String(), nil)
+func TestAddContact_InvalidBody(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	// We expect no calls to contactUsecase since the request should fail validation
-// 	mockContactUC.EXPECT().
-// 		AddUserContact(gomock.Any(), gomock.Any(), gomock.Any()).
-// 		Times(0)
+	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-// 	router := mux.NewRouter()
-// 	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
 
-// 	req := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBufferString("invalid json"))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	req.AddCookie(&http.Cookie{
-// 		Name:  "token",
-// 		Value: "valid-token",
-// 	})
-// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+	// Ожидаем, что usecase не будет вызван
+	mockContactUC.EXPECT().
+		AddUserContact(gomock.Any(), gomock.Any(), gomock.Any()).
+		Times(0)
 
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	router := mux.NewRouter()
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
-// 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-// }
+	req := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBufferString("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:  "token",
+		Value: "valid-token",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}

@@ -26,7 +26,6 @@ func (m *multipartFileMock) Close() error {
 	return nil
 }
 
-// Добавлено: реализация интерфейса Seek
 func (m *multipartFileMock) Seek(offset int64, whence int) (int64, error) {
 	return m.Reader.Seek(offset, whence)
 }
@@ -38,7 +37,7 @@ func TestSavePhotoInvalid(t *testing.T) {
 }
 
 func TestIsImageFile(t *testing.T) {
-	img := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A} // PNG
+	img := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A} // PNG header
 	text := []byte("this is not an image")
 
 	imgFile := newMultipartFileMock(img)
@@ -49,7 +48,6 @@ func TestIsImageFile(t *testing.T) {
 }
 
 func TestSavePhoto(t *testing.T) {
-	// Создаем тестовую директорию
 	testDir := filepath.Join(config.UPLOAD_DIR, "test")
 	err := os.MkdirAll(testDir, 0755)
 	require.NoError(t, err)
@@ -80,7 +78,6 @@ func TestSavePhoto(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем тестовый файл
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 			part, err := writer.CreateFormFile("file", "test.png")
@@ -97,7 +94,6 @@ func TestSavePhoto(t *testing.T) {
 			require.NoError(t, err)
 			defer file.Close()
 
-			// Вызываем тестируемую функцию
 			path, err := utils.SavePhoto(file, tt.folderName)
 
 			if tt.wantErr != nil {
@@ -112,55 +108,44 @@ func TestSavePhoto(t *testing.T) {
 	}
 }
 
-// func TestRewritePhoto(t *testing.T) {
-// 	// Создаем тестовую директорию и файл
-// 	testDir := filepath.Join(config.UPLOAD_DIR, "test")
-// 	err := os.MkdirAll(testDir, 0755)
-// 	require.NoError(t, err)
-// 	defer os.RemoveAll(testDir)
+func TestRewritePhoto(t *testing.T) {
+	testDir := filepath.Join(config.UPLOAD_DIR, "test")
+	err := os.MkdirAll(testDir, 0755)
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
 
-// 	testFile := filepath.Join(testDir, "test.png")
-// 	err = os.WriteFile(testFile, []byte("old content"), 0644)
-// 	require.NoError(t, err)
+	testFile := filepath.Join(testDir, "test.png")
+	err = os.WriteFile(testFile, []byte("old content"), 0644)
+	require.NoError(t, err)
 
-// 	t.Run("Success rewrite", func(t *testing.T) {
-// 		// Создаем тестовый файл
-// 		body := &bytes.Buffer{}
-// 		writer := multipart.NewWriter(body)
-// 		part, err := writer.CreateFormFile("file", "test.png")
-// 		require.NoError(t, err)
+	t.Run("Success rewrite", func(t *testing.T) {
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", "test.png")
+		require.NoError(t, err)
 
-// 		_, err = part.Write([]byte("new content"))
-// 		require.NoError(t, err)
-// 		writer.Close()
+		_, err = part.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) // valid PNG
+		require.NoError(t, err)
+		writer.Close()
 
-// 		req := httptest.NewRequest("POST", "/", body)
-// 		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req := httptest.NewRequest("POST", "/", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
 
-// 		file, _, err := req.FormFile("file")
-// 		require.NoError(t, err)
-// 		defer file.Close()
+		file, _, err := req.FormFile("file")
+		require.NoError(t, err)
+		defer file.Close()
 
-// 		// Вызываем тестируемую функцию
-// 		err = utils.RewritePhoto(file, testFile)
-// 		assert.NoError(t, err)
+		err = utils.RewritePhoto(file, testFile)
+		assert.NoError(t, err)
 
-// 		// Проверяем что файл изменился
-// 		content, err := os.ReadFile(testFile)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, "new content", string(content))
-// 	})
+		content, err := os.ReadFile(testFile)
+		assert.NoError(t, err)
+		assert.Equal(t, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, content)
+	})
 
-// 	t.Run("Invalid file", func(t *testing.T) {
-// 		// Создаем невалидный файл
-// 		file := &bytes.Buffer{}
-// 		err := utils.RewritePhoto(file, "nonexistent/path/test.png")
-// 		assert.ErrorIs(t, err, utils.ErrUpdatingImage)
-// 	})
-// }
+}
 
 func TestRemovePhoto(t *testing.T) {
-	// Создаем тестовую директорию и файл
 	testDir := filepath.Join(config.UPLOAD_DIR, "test")
 	err := os.MkdirAll(testDir, 0755)
 	require.NoError(t, err)

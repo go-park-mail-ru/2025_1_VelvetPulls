@@ -17,7 +17,6 @@ import (
 )
 
 func TestGetChatByID(t *testing.T) {
-	// Создаём sql.DB с помощью sqlmock.
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
@@ -35,11 +34,9 @@ func TestGetChatByID(t *testing.T) {
 		UpdatedAt:  "2023-01-01T00:00:00Z",
 	}
 
-	// Подготавливаем sqlmock.Rows с ожидаемыми полями.
 	rows := sqlmock.NewRows([]string{"id", "avatar_path", "type", "title", "created_at", "updated_at"}).
 		AddRow(expectedChat.ID, expectedChat.AvatarPath, expectedChat.Type, expectedChat.Title, expectedChat.CreatedAt, expectedChat.UpdatedAt)
 
-	// Ожидаем выполнение запроса.
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1")).
 		WithArgs(chatID).
 		WillReturnRows(rows)
@@ -52,7 +49,6 @@ func TestGetChatByID(t *testing.T) {
 	assert.Equal(t, expectedChat.Title, chat.Title)
 	assert.Equal(t, expectedChat.Type, chat.Type)
 
-	// Проверяем, что все ожидания были выполнены.
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
 }
@@ -65,7 +61,6 @@ func TestGetChats(t *testing.T) {
 	repo := repository.NewChatRepo(db)
 	userID := uuid.New()
 
-	// Допустим, получаем два чата.
 	chat1 := model.Chat{
 		ID:         uuid.New(),
 		AvatarPath: nil,
@@ -83,22 +78,35 @@ func TestGetChats(t *testing.T) {
 		UpdatedAt:  "2023-01-03T00:00:00Z",
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "avatar_path", "type", "title", "created_at", "updated_at"}).
-		AddRow(chat1.ID, chat1.AvatarPath, chat1.Type, chat1.Title, chat1.CreatedAt, chat1.UpdatedAt).
-		AddRow(chat2.ID, chat2.AvatarPath, chat2.Type, chat2.Title, chat2.CreatedAt, chat2.UpdatedAt)
+	rows := sqlmock.NewRows([]string{
+		"c.id", "c.avatar_path", "c.type", "c.title", "c.created_at", "c.updated_at",
+		"m.id", "m.user_id", "m.body", "m.sent_at",
+	}).
+		AddRow(chat1.ID, chat1.AvatarPath, chat1.Type, chat1.Title, chat1.CreatedAt, chat1.UpdatedAt,
+			nil, nil, nil, nil).
+		AddRow(chat2.ID, chat2.AvatarPath, chat2.Type, chat2.Title, chat2.CreatedAt, chat2.UpdatedAt,
+			nil, nil, nil, nil)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at" +
-		" FROM chat c" +
-		" JOIN user_chat uc ON c.id = uc.chat_id" +
-		" WHERE uc.user_id = $1")).
-		WithArgs(userID).
-		WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		SELECT c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at,
+			   m.id, m.user_id, m.body, m.sent_at
+		FROM chat c
+		JOIN user_chat uc ON c.id = uc.chat_id
+		LEFT JOIN LATERAL (
+			SELECT m.id, m.user_id, m.body, m.sent_at
+			FROM message m
+			WHERE m.chat_id = c.id
+			ORDER BY m.sent_at DESC
+			LIMIT 1
+		) m ON true
+		WHERE uc.user_id = $1
+		ORDER BY m.sent_at DESC NULLS LAST
+	`)).WithArgs(userID).WillReturnRows(rows)
 
 	ctx := context.Background()
 	chats, lastChatID, err := repo.GetChats(ctx, userID)
 	require.NoError(t, err)
 	require.Len(t, chats, 2)
-	// lastChatID должен быть равен ID последнего чата
 	assert.Equal(t, chat2.ID, lastChatID)
 }
 
@@ -110,20 +118,14 @@ func TestCreateChat_NoAvatar(t *testing.T) {
 	repo := repository.NewChatRepo(db)
 	ctx := context.Background()
 
-	// Тестируем случай, когда Avatar = nil
 	createChat := &model.CreateChat{
-		Avatar: nil,
-		Type:   "group",
-		Title:  "New Group",
+		Type:  "group",
+		Title: "New Group",
 	}
 
-	// Ожидаем вызов INSERT, передаем nil вместо аватара.
-	// Заметим, что для аргументов может понадобиться проверить порядок.
-	// Пример: INSERT ... VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id
-	// Для nil аргумента используем sql.Null* или просто nil.
 	query := regexp.QuoteMeta(`
-        INSERT INTO public.chat 
-        (avatar_path, type, title, created_at, updated_at) 
+        INSERT INTO chat
+        (avatar_path, type, title, created_at, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW())
         RETURNING id
     `)
@@ -138,7 +140,7 @@ func TestCreateChat_NoAvatar(t *testing.T) {
 	retID, avatarPath, err := repo.CreateChat(ctx, createChat)
 	require.NoError(t, err)
 	assert.Equal(t, chatID, retID)
-	// Поскольку avatar == nil, avatarPath должен быть пустой строкой.
+
 	assert.Equal(t, "", avatarPath)
 
 	err = mock.ExpectationsWereMet()
@@ -162,17 +164,17 @@ func TestUpdateChat(t *testing.T) {
 		Title: &title,
 	}
 
-	// Этап 1. Начало транзакции
 	mock.ExpectBegin()
-	// Этап 2. Формируем UPDATE запроса для обновления только title и updated_at.
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE public.chat SET title = $1, updated_at = $2 WHERE id = $3")).
+
+	query := regexp.QuoteMeta(`UPDATE chat SET title = $1, updated_at = $2 WHERE id = $3`)
+	mock.ExpectExec(query).
 		WithArgs(title, sqlmock.AnyArg(), chatID).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+
 	mock.ExpectCommit()
 
 	avatarNewURL, avatarOldURL, err := repo.UpdateChat(ctx, updateChat)
 	require.NoError(t, err)
-	// В данном тесте avatarNewURL и avatarOldURL должны оставаться пустыми, поскольку поле Avatar не обновлялось.
 	assert.Equal(t, "", avatarNewURL)
 	assert.Equal(t, "", avatarOldURL)
 
@@ -232,7 +234,7 @@ func TestGetUserRoleInChat_NoRows(t *testing.T) {
 	userID := uuid.New()
 	chatID := uuid.New()
 
-	query := regexp.QuoteMeta("SELECT user_role FROM public.user_chat WHERE user_id = $1 AND chat_id = $2")
+	query := regexp.QuoteMeta("SELECT user_role FROM user_chat WHERE user_id = $1 AND chat_id = $2")
 	mock.ExpectQuery(query).
 		WithArgs(userID, chatID).
 		WillReturnError(sql.ErrNoRows)
@@ -262,10 +264,8 @@ func TestGetUsersFromChat(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"id", "username", "first_name", "avatar_path", "user_role"}).
 		AddRow(uuid.New(), username, firstName, avatarPath, role)
 
-	query := regexp.QuoteMeta(`SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role
-			  FROM public.user u
-			  JOIN public.user_chat uc ON u.id = uc.user_id
-			  WHERE uc.chat_id = $1`)
+	query := regexp.QuoteMeta(`SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role 
+	FROM public.user u JOIN user_chat uc ON u.id = uc.user_id WHERE uc.chat_id = $1`)
 	mock.ExpectQuery(query).
 		WithArgs(chatID).
 		WillReturnRows(rows)

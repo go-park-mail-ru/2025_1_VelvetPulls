@@ -1,125 +1,138 @@
 package usecase_test
 
-// // Тест получения сообщений чата (успешный сценарий) без участия WebSocket
-// func TestGetChatMessages_NoWebsocket(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+import (
+	"context"
+	"testing"
+	"time"
 
-// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
-// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
-// 	// Передаем nil в качестве реализации IWebsocketUsecase
-// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/usecase/mock"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
+)
 
-// 	// Создаем контекст с логгером
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, utils.LOGGER_ID_KEY, zap.NewNop())
+func TestSendMessage_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	userID := uuid.New()
-// 	chatID := uuid.New()
+	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
 
-// 	// Ожидаем, что чат-репозиторий вернет допустимую роль для пользователя
-// 	mockChatRepo.EXPECT().
-// 		GetUserRoleInChat(ctx, userID, chatID).
-// 		Return("owner", nil)
+	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
 
-// 	// Подготавливаем список сообщений
-// 	expectedMessages := []model.Message{
-// 		{
-// 			ID:     uuid.New(),
-// 			ChatID: chatID,
-// 			UserID: userID,
-// 			Body:   "Hello",
-// 			SentAt: time.Now(),
-// 		},
-// 		{
-// 			ID:     uuid.New(),
-// 			ChatID: chatID,
-// 			UserID: userID,
-// 			Body:   "World",
-// 			SentAt: time.Now(),
-// 		},
-// 	}
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+	userID := uuid.New()
+	chatID := uuid.New()
 
-// 	mockMsgRepo.EXPECT().
-// 		GetMessages(ctx, chatID).
-// 		Return(expectedMessages, nil)
+	input := &model.MessageInput{Message: "test message"}
 
-// 	messages, err := msgUC.GetChatMessages(ctx, userID, chatID)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, expectedMessages, messages)
-// }
+	mockChatRepo.EXPECT().
+		GetChatByID(ctx, chatID).
+		Return(&model.Chat{ID: chatID, Type: string(model.ChatTypeGroup)}, nil)
 
-// // Тест успешной отправки сообщения без участия WebSocket (wsUsecase == nil)
-// func TestSendMessage_NoWebsocket(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	mockChatRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil)
 
-// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
-// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
-// 	// Передаем nil для wsUsecase – тогда метод SendMessage просто залогирует предупреждение, и событие не отправится.
-// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+	savedMsg := &model.Message{
+		ID:     uuid.New(),
+		ChatID: chatID,
+		UserID: userID,
+		Body:   input.Message,
+		SentAt: time.Now(),
+	}
+	mockMsgRepo.EXPECT().
+		CreateMessage(ctx, gomock.Any()).
+		Return(savedMsg, nil)
 
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, utils.LOGGER_ID_KEY, zap.NewNop())
+	err := msgUC.SendMessage(ctx, input, userID, chatID)
+	require.NoError(t, err)
+}
 
-// 	userID := uuid.New()
-// 	chatID := uuid.New()
-// 	messageText := "Test message"
-// 	messageInput := &model.MessageInput{
-// 		Message: messageText,
-// 	}
+func TestUpdateMessage_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	// Возвращаем допустимую роль
-// 	mockChatRepo.EXPECT().
-// 		GetUserRoleInChat(ctx, userID, chatID).
-// 		Return("member", nil)
+	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
 
-// 	// Ожидаем создание сообщения
-// 	createdMessage := &model.Message{
-// 		ID:     uuid.New(),
-// 		ChatID: chatID,
-// 		UserID: userID,
-// 		Body:   messageText,
-// 		SentAt: time.Now(),
-// 	}
-// 	mockMsgRepo.EXPECT().
-// 		CreateMessage(ctx, gomock.Any()).
-// 		DoAndReturn(func(ctx context.Context, m *model.Message) (*model.Message, error) {
-// 			// Можно проверить поля сообщения, если необходимо
-// 			if m.ChatID != chatID || m.UserID != userID || m.Body != messageText {
-// 				return nil, errors.New("invalid message input")
-// 			}
-// 			return createdMessage, nil
-// 		})
+	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
 
-// 	err := msgUC.SendMessage(ctx, messageInput, userID, chatID)
-// 	assert.NoError(t, err)
-// }
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+	userID := uuid.New()
+	chatID := uuid.New()
+	messageID := uuid.New()
+	input := &model.MessageInput{Message: "updated"}
 
-// // Тест отправки невалидного сообщения (например, пустое сообщение)
-// func TestSendMessage_InvalidPayload(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	mockChatRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil)
 
-// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
-// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
-// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+	original := &model.Message{
+		ID:     messageID,
+		ChatID: chatID,
+		UserID: userID,
+		Body:   "old",
+		SentAt: time.Now(),
+	}
 
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, utils.LOGGER_ID_KEY, zap.NewNop())
+	mockMsgRepo.EXPECT().
+		GetMessage(ctx, messageID).
+		Return(original, nil)
 
-// 	userID := uuid.New()
-// 	chatID := uuid.New()
+	updated := &model.Message{
+		ID:     messageID,
+		ChatID: chatID,
+		UserID: userID,
+		Body:   "updated",
+		SentAt: time.Now(),
+	}
 
-// 	// Невалидный payload – пустое сообщение
-// 	messageInput := &model.MessageInput{Message: ""}
+	mockMsgRepo.EXPECT().
+		UpdateMessage(ctx, messageID, input.Message).
+		Return(updated, nil)
 
-// 	// Ожидаем, что роль верна, но валидация должна не пройти
-// 	mockChatRepo.EXPECT().
-// 		GetUserRoleInChat(ctx, userID, chatID).
-// 		Return("owner", nil)
+	err := msgUC.UpdateMessage(ctx, messageID, input, userID, chatID)
+	require.NoError(t, err)
+}
 
-// 	err := msgUC.SendMessage(ctx, messageInput, userID, chatID)
-// 	require.Error(t, err)
-// 	assert.Contains(t, err.Error(), "invalid message input")
-// }
+func TestDeleteMessage_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
+
+	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+
+	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+	userID := uuid.New()
+	chatID := uuid.New()
+	messageID := uuid.New()
+
+	mockChatRepo.EXPECT().
+		GetUserRoleInChat(ctx, userID, chatID).
+		Return("member", nil)
+
+	msg := &model.Message{
+		ID:     messageID,
+		ChatID: chatID,
+		UserID: userID,
+		Body:   "message to delete",
+		SentAt: time.Now(),
+	}
+	mockMsgRepo.EXPECT().
+		GetMessage(ctx, messageID).
+		Return(msg, nil)
+
+	mockMsgRepo.EXPECT().
+		DeleteMessage(ctx, messageID).
+		Return(msg, nil)
+
+	err := msgUC.DeleteMessage(ctx, messageID, userID, chatID)
+	require.NoError(t, err)
+}
