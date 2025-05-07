@@ -11,6 +11,7 @@ import (
 	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/delivery/mock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -24,7 +25,7 @@ func TestGetContacts_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	userID := uuid.New()
 	expectedContacts := []model.Contact{
@@ -38,16 +39,17 @@ func TestGetContacts_Success(t *testing.T) {
 		},
 	}
 
-	mockSessionUC.EXPECT().
-		CheckLogin(gomock.Any(), "valid-token").
-		Return(userID.String(), nil)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 	mockContactUC.EXPECT().
 		GetUserContacts(gomock.Any(), userID).
 		Return(expectedContacts, nil)
 
 	router := mux.NewRouter()
-	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
 	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	req.AddCookie(&http.Cookie{
@@ -80,23 +82,24 @@ func TestAddContact_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	userID := uuid.New()
 	contactData := model.RequestContact{
 		Username: "new-contact",
 	}
 
-	mockSessionUC.EXPECT().
-		CheckLogin(gomock.Any(), "valid-token").
-		Return(userID.String(), nil)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 	mockContactUC.EXPECT().
 		AddUserContact(gomock.Any(), userID, contactData.Username).
 		Return(nil)
 
 	router := mux.NewRouter()
-	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
 	body, err := json.Marshal(contactData)
 	assert.NoError(t, err)
@@ -126,23 +129,24 @@ func TestDeleteContact_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	userID := uuid.New()
 	contactData := model.RequestContact{
 		Username: "contact-to-delete",
 	}
 
-	mockSessionUC.EXPECT().
-		CheckLogin(gomock.Any(), "valid-token").
-		Return(userID.String(), nil)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 	mockContactUC.EXPECT().
 		RemoveUserContact(gomock.Any(), userID, contactData.Username).
 		Return(nil)
 
 	router := mux.NewRouter()
-	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
 	body, err := json.Marshal(contactData)
 	assert.NoError(t, err)
@@ -172,10 +176,10 @@ func TestGetContacts_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	router := mux.NewRouter()
-	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
 	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
@@ -190,20 +194,20 @@ func TestAddContact_InvalidBody(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContactUC := mocks.NewMockIContactUsecase(ctrl)
-	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-	// The middleware should check the token first
-	mockSessionUC.EXPECT().
-		CheckLogin(gomock.Any(), "valid-token").
-		Return(uuid.New().String(), nil)
+	// Настраиваем ожидания для gRPC клиента
+	mockSessionClient.EXPECT().
+		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
 
-	// We expect no calls to contactUsecase since the request should fail validation
+	// Ожидаем, что usecase не будет вызван
 	mockContactUC.EXPECT().
 		AddUserContact(gomock.Any(), gomock.Any(), gomock.Any()).
 		Times(0)
 
 	router := mux.NewRouter()
-	delivery.NewContactController(router, mockContactUC, mockSessionUC)
+	delivery.NewContactController(router, mockContactUC, mockSessionClient)
 
 	req := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
