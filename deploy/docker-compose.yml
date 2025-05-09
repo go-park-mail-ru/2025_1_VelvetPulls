@@ -5,8 +5,12 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASS}
       POSTGRES_DB: ${DATABASE_NAME}
+    ports:
+      - "5432:5432" 
     volumes:
       - ../db/migrations:/docker-entrypoint-initdb.d
+      - ../db/config/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     env_file:
       - ../.env
     healthcheck:
