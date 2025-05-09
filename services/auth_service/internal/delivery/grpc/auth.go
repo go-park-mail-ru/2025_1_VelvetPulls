@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/app_errors"
+	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/app_errors"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/model"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/internal/usecase"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"

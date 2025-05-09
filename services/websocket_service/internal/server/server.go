@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	middleware "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/middleware"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	generatedAuth "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
@@ -57,9 +56,6 @@ func (s *Server) Run(address string) error {
 
 	mainRouter.Use(middleware.RequestIDMiddleware)
 	mainRouter.Use(middleware.AccessLogMiddleware)
-	mainRouter.Use(metrics.TimingHistogramMiddleware) // Замер времени выполнения
-	mainRouter.Use(metrics.HitCounterMiddleware)      // Счетчик запросов
-	mainRouter.Use(metrics.ErrorCounterMiddleware)    // Счетчик ошибок
 
 	// Usecases
 	websocketUsecase := usecase.NewWebsocketUsecase(s.nc)
