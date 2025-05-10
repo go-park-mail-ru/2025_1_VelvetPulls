@@ -8,6 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type ChatGroups struct {
+	Dialogs  []Chat `json:"dialogs"`
+	Groups   []Chat `json:"groups"`
+	Channels []Chat `json:"channels"`
+}
+
 type Chat struct {
 	ID          uuid.UUID    `json:"id" valid:"uuid"`
 	AvatarPath  *string      `json:"avatar_path,omitempty"`
@@ -20,6 +26,14 @@ type Chat struct {
 
 type RequestChat struct {
 	Title string `json:"title" valid:"required~Title is required,length(1|100)"`
+}
+
+type UserInChat struct {
+	ID         uuid.UUID `json:"id" valid:"uuid"`
+	Username   string    `json:"username,omitempty" valid:"required,length(3|50)"`
+	Name       *string   `json:"name,omitempty" valid:"length(0|100)"`
+	AvatarPath *string   `json:"avatar_path,omitempty"`
+	Role       *string   `json:"role" valid:"length(0|20)"`
 }
 
 func (c *Chat) Validate() error {
