@@ -1,4 +1,5 @@
 # отправка сообщений
+```
   2 threads and 10 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency     5.12ms    3.67ms  87.38ms   93.66%
@@ -6,10 +7,12 @@
   105221 requests in 50.04s, 42.95MB read
 Requests/sec:   2102.71
 Transfer/sec:      0.86MB
+```
 
 # итерация 1
 
 ## просмотр сообщений
+```
   2 threads and 10 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency     1.67s   220.75ms   1.98s    63.11%
@@ -18,6 +21,7 @@ Transfer/sec:      0.86MB
   Socket errors: connect 0, read 0, write 0, timeout 137
 Requests/sec:      4.80
 Transfer/sec:    117.50MB
+```
 
 Очень высокая задержка и количество таймаутов указывают на неэффективную реализацию получения сообщений. Отсутствует пагинация или возвращается слишком большой объем данных.
 
