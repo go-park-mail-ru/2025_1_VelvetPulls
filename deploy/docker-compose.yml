@@ -10,6 +10,7 @@ services:
     volumes:
       - ../db/migrations:/docker-entrypoint-initdb.d
       - ../db/config/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ../db/config/chat.conf:/etc/postgresql/chat.conf 
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     env_file:
       - ../.env
