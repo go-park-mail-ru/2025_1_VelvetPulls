@@ -75,7 +75,10 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 	e := model.MessageEvent{Action: utils.NewMessage, Message: *saved}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("send_message")
 	return nil
@@ -116,7 +119,10 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 	e := model.MessageEvent{Action: utils.UpdateMessage, Message: *updated}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("update_message")
 	return nil
@@ -152,7 +158,10 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 	e := model.MessageEvent{Action: utils.DeleteMessage, Message: *deleted}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("delete_message")
 	return nil

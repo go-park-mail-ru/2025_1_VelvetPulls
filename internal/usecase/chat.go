@@ -134,7 +134,11 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 	info, err := uc.GetChatInfo(ctx, userID, chatID)
 
 	data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
-	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
+	subject := fmt.Sprintf("chat.%s.events", chatID.String())
+	if err := uc.nc.Publish(subject, data); err != nil {
+		logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
+		return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("create_chat")
 	return info, err
@@ -175,7 +179,12 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	info, err := uc.GetChatInfo(ctx, userID, req.ID)
 	data, _ := json.Marshal(model.ChatEvent{Action: utils.UpdateChat, Chat: *info})
-	uc.nc.Publish(fmt.Sprintf("chat.%s.events", req.ID.String()), data)
+
+	subject := fmt.Sprintf("chat.%s.events", req.ID.String())
+	if err := uc.nc.Publish(subject, data); err != nil {
+		logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
+		return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("update_chat")
 	return info, err
@@ -194,7 +203,13 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID)
 
 	ce := model.ChatEvent{Action: utils.DeleteChat, Chat: model.ChatInfo{ID: chatID}}
 	data, _ := json.Marshal(ce)
-	uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
+
+	subject := fmt.Sprintf("chat.%s.events", chatID.String())
+	if err := uc.nc.Publish(subject, data); err != nil {
+		logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
+
 	metrics.IncBusinessOp("delete_chat")
 	return nil
 }
