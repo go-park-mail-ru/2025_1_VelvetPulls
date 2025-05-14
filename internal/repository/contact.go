@@ -30,7 +30,7 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	logger.Info("Fetching contacts", zap.String("userID", userID.String()))
 
 	query := `
-		SELECT u.id, u.first_name, u.last_name, u.username, u.avatar_path
+		SELECT u.id, u.name, u.username, u.avatar_path
 		FROM public.contact c
 		JOIN public.user u ON c.contact_id = u.id
 		WHERE c.user_id = $1`
@@ -49,7 +49,7 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	var contacts []model.Contact
 	for rows.Next() {
 		var contact model.Contact
-		if err := rows.Scan(&contact.ID, &contact.FirstName, &contact.LastName, &contact.Username, &contact.AvatarURL); err != nil {
+		if err := rows.Scan(&contact.ID, &contact.Name, &contact.Username, &contact.AvatarURL); err != nil {
 			logger.Error("Failed to scan contact",
 				zap.String("userID", userID.String()),
 				zap.Error(err),
@@ -96,18 +96,13 @@ func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID
 		return ErrDatabaseOperation
 	}
 
-	// Самозапрещаем: нельзя добавить самого себя
 	if userID == contactID {
 		logger.Warn("User attempted to add themselves as a contact")
 		return ErrSelfContact
 	}
 
 	query := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-	logger.Debug("Executing insert",
-		zap.String("query", query),
-		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
-	)
+	logger.Debug("Executing insert", zap.String("query", query))
 
 	res, err := r.db.ExecContext(ctx, query, userID, contactID)
 	if err != nil {
@@ -152,11 +147,7 @@ func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.U
 	}
 
 	query := `DELETE FROM public.contact WHERE user_id = $1 AND contact_id = $2`
-	logger.Debug("Executing delete",
-		zap.String("query", query),
-		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
-	)
+	logger.Debug("Executing delete", zap.String("query", query))
 
 	res, err := r.db.ExecContext(ctx, query, userID, contactID)
 	if err != nil {
@@ -171,15 +162,9 @@ func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.U
 	}
 
 	if rowsAffected == 0 {
-		logger.Warn("Contact not found for deletion",
-			zap.String("userID", userID.String()),
-			zap.String("contactUsername", contactUsername),
-		)
+		logger.Warn("Contact not found for deletion")
 	} else {
-		logger.Info("Successfully deleted contact",
-			zap.String("userID", userID.String()),
-			zap.String("contactUsername", contactUsername),
-		)
+		logger.Info("Successfully deleted contact")
 	}
 
 	return nil

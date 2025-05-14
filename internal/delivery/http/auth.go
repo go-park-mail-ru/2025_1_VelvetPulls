@@ -37,10 +37,9 @@ func (c *authController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := c.authClient.RegisterUser(r.Context(), &authpb.RegisterUserRequest{
-		Username:        creds.Username,
-		Password:        creds.Password,
-		ConfirmPassword: creds.Password,
-		Phone:           creds.Phone,
+		Name:     creds.Name,
+		Username: creds.Username,
+		Password: creds.Password,
 	})
 	if err != nil {
 		logger.Error("gRPC Register error", zap.Error(err))

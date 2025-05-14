@@ -14,24 +14,20 @@ import (
 	"go.uber.org/zap"
 )
 
-// IUserRepo описывает операции для работы с пользователями
 type IUserRepo interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (string, string, error)
 }
 
-// userRepo реализует IUserRepo через PostgreSQL
 type userRepo struct {
 	db *sql.DB
 }
 
-// NewUserRepo создаёт новый репозиторий пользователей
 func NewUserRepo(db *sql.DB) IUserRepo {
 	return &userRepo{db: db}
 }
 
-// getUserByField объединяет логику поиска пользователя по любому полю
 func (r *userRepo) getUserByField(ctx context.Context, field string, value interface{}) (*model.User, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	if value == "" || value == uuid.Nil {
@@ -40,16 +36,15 @@ func (r *userRepo) getUserByField(ctx context.Context, field string, value inter
 	}
 
 	query := fmt.Sprintf(
-		`SELECT id, avatar_path, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`,
-		field,
+		`SELECT id, avatar_path, name, username, password, birth_date FROM public.user WHERE %s = $1`, field,
 	)
+
 	logger.Info("executing user lookup", zap.String("field", field))
 
 	var u model.User
 	err := r.db.QueryRowContext(ctx, query, value).Scan(
-		&u.ID, &u.AvatarPath, &u.FirstName, &u.LastName,
-		&u.Username, &u.Phone, &u.Email, &u.Password,
-		&u.CreatedAt, &u.UpdatedAt,
+		&u.ID, &u.AvatarPath, &u.Name,
+		&u.Username, &u.Password, &u.BirthDate,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -74,31 +69,7 @@ func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, 
 	return r.getUserByField(ctx, "id", id.String())
 }
 
-func (r *userRepo) CreateUser(ctx context.Context, user *model.User) (uuid.UUID, error) {
-	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("creating user")
-
-	if user == nil || user.Username == "" || user.Phone == "" || user.Password == "" {
-		logger.Warn("missing required fields for create")
-		return uuid.Nil, ErrEmptyField
-	}
-
-	query := `INSERT INTO public.user (username, phone, password) VALUES ($1, $2, $3) RETURNING id`
-	var id uuid.UUID
-	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&id)
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value") {
-			logger.Warn("user exists", zap.Error(err))
-			return uuid.Nil, ErrRecordAlreadyExists
-		}
-		logger.Error("create failed", zap.Error(err))
-		return uuid.Nil, ErrDatabaseOperation
-	}
-	return id, nil
-}
-
 func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (string, string, error) {
-	// проверяем входные параметры
 	if profile == nil {
 		utils.GetLoggerFromCtx(ctx).Warn("empty profile data")
 		return "", "", ErrEmptyField
@@ -108,7 +79,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		return "", "", ErrInvalidUUID
 	}
 
-	// теперь безопасно получаем logger и логируем ID
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("updating user", zap.String("userID", profile.ID.String()))
 
@@ -125,7 +95,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		oldAvatar, newAvatar string
 	)
 
-	// обновление аватара
 	if profile.Avatar != nil {
 		logger.Info("updating avatar")
 		var current *string
@@ -143,28 +112,21 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		idx++
 	}
 
-	// обновление пароля
 	if profile.Password != "" {
 		logger.Info("updating password")
-		// Хешируем новый пароль
 		hashedPassword, err := utils.HashAndSalt(profile.Password)
 		if err != nil {
 			rollbackTx(logger, tx)
 			return "", "", ErrDatabaseOperation
 		}
-
 		updates = append(updates, fmt.Sprintf("password = $%d", idx))
 		args = append(args, hashedPassword)
 		idx++
 	}
 
-	// обновление полей
 	fields := map[string]*string{
-		"first_name": profile.FirstName,
-		"last_name":  profile.LastName,
-		"username":   profile.Username,
-		"phone":      profile.Phone,
-		"email":      profile.Email,
+		"name":     profile.Name,
+		"username": profile.Username,
 	}
 	for field, ptr := range fields {
 		if ptr != nil {
@@ -178,6 +140,12 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		}
 	}
 
+	if profile.BirthDate != nil {
+		updates = append(updates, fmt.Sprintf("birth_date = $%d", idx))
+		args = append(args, *profile.BirthDate)
+		idx++
+	}
+
 	if len(updates) == 0 {
 		rollbackTx(logger, tx)
 		return "", "", nil
@@ -187,7 +155,6 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	args = append(args, time.Now())
 	idx++
 
-	// финальный запрос
 	args = append(args, profile.ID)
 	query := fmt.Sprintf("UPDATE public.user SET %s WHERE id = $%d", strings.Join(updates, ", "), idx)
 

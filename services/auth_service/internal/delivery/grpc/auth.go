@@ -30,10 +30,9 @@ func NewAuthController(grpcServer *grpc.Server, authUsecase usecase.IAuthUsecase
 
 func (c *authController) RegisterUser(ctx context.Context, req *authpb.RegisterUserRequest) (*authpb.RegisterUserResponse, error) {
 	sessionID, err := c.authUsecase.RegisterUser(ctx, model.RegisterCredentials{
-		Username:        req.GetUsername(),
-		Password:        req.GetPassword(),
-		ConfirmPassword: req.GetPassword(),
-		Phone:           req.GetPhone(),
+		Username: req.GetUsername(),
+		Password: req.GetPassword(),
+		Name:     req.GetName(),
 	})
 	if err != nil {
 		return nil, apperrors.ConvertError(err)
