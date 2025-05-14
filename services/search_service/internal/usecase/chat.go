@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/internal/model"
@@ -16,6 +17,19 @@ type ChatUsecase struct {
 
 func NewChatUsecase(chatRepo repository.ChatRepo) *ChatUsecase {
 	return &ChatUsecase{chatRepo: chatRepo}
+}
+
+func filterChats(chats []model.Chat, query string) []model.Chat {
+	filtered := make([]model.Chat, 0)
+	query = strings.ToLower(query)
+
+	for _, c := range chats {
+		if strings.Contains(strings.ToLower(c.Title), query) {
+			filtered = append(filtered, c)
+		}
+	}
+
+	return filtered
 }
 
 func (uc *ChatUsecase) decorateDialog(ctx context.Context, chat *model.Chat, me uuid.UUID) {
@@ -63,15 +77,26 @@ func (uc *ChatUsecase) SearchUserChats(
 
 	for _, chat := range chats {
 		switch chat.Type {
-		case "dialog":
-			uc.decorateDialog(ctx, &chat, userID)
-			groups.Dialogs = append(groups.Dialogs, chat)
 		case "group":
 			groups.Groups = append(groups.Groups, chat)
 		case "channel":
 			groups.Channels = append(groups.Channels, chat)
 		}
 	}
+
+	allChats, err := uc.chatRepo.SearchUserChats(ctx, userID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, chat := range allChats {
+		if chat.Type == "dialog" {
+			uc.decorateDialog(ctx, &chat, userID)
+			groups.Dialogs = append(groups.Dialogs, chat)
+		}
+	}
+
+	groups.Dialogs = filterChats(groups.Dialogs, query)
 
 	metrics.IncBusinessOp("search_chats")
 	return groups, nil
