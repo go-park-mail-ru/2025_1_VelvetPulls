@@ -12,5 +12,5 @@ type User struct {
 	Name       string    `json:"name"`
 	BirthDate  time.Time `json:"birth_date,omitempty"`
 	Username   string    `json:"username"`
-	Password   string    `json:"password"`
+	Password   string    `json:"password,omitempty"`
 }

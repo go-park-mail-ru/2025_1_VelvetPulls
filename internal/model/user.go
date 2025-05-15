@@ -11,6 +11,6 @@ type User struct {
 	AvatarPath *string    `json:"avatarPath,omitempty"`
 	Name       string     `json:"name"`
 	Username   string     `json:"username"`
-	Password   string     `json:"password"`
+	Password   string     `json:"password,omitempty"`
 	BirthDate  *time.Time `json:"birth_date,omitempty"`
 }

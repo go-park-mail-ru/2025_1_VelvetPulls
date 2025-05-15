@@ -44,5 +44,8 @@ message CheckLoginRequest {
 }
 
 message CheckLoginResponse {
-  string user_id = 1;
+  string user_id  = 1;
+  string username = 2;
+  string name     = 3;
+  string avatar   = 4; 
 }

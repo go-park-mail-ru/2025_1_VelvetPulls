@@ -73,7 +73,7 @@ func (s *Server) Run(address string) error {
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(authRepo, sessionRepo)
-	sessionUsecase := usecase.NewSessionUsecase(sessionRepo)
+	sessionUsecase := usecase.NewSessionUsecase(authRepo, sessionRepo)
 
 	// gRPC server с метриками
 	grpcServer := grpc.NewServer(

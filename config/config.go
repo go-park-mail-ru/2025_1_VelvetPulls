@@ -29,7 +29,7 @@ var Cors = struct {
 }{
 	AllowedOrigin:  "http://localhost:8088",
 	AllowedMethods: "GET, POST, PUT, DELETE",
-	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token",
+	AllowedHeaders: "Content-Type, Authorization, X-CSRF-Token, Access-Control-Allow-Credentials",
 }
 
 var (

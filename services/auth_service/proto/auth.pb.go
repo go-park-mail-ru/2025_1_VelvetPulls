@@ -313,6 +313,9 @@ func (x *CheckLoginRequest) GetSessionId() string {
 type CheckLoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Avatar        string                 `protobuf:"bytes,4,opt,name=avatar,proto3" json:"avatar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,6 +357,27 @@ func (x *CheckLoginResponse) GetUserId() string {
 	return ""
 }
 
+func (x *CheckLoginResponse) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *CheckLoginResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CheckLoginResponse) GetAvatar() string {
+	if x != nil {
+		return x.Avatar
+	}
+	return ""
+}
+
 var File_services_auth_service_proto_auth_proto protoreflect.FileDescriptor
 
 const file_services_auth_service_proto_auth_proto_rawDesc = "" +
@@ -377,9 +401,12 @@ const file_services_auth_service_proto_auth_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"2\n" +
 	"\x11CheckLoginRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"-\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"u\n" +
 	"\x12CheckLoginResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId2\xd1\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
+	"\x06avatar\x18\x04 \x01(\tR\x06avatar2\xd1\x01\n" +
 	"\vAuthService\x12E\n" +
 	"\fRegisterUser\x12\x19.auth.RegisterUserRequest\x1a\x1a.auth.RegisterUserResponse\x12<\n" +
 	"\tLoginUser\x12\x16.auth.LoginUserRequest\x1a\x17.auth.LoginUserResponse\x12=\n" +

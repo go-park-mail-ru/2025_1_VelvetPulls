@@ -14,6 +14,7 @@ import (
 )
 
 type IAuthRepo interface {
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	CreateUser(ctx context.Context, user *model.User) (uuid.UUID, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
@@ -68,13 +69,13 @@ func (r *authRepo) getUserByField(ctx context.Context, field, value string) (*mo
 
 	var user model.User
 	// Обновляем запрос, чтобы не учитывать поле birth_date при извлечении пользователя
-	query := fmt.Sprintf(`SELECT id, avatar_path, name, username, password
+	query := fmt.Sprintf(`SELECT id, avatar_path, name, username
                           FROM public.user WHERE %s = $1`, field)
 	logger.Info("Executing query to get user by field")
 	row := r.db.QueryRowContext(ctx, query, value)
 
 	err := row.Scan(
-		&user.ID, &user.AvatarPath, &user.Name, &user.Username, &user.Password,
+		&user.ID, &user.AvatarPath, &user.Name, &user.Username,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -98,4 +99,8 @@ func (r *authRepo) GetUserByEmail(ctx context.Context, email string) (*model.Use
 
 func (r *authRepo) GetUserByPhone(ctx context.Context, phone string) (*model.User, error) {
 	return r.getUserByField(ctx, "phone", phone)
+}
+
+func (r *authRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	return r.getUserByField(ctx, "id", id.String())
 }

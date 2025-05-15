@@ -62,9 +62,20 @@ func (c *authController) LogoutUser(ctx context.Context, req *authpb.LogoutUserR
 }
 
 func (c *authController) CheckLogin(ctx context.Context, req *authpb.CheckLoginRequest) (*authpb.CheckLoginResponse, error) {
-	userID, err := c.sessionUsecase.CheckLogin(ctx, req.GetSessionId())
+	user, err := c.sessionUsecase.CheckLogin(ctx, req.GetSessionId())
 	if err != nil {
 		return nil, apperrors.ConvertError(err)
 	}
-	return &authpb.CheckLoginResponse{UserId: userID}, nil
+
+	var avatar string
+	if user.AvatarPath != nil {
+		avatar = *user.AvatarPath
+	}
+
+	return &authpb.CheckLoginResponse{
+		UserId:   user.ID.String(),
+		Username: user.Username,
+		Name:     user.Name,
+		Avatar:   avatar,
+	}, nil
 }
