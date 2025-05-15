@@ -40,7 +40,7 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
 	query := `
 		SELECT 
-			c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at,
+			c.id, c.avatar_path, c.type, c.title,
 			m.id, m.user_id, m.body, m.sent_at
 		FROM chat c
 		JOIN user_chat uc ON c.id = uc.chat_id
@@ -73,7 +73,6 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 
 		err := rows.Scan(
 			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title,
-			&chat.CreatedAt, &chat.UpdatedAt,
 			&msgID, &msgUserID, &msgBody, &msgSentAt,
 		)
 		if err != nil {
@@ -105,9 +104,9 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 }
 
 func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error) {
-	query := `SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1`
+	query := `SELECT id, avatar_path, type, title FROM chat WHERE id = $1`
 	var chat model.Chat
-	err := r.db.QueryRowContext(ctx, query, chatID).Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title, &chat.CreatedAt, &chat.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, query, chatID).Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrChatNotFound
@@ -261,7 +260,7 @@ func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID
 
 func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID) ([]model.UserInChat, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role
+		SELECT u.id, u.username, u.name, u.avatar_path, uc.user_role
 		FROM public.user u
 		JOIN user_chat uc ON u.id = uc.user_id
 		WHERE uc.chat_id = $1`, chatID)

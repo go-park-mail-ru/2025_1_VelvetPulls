@@ -83,7 +83,6 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 		Type:       chat.Type,
 		Title:      chat.Title,
 		CountUsers: len(users),
-		Users:      users,
 	}, nil
 }
 

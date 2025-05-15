@@ -42,9 +42,8 @@ type Chat struct {
 	AvatarPath  *string      `json:"avatar_path,omitempty"`
 	Type        string       `json:"type" valid:"in(dialog|group|channel),required"`
 	Title       string       `json:"title" valid:"required~Title is required,length(1|100)"`
-	CreatedAt   string       `json:"created_at"`
-	UpdatedAt   string       `json:"updated_at"`
 	LastMessage *LastMessage `json:"last_message,omitempty"`
+	CountUsers  int          `json:"count_users" valid:"range(0|5000)"`
 }
 
 type CreateChatRequest struct {
@@ -67,12 +66,12 @@ type UpdateChat struct {
 }
 
 type ChatInfo struct {
-	ID         uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath *string      `json:"avatar_path,omitempty"`
-	Type       string       `json:"type" valid:"in(dialog|group|channel)"`
-	Title      string       `json:"title" valid:"length(1|100)"`
-	CountUsers int          `json:"count_users" valid:"range(0|5000)"`
-	Users      []UserInChat `json:"users"`
+	ID          uuid.UUID    `json:"id" valid:"uuid"`
+	AvatarPath  *string      `json:"avatar_path,omitempty"`
+	Type        string       `json:"type" valid:"in(dialog|group|channel)"`
+	Title       string       `json:"title" valid:"length(1|100)"`
+	LastMessage *LastMessage `json:"last_message,omitempty"`
+	CountUsers  int          `json:"count_users" valid:"range(0|5000)"`
 }
 
 type UserInChat struct {
@@ -164,9 +163,6 @@ func (u *UpdateChat) Sanitize() {
 
 func (c *ChatInfo) Sanitize() {
 	c.Title = utils.SanitizeString(c.Title)
-	for i := range c.Users {
-		c.Users[i].Sanitize()
-	}
 }
 
 func (u *UserInChat) Sanitize() {
