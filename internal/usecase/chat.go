@@ -15,6 +15,7 @@ import (
 )
 
 type ChatUsecase struct {
+	userRepo repository.IUserRepo
 	chatRepo repository.IChatRepo
 	nc       *nats.Conn
 }
@@ -22,7 +23,7 @@ type ChatUsecase struct {
 type IChatUsecase interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error)
 	GetChatInfo(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.ChatInfo, error)
-	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChat) (*model.ChatInfo, error)
+	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChatRequest) (*model.ChatInfo, error)
 	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error)
 	DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
 	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
@@ -30,8 +31,8 @@ type IChatUsecase interface {
 	LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error
 }
 
-func NewChatUsecase(chatRepo repository.IChatRepo, nc *nats.Conn) IChatUsecase {
-	return &ChatUsecase{chatRepo: chatRepo, nc: nc}
+func NewChatUsecase(chatRepo repository.IChatRepo, userRepo repository.IUserRepo, nc *nats.Conn) IChatUsecase {
+	return &ChatUsecase{userRepo: userRepo, chatRepo: chatRepo, nc: nc}
 }
 
 func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
@@ -87,58 +88,55 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	}, nil
 }
 
-func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChat) (*model.ChatInfo, error) {
+func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("CreateChat start", zap.String("type", req.Type))
 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	if req.Avatar != nil && !utils.IsImageFile(*req.Avatar) {
-		return nil, utils.ErrNotImage
-	}
 
 	if req.Type == string(model.ChatTypeDialog) {
-		if info, found := uc.findExistingDialog(ctx, userID, req.DialogUser); found {
+		if info, found := uc.findExistingDialog(ctx, userID, req.Users); found {
 			return info, nil
 		}
 	}
 
-	chatID, avatarURL, err := uc.chatRepo.CreateChat(ctx, req)
+	chatID, err := uc.chatRepo.CreateChat(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.Avatar != nil {
-		if err := utils.RewritePhoto(*req.Avatar, avatarURL); err != nil {
-			logger.Error("CreateChat: RewritePhoto failed", zap.Error(err))
-			return nil, err
-		}
-	}
+	// if req.Avatar != nil {
+	// 	if err := utils.RewritePhoto(*req.Avatar, avatarURL); err != nil {
+	// 		logger.Error("CreateChat: RewritePhoto failed", zap.Error(err))
+	// 		return nil, err
+	// 	}
+	// }
 
 	switch model.ChatType(req.Type) {
 	case model.ChatTypeDialog:
-		if err := uc.addDialogUsers(ctx, userID, req.DialogUser, chatID); err != nil {
+		if err := uc.addDialogUsers(ctx, userID, req.Users, chatID); err != nil {
 			return nil, ErrDialogAddUsers
 		}
 	case model.ChatTypeGroup:
-		if err := uc.addGroupOwner(ctx, userID, chatID); err != nil {
+		if err := uc.addGroupOwner(ctx, userID, req.Users, chatID); err != nil {
 			return nil, ErrAddOwnerToGroup
 		}
 	case model.ChatTypeChannel:
-		if err := uc.addChannelOwner(ctx, userID, chatID); err != nil {
+		if err := uc.addChannelOwner(ctx, userID, req.Users, chatID); err != nil {
 			return nil, ErrAddOwnerToGroup
 		}
 	}
 
 	info, err := uc.GetChatInfo(ctx, userID, chatID)
 
-	data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
-	subject := fmt.Sprintf("chat.%s.events", chatID.String())
-	if err := uc.nc.Publish(subject, data); err != nil {
-		logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
-		return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
-	}
+	// data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
+	// subject := fmt.Sprintf("chat.%s.events", chatID.String())
+	// if err := uc.nc.Publish(subject, data); err != nil {
+	// 	logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
+	// 	return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	// }
 
 	metrics.IncBusinessOp("create_chat")
 	return info, err
@@ -353,7 +351,17 @@ func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID
 	return nil
 }
 
-func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, otherUsername string) (*model.ChatInfo, bool) {
+func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, users []string) (*model.ChatInfo, bool) {
+	var otherUsername string
+	for _, username := range users {
+		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		if err != nil {
+			return nil, false
+		}
+		if user.ID != me {
+			otherUsername = username
+		}
+	}
 	chats, _, err := uc.chatRepo.GetChats(ctx, me)
 	if err != nil {
 		zap.L().Warn("findExistingDialog: GetChats failed", zap.Error(err))
@@ -389,32 +397,70 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, oth
 	return nil, false
 }
 
-func (uc *ChatUsecase) addDialogUsers(ctx context.Context, me uuid.UUID, otherUsername string, chatID uuid.UUID) error {
+func (uc *ChatUsecase) addDialogUsers(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
 	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
 	}
-
-	err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
-	if err != nil {
-		return err
+	var otherUsername string
+	for _, username := range users {
+		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		if err != nil {
+			return err
+		}
+		if user.ID != me {
+			otherUsername = username
+			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleOwner), chatID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
 }
 
-func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, chatID uuid.UUID) error {
+func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
 	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
 	}
+
+	var otherUsername string
+	for _, username := range users {
+		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		if err != nil {
+			return err
+		}
+		if user.ID != me {
+			otherUsername = username
+			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
-func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, chatID uuid.UUID) error {
+func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, users []string, chatID uuid.UUID) error {
 	err := uc.chatRepo.AddUserToChatByID(ctx, ownerID, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
+	}
+	var otherUsername string
+	for _, username := range users {
+		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		if err != nil {
+			return err
+		}
+		if user.ID != ownerID {
+			otherUsername = username
+			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

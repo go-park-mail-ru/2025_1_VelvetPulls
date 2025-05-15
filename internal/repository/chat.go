@@ -17,7 +17,7 @@ import (
 type IChatRepo interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error)
 	GetChatByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error)
-	CreateChat(ctx context.Context, create *model.CreateChat) (uuid.UUID, string, error)
+	CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error)
 	UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error)
 	DeleteChat(ctx context.Context, chatID uuid.UUID) error
 	AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
@@ -117,38 +117,38 @@ func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*mo
 	return &chat, nil
 }
 
-func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateChat) (uuid.UUID, string, error) {
+func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	var (
-		avatarPath string
-		args       []interface{}
+		//avatarPath string
+		args []interface{}
 	)
 
-	if create.Avatar != nil {
-		avatarPath = "./uploads/chats/" + uuid.New().String() + ".png"
-		args = append(args, avatarPath)
-	} else {
-		args = append(args, nil)
-	}
+	// if create.Avatar != nil {
+	// 	avatarPath = "./uploads/chats/" + uuid.New().String() + ".png"
+	// 	args = append(args, avatarPath)
+	// } else {
+	// 	args = append(args, nil)
+	// }
 	args = append(args, create.Type, create.Title)
 
 	query := `
-		INSERT INTO chat (avatar_path, type, title, created_at, updated_at)
-		VALUES ($1, $2, $3, NOW(), NOW())
+		INSERT INTO chat (type, title, created_at, updated_at)
+		VALUES ($1, $2, NOW(), NOW())
 		RETURNING id
 	`
 
 	var chatID uuid.UUID
 	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&chatID); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			return uuid.Nil, "", ErrRecordAlreadyExists
+			return uuid.Nil, ErrRecordAlreadyExists
 		}
 		logger.Error("CreateChat failed", zap.Error(err))
 		fmt.Println(err)
-		return uuid.Nil, "", ErrDatabaseOperation
+		return uuid.Nil, ErrDatabaseOperation
 	}
 
-	return chatID, avatarPath, nil
+	return chatID, nil
 }
 
 func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error) {
@@ -261,7 +261,7 @@ func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID
 
 func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID) ([]model.UserInChat, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role
+		SELECT u.id, u.username, u.name, u.avatar_path, uc.user_role
 		FROM public.user u
 		JOIN user_chat uc ON u.id = uc.user_id
 		WHERE uc.chat_id = $1`, chatID)

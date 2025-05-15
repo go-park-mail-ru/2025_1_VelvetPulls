@@ -48,16 +48,18 @@ type Chat struct {
 }
 
 type CreateChatRequest struct {
-	Type       string `json:"type" valid:"in(dialog|group|channel),required"`
-	Title      string `json:"title" valid:"required~Title is required,length(1|100)"`
-	DialogUser string `json:"dialog_user,omitempty" valid:"-"`
+	Type  string `json:"type" valid:"in(dialog|group|channel),required"`
+	Title string `json:"title" valid:"required~Title is required,length(1|100)"`
+	//DialogUser string `json:"dialog_user,omitempty" valid:"-"`
+	Users []string `json:"usersToAdd"`
 }
 
 type CreateChat struct {
-	Avatar     *multipart.File `json:"-" valid:"-"`
-	Type       string          `json:"type" valid:"in(dialog|group|channel),required"`
-	Title      string          `json:"title" valid:"required~Title is required,length(1|100)"`
-	DialogUser string          `json:"-" valid:"-"`
+	Avatar *multipart.File `json:"-" valid:"-"`
+	Type   string          `json:"type" valid:"in(dialog|group|channel),required"`
+	Title  string          `json:"title" valid:"required~Title is required,length(1|100)"`
+	//DialogUser string          `json:"-" valid:"-"`
+	Users []string `json:"usersToAdd"`
 }
 
 type UpdateChat struct {
@@ -106,6 +108,13 @@ func (c *CreateChat) Validate() error {
 	return nil
 }
 
+func (c *CreateChatRequest) Validate() error {
+	if _, err := govalidator.ValidateStruct(c); err != nil {
+		return errors.Join(ErrValidation, errors.New("invalid create chat data: "+err.Error()))
+	}
+	return nil
+}
+
 func (u *UpdateChat) Validate() error {
 	if _, err := govalidator.ValidateStruct(u); err != nil {
 		return errors.Join(ErrValidation, errors.New("invalid update chat data: "+err.Error()))
@@ -147,12 +156,16 @@ func (c *Chat) Sanitize() {
 
 func (c *CreateChatRequest) Sanitize() {
 	c.Title = utils.SanitizeString(c.Title)
-	c.DialogUser = utils.SanitizeString(c.DialogUser)
+	for _, user := range c.Users {
+		utils.SanitizeString(user)
+	}
 }
 
 func (c *CreateChat) Sanitize() {
 	c.Title = utils.SanitizeString(c.Title)
-	c.DialogUser = utils.SanitizeString(c.DialogUser)
+	for _, user := range c.Users {
+		utils.SanitizeString(user)
+	}
 }
 
 func (u *UpdateChat) Sanitize() {

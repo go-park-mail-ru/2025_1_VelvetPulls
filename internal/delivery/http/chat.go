@@ -79,40 +79,42 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("CreateChat", zap.String("userID", userID.String()))
 
-	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
-		logger.Error("Failed to parse multipart form", zap.Error(err))
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
-		return
-	}
+	// if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
+	// 	logger.Error("Failed to parse multipart form", zap.Error(err))
+	// 	utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
+	// 	return
+	// }
 
 	var req model.CreateChatRequest
-	if data := r.FormValue("chat_data"); data != "" {
-		if err := json.Unmarshal([]byte(data), &req); err != nil {
-			logger.Error("Invalid chat data format", zap.Error(err))
-			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
-			return
-		}
-	}
-
-	avatar, _, err := r.FormFile("avatar")
-	if err != nil && err != http.ErrMissingFile {
-		logger.Error("Invalid avatar file", zap.Error(err))
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid avatar file", false)
+	if err := utils.ParseJSONRequest(r, &req); err != nil {
+		logger.Error("Invalid request body", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-	defer func() {
-		if avatar != nil {
-			_ = avatar.Close()
-		}
-	}()
+	// if data := r.FormValue("chat_data"); data != "" {
+	// 	if err := json.Unmarshal([]byte(data), &req); err != nil {
+	// 		logger.Error("Invalid chat data format", zap.Error(err))
+	// 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
+	// 		return
+	// 	}
+	// }
 
-	chatData := model.CreateChat{
-		Type:       req.Type,
-		Title:      req.Title,
-		DialogUser: req.DialogUser,
-	}
-	if avatar != nil {
-		chatData.Avatar = &avatar
+	// avatar, _, err := r.FormFile("avatar")
+	// if err != nil && err != http.ErrMissingFile {
+	// 	logger.Error("Invalid avatar file", zap.Error(err))
+	// 	utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid avatar file", false)
+	// 	return
+	// }
+	// defer func() {
+	// 	if avatar != nil {
+	// 		_ = avatar.Close()
+	// 	}
+	// }()
+
+	chatData := model.CreateChatRequest{
+		Type:  req.Type,
+		Title: req.Title,
+		Users: req.Users,
 	}
 
 	chatInfo, err := c.chatUsecase.CreateChat(r.Context(), userID, &chatData)
