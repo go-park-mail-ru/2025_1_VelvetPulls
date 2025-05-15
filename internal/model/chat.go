@@ -66,12 +66,9 @@ type UpdateChat struct {
 }
 
 type ChatInfo struct {
-	ID          uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath  *string      `json:"avatar_path,omitempty"`
-	Type        string       `json:"type" valid:"in(dialog|group|channel)"`
-	Title       string       `json:"title" valid:"length(1|100)"`
-	LastMessage *LastMessage `json:"last_message,omitempty"`
-	CountUsers  int          `json:"count_users" valid:"range(0|5000)"`
+	Role     string       `json:"role" example:"owner" valid:"in(owner|member)"`
+	Users    []UserInChat `json:"users" valid:"-"`
+	Messages []Message    `json:"messages" valid:"-"`
 }
 
 type UserInChat struct {
@@ -79,7 +76,7 @@ type UserInChat struct {
 	Username   string    `json:"username,omitempty" valid:"required,length(3|50)"`
 	Name       *string   `json:"name,omitempty" valid:"length(0|100)"`
 	AvatarPath *string   `json:"avatar_path,omitempty"`
-	Role       *string   `json:"role" valid:"length(0|20)"`
+	Role       *string   `json:"role" valid:"in(owner|member)"`
 }
 
 type AddedUsersIntoChat struct {
@@ -159,10 +156,6 @@ func (u *UpdateChat) Sanitize() {
 		s := utils.SanitizeString(*u.Title)
 		u.Title = &s
 	}
-}
-
-func (c *ChatInfo) Sanitize() {
-	c.Title = utils.SanitizeString(c.Title)
 }
 
 func (u *UserInChat) Sanitize() {

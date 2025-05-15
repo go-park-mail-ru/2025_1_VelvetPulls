@@ -41,7 +41,12 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 	query := `
 		SELECT 
 			c.id, c.avatar_path, c.type, c.title,
-			m.id, m.user_id, m.body, m.sent_at
+			m.id, m.user_id, m.body, m.sent_at,
+			(
+				SELECT COUNT(*) 
+				FROM user_chat uc2 
+				WHERE uc2.chat_id = c.id
+			) AS count_users
 		FROM chat c
 		JOIN user_chat uc ON c.id = uc.chat_id
 		LEFT JOIN LATERAL (
@@ -73,7 +78,7 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 
 		err := rows.Scan(
 			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title,
-			&msgID, &msgUserID, &msgBody, &msgSentAt,
+			&msgID, &msgUserID, &msgBody, &msgSentAt, &chat.CountUsers,
 		)
 		if err != nil {
 			return nil, uuid.Nil, err
