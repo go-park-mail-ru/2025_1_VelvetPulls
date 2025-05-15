@@ -23,8 +23,9 @@ type ChatUsecase struct {
 type IChatUsecase interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error)
 	GetChatInfo(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.ChatInfo, error)
-	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChatRequest) (*model.ChatInfo, error)
-	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.ChatInfo, error)
+	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChatRequest) (*model.Chat, error)
+	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.Chat, error)
+	GetChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.Chat, error)
 	DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
 	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
 	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
@@ -58,7 +59,43 @@ func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.
 
 func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
-	logger.Info("GetChatInfo", zap.String("chatID", chatID.String()))
+	logger.Info("GetChat", zap.String("chatID", chatID.String()))
+
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+		return nil, err
+	}
+
+	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	if err != nil {
+		logger.Error("LeaveChat: failed to get user role", zap.Error(err))
+		return nil, err
+	}
+
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+
+	users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+
+	if model.ChatType(chat.Type) == model.ChatTypeDialog {
+		uc.decorateDialogInfo(chat, userID, users)
+	}
+
+	metrics.IncBusinessOp("get_Chat")
+	return &model.ChatInfo{
+		Role:     role,
+		Users:    users,
+		Messages: nil,
+	}, nil
+}
+
+func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*model.Chat, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("GetChat", zap.String("chatID", chatID.String()))
 
 	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
 		return nil, err
@@ -77,18 +114,17 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	if model.ChatType(chat.Type) == model.ChatTypeDialog {
 		uc.decorateDialogInfo(chat, userID, users)
 	}
-	metrics.IncBusinessOp("get_chatinfo")
-	return &model.ChatInfo{
+	metrics.IncBusinessOp("get_Chat")
+	return &model.Chat{
 		ID:         chat.ID,
 		AvatarPath: chat.AvatarPath,
 		Type:       chat.Type,
 		Title:      chat.Title,
 		CountUsers: len(users),
-		Users:      users,
 	}, nil
 }
 
-func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.ChatInfo, error) {
+func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("CreateChat start", zap.String("type", req.Type))
 
@@ -129,7 +165,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 		}
 	}
 
-	info, err := uc.GetChatInfo(ctx, userID, chatID)
+	info, err := uc.GetChat(ctx, userID, chatID)
 
 	// data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
 	// subject := fmt.Sprintf("chat.%s.events", chatID.String())
@@ -142,7 +178,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 	return info, err
 }
 
-func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *model.UpdateChat) (*model.ChatInfo, error) {
+func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *model.UpdateChat) (*model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("UpdateChat", zap.String("chatID", req.ID.String()))
 
@@ -175,7 +211,7 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	uc.handleAvatarCleanup(oldURL)
 
-	info, err := uc.GetChatInfo(ctx, userID, req.ID)
+	info, err := uc.GetChat(ctx, userID, req.ID)
 	data, _ := json.Marshal(model.ChatEvent{Action: utils.UpdateChat, Chat: *info})
 
 	subject := fmt.Sprintf("chat.%s.events", req.ID.String())
@@ -199,7 +235,7 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID)
 		return err
 	}
 
-	ce := model.ChatEvent{Action: utils.DeleteChat, Chat: model.ChatInfo{ID: chatID}}
+	ce := model.ChatEvent{Action: utils.DeleteChat, Chat: model.Chat{ID: chatID}}
 	data, _ := json.Marshal(ce)
 
 	subject := fmt.Sprintf("chat.%s.events", chatID.String())
@@ -273,7 +309,7 @@ func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) 
 
 		event := model.ChatEvent{
 			Action: utils.LeaveChat,
-			Chat:   model.ChatInfo{ID: chatID},
+			Chat:   model.Chat{ID: chatID},
 		}
 		data, _ := json.Marshal(event)
 		uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
@@ -351,7 +387,7 @@ func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID
 	return nil
 }
 
-func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, users []string) (*model.ChatInfo, bool) {
+func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, users []string) (*model.Chat, bool) {
 	var otherUsername string
 	for _, username := range users {
 		user, err := uc.userRepo.GetUserByUsername(ctx, username)
@@ -378,7 +414,7 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, use
 		}
 
 		if len(users) == 1 && users[0].ID == me && users[0].Username == otherUsername {
-			info, err := uc.GetChatInfo(ctx, me, c.ID)
+			info, err := uc.GetChat(ctx, me, c.ID)
 			if err == nil {
 				return info, true
 			}
@@ -386,7 +422,7 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, use
 
 		for _, u := range users {
 			if u.ID != me && u.Username == otherUsername {
-				info, err := uc.GetChatInfo(ctx, me, c.ID)
+				info, err := uc.GetChat(ctx, me, c.ID)
 				if err == nil {
 					return info, true
 				}

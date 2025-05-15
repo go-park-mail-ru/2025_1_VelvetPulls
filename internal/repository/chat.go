@@ -40,8 +40,13 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
 	query := `
 		SELECT 
-			c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at,
-			m.id, m.user_id, m.body, m.sent_at
+			c.id, c.avatar_path, c.type, c.title,
+			m.id, m.user_id, m.body, m.sent_at,
+			(
+				SELECT COUNT(*) 
+				FROM user_chat uc2 
+				WHERE uc2.chat_id = c.id
+			) AS count_users
 		FROM chat c
 		JOIN user_chat uc ON c.id = uc.chat_id
 		LEFT JOIN LATERAL (
@@ -73,8 +78,7 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 
 		err := rows.Scan(
 			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title,
-			&chat.CreatedAt, &chat.UpdatedAt,
-			&msgID, &msgUserID, &msgBody, &msgSentAt,
+			&msgID, &msgUserID, &msgBody, &msgSentAt, &chat.CountUsers,
 		)
 		if err != nil {
 			return nil, uuid.Nil, err
@@ -105,9 +109,9 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 }
 
 func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error) {
-	query := `SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1`
+	query := `SELECT id, avatar_path, type, title FROM chat WHERE id = $1`
 	var chat model.Chat
-	err := r.db.QueryRowContext(ctx, query, chatID).Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title, &chat.CreatedAt, &chat.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, query, chatID).Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrChatNotFound

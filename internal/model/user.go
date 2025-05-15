@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	ID         uuid.UUID  `json:"id"`
-	AvatarPath *string    `json:"avatarPath,omitempty"`
+	AvatarPath *string    `json:"avatar_path,omitempty"`
 	Name       string     `json:"name"`
 	Username   string     `json:"username"`
 	Password   string     `json:"password,omitempty"`
