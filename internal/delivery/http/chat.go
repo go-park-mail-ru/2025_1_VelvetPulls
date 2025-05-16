@@ -223,8 +223,11 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-	avatarPath := chatInfo.AvatarPath
-	updatedAvatar := *avatarPath
+
+	var updatedAvatar string
+	if chatInfo.AvatarPath != nil {
+		updatedAvatar = *chatInfo.AvatarPath
+	}
 	chatInfoResp := model.UpdateChatResp{
 		Avatar: updatedAvatar,
 		Title:  chatInfo.Title,
