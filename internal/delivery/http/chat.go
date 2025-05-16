@@ -223,8 +223,14 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
+	avatarPath := chatInfo.AvatarPath
+	updatedAvatar := *avatarPath
+	chatInfoResp := model.UpdateChatResp{
+		Avatar: updatedAvatar,
+		Title:  chatInfo.Title,
+	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
+	utils.SendJSONResponse(w, r, http.StatusOK, chatInfoResp, true)
 }
 
 // DeleteChat удаляет чат

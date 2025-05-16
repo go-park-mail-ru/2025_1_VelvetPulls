@@ -67,6 +67,11 @@ type UpdateChat struct {
 	Title  *string         `json:"title" valid:"length(1|100)"`
 }
 
+type UpdateChatResp struct {
+	Avatar string `json:"updated_avatar" valid:"-"`
+	Title  string `json:"title" valid:"length(1|100)"`
+}
+
 type ChatInfo struct {
 	Role     string       `json:"role" example:"owner" valid:"in(owner|member)"`
 	Users    []UserInChat `json:"users" valid:"-"`

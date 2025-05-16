@@ -167,12 +167,12 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 
 	info, err := uc.GetChat(ctx, userID, chatID)
 
-	// data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
-	// subject := fmt.Sprintf("chat.%s.events", chatID.String())
-	// if err := uc.nc.Publish(subject, data); err != nil {
-	// 	logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
-	// 	return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
-	// }
+	data, _ := json.Marshal(model.ChatEvent{Action: utils.NewChat, Chat: *info})
+	subject := fmt.Sprintf("chat.%s.events", chatID.String())
+	if err := uc.nc.Publish(subject, data); err != nil {
+		logger.Error("failed to publish chat event", zap.String("subject", subject), zap.Error(err))
+		return nil, fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("create_chat")
 	return info, err
