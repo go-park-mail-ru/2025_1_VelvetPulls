@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.user_chat (
     chat_id UUID NOT NULL,
     user_role user_type NOT NULL,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (joined_at <= CURRENT_TIMESTAMP),
+    send_notifications boolean DEFAULT true NOT NULL,
     PRIMARY KEY (user_id, chat_id),
     FOREIGN KEY (user_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (chat_id) REFERENCES public.chat(id) ON DELETE CASCADE ON UPDATE CASCADE

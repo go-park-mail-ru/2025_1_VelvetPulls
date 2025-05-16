@@ -287,13 +287,13 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var usernames []string
-	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
+	var users model.UsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-
+	usernames := users.Users
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("AddUsersToChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 
@@ -330,13 +330,13 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var usernames []string
-	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
+	var users model.UsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-
+	usernames := users.Users
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("RemoveUsersFromChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 

@@ -38,12 +38,13 @@ const (
 )
 
 type Chat struct {
-	ID          uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath  *string      `json:"avatar_path,omitempty"`
-	Type        string       `json:"type" valid:"in(dialog|group|channel),required"`
-	Title       string       `json:"title" valid:"required~Title is required,length(1|100)"`
-	LastMessage *LastMessage `json:"last_message,omitempty"`
-	CountUsers  int          `json:"count_users" valid:"range(0|5000)"`
+	ID                uuid.UUID    `json:"id" valid:"uuid"`
+	AvatarPath        *string      `json:"avatar_path,omitempty"`
+	Type              string       `json:"type" valid:"in(dialog|group|channel),required"`
+	Title             string       `json:"title" valid:"required~Title is required,length(1|100)"`
+	LastMessage       *LastMessage `json:"last_message,omitempty"`
+	CountUsers        int          `json:"count_users" valid:"range(0|5000)"`
+	SendNotifications bool         `json:"send_notifications" valid:"-"`
 }
 
 type CreateChatRequest struct {
@@ -76,6 +77,10 @@ type ChatInfo struct {
 	Role     string       `json:"role" example:"owner" valid:"in(owner|member)"`
 	Users    []UserInChat `json:"users" valid:"-"`
 	Messages []Message    `json:"messages" valid:"-"`
+}
+
+type UsersRequest struct {
+	Users []string `json:"users" valid:"-"`
 }
 
 type UserInChat struct {

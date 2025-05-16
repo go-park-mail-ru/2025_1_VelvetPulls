@@ -20,6 +20,7 @@ type IChatRepo interface {
 	CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error)
 	UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error)
 	DeleteChat(ctx context.Context, chatID uuid.UUID) error
+	// SendNotifications(ctx context.Context, chatID uuid.UUID, send bool) error
 	AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
 	AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
@@ -239,6 +240,13 @@ func (r *chatRepository) DeleteChat(ctx context.Context, chatID uuid.UUID) error
 	_, err := r.db.ExecContext(ctx, `DELETE FROM chat WHERE id = $1`, chatID)
 	return err
 }
+
+// func (r *chatRepository) SendNotifications(ctx context.Context, chatID uuid.UUID, send bool) error {
+// 	query := `UPDATE chat_user SET
+// 		send_notifications = $1
+// 		WHERE chat_id = $2 AND user_id = $3 RETURNING send_notifications`
+// 	return err
+// }
 
 func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
 	query := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`
