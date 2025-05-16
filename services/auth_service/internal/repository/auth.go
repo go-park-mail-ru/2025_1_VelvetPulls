@@ -68,14 +68,13 @@ func (r *authRepo) getUserByField(ctx context.Context, field, value string) (*mo
 	}
 
 	var user model.User
-	// Обновляем запрос, чтобы не учитывать поле birth_date при извлечении пользователя
-	query := fmt.Sprintf(`SELECT id, avatar_path, name, username
+	query := fmt.Sprintf(`SELECT id, avatar_path, name, username, password
                           FROM public.user WHERE %s = $1`, field)
 	logger.Info("Executing query to get user by field")
 	row := r.db.QueryRowContext(ctx, query, value)
 
 	err := row.Scan(
-		&user.ID, &user.AvatarPath, &user.Name, &user.Username,
+		&user.ID, &user.AvatarPath, &user.Name, &user.Username, &user.Password,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -85,6 +84,7 @@ func (r *authRepo) getUserByField(ctx context.Context, field, value string) (*mo
 		logger.Error("Database operation failed")
 		return nil, ErrDatabaseOperation
 	}
+	fmt.Println(user)
 	logger.Info("User found")
 	return &user, nil
 }
