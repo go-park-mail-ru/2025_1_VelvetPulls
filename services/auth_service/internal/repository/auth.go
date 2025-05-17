@@ -84,7 +84,6 @@ func (r *authRepo) getUserByField(ctx context.Context, field, value string) (*mo
 		logger.Error("Database operation failed")
 		return nil, ErrDatabaseOperation
 	}
-	fmt.Println(user)
 	logger.Info("User found")
 	return &user, nil
 }

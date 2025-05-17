@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
@@ -66,7 +65,6 @@ func (c *authController) Auth(w http.ResponseWriter, r *http.Request) {
 	if avatar := resp.GetAvatar(); avatar != "" {
 		user.AvatarPath = &avatar
 	}
-	fmt.Println(user)
 
 	utils.SendJSONResponse(w, r, http.StatusOK, user, true)
 }

@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -85,13 +84,11 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, values model.LoginCredenti
 		return "", err
 	}
 
-	fmt.Println(values.Username)
 	// Находим пользователя по логину
 	user, err := uc.authRepo.GetUserByUsername(ctx, values.Username)
 	if err != nil {
 		return "", ErrInvalidUsername
 	}
-	fmt.Println(user.Password, values.Password)
 
 	// Проверяем пароль
 	if !utils.CheckPassword(user.Password, values.Password) {

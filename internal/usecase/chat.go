@@ -15,9 +15,10 @@ import (
 )
 
 type ChatUsecase struct {
-	userRepo repository.IUserRepo
-	chatRepo repository.IChatRepo
-	nc       *nats.Conn
+	userRepo    repository.IUserRepo
+	chatRepo    repository.IChatRepo
+	messageRepo repository.IMessageRepo
+	nc          *nats.Conn
 }
 
 type IChatUsecase interface {
@@ -33,8 +34,8 @@ type IChatUsecase interface {
 	LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error
 }
 
-func NewChatUsecase(chatRepo repository.IChatRepo, userRepo repository.IUserRepo, nc *nats.Conn) IChatUsecase {
-	return &ChatUsecase{userRepo: userRepo, chatRepo: chatRepo, nc: nc}
+func NewChatUsecase(chatRepo repository.IChatRepo, userRepo repository.IUserRepo, messageRepo repository.IMessageRepo, nc *nats.Conn) IChatUsecase {
+	return &ChatUsecase{userRepo: userRepo, chatRepo: chatRepo, messageRepo: messageRepo, nc: nc}
 }
 
 func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
@@ -68,7 +69,7 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 
 	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
-		logger.Error("LeaveChat: failed to get user role", zap.Error(err))
+		logger.Error("GetChatInfo: failed to get user role", zap.Error(err))
 		return nil, err
 	}
 
@@ -86,11 +87,17 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 		uc.decorateDialogInfo(chat, userID, users)
 	}
 
+	messages, err := uc.messageRepo.GetMessages(ctx, chatID)
+	if err != nil {
+		logger.Error("GetChatInfo: failed to get messages", zap.Error(err))
+		return nil, err
+	}
+
 	metrics.IncBusinessOp("get_Chat")
 	return &model.ChatInfo{
 		Role:     role,
 		Users:    users,
-		Messages: nil,
+		Messages: messages,
 	}, nil
 }
 

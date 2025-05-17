@@ -81,7 +81,7 @@ func (s *Server) Run(address string) error {
 
 	// Usecase
 	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, s.nc)
-	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, s.nc)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, messageRepo, s.nc)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 

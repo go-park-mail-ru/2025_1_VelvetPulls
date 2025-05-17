@@ -150,7 +150,6 @@ func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateCha
 			return uuid.Nil, ErrRecordAlreadyExists
 		}
 		logger.Error("CreateChat failed", zap.Error(err))
-		fmt.Println(err)
 		return uuid.Nil, ErrDatabaseOperation
 	}
 
