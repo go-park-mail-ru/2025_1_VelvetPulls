@@ -26,6 +26,7 @@ type IChatUsecase interface {
 	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChatRequest) (*model.Chat, error)
 	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.Chat, error)
 	GetChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.Chat, error)
+	SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error
 	DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
 	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
 	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
@@ -114,14 +115,30 @@ func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*
 	if model.ChatType(chat.Type) == model.ChatTypeDialog {
 		uc.decorateDialogInfo(chat, userID, users)
 	}
+	sendNotifications, err := uc.chatRepo.GetSendNotifications(ctx, userID, chatID)
+	if err != nil {
+		return nil, err
+	}
+
 	metrics.IncBusinessOp("get_Chat")
 	return &model.Chat{
-		ID:         chat.ID,
-		AvatarPath: chat.AvatarPath,
-		Type:       chat.Type,
-		Title:      chat.Title,
-		CountUsers: len(users),
+		ID:                chat.ID,
+		AvatarPath:        chat.AvatarPath,
+		Type:              chat.Type,
+		Title:             chat.Title,
+		CountUsers:        len(users),
+		SendNotifications: sendNotifications,
 	}, nil
+}
+
+func (uc *ChatUsecase) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("SendNotifications", zap.String("chatID", chatID.String()))
+	err := uc.chatRepo.SendNotifications(ctx, userID, chatID, send)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.Chat, error) {

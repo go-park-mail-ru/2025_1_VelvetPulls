@@ -20,7 +20,8 @@ type IChatRepo interface {
 	CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error)
 	UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error)
 	DeleteChat(ctx context.Context, chatID uuid.UUID) error
-	// SendNotifications(ctx context.Context, chatID uuid.UUID, send bool) error
+	GetSendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (bool, error)
+	SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error
 	AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
 	AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
@@ -41,7 +42,7 @@ func NewChatRepo(db *sql.DB) IChatRepo {
 func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
 	query := `
 		SELECT 
-			c.id, c.avatar_path, c.type, c.title,
+			c.id, c.avatar_path, c.type, c.title, uc.send_notifications,
 			m.id, m.user_id, m.body, m.sent_at,
 			(
 				SELECT COUNT(*) 
@@ -78,7 +79,7 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 		var msgSentAt sql.NullTime
 
 		err := rows.Scan(
-			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title,
+			&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title, &chat.SendNotifications,
 			&msgID, &msgUserID, &msgBody, &msgSentAt, &chat.CountUsers,
 		)
 		if err != nil {
@@ -241,12 +242,33 @@ func (r *chatRepository) DeleteChat(ctx context.Context, chatID uuid.UUID) error
 	return err
 }
 
-// func (r *chatRepository) SendNotifications(ctx context.Context, chatID uuid.UUID, send bool) error {
-// 	query := `UPDATE chat_user SET
-// 		send_notifications = $1
-// 		WHERE chat_id = $2 AND user_id = $3 RETURNING send_notifications`
-// 	return err
-// }
+func (r *chatRepository) GetSendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (bool, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	var sendNotifications bool
+	query := `SELECT send_notifications FROM user_chat
+		WHERE chat_id = $1 AND user_id = $2`
+
+	err := r.db.QueryRowContext(ctx, query, chatID, userID).Scan(&sendNotifications)
+	if err != nil {
+		logger.Error("Commit failed", zap.Error(err))
+		return false, ErrGetNotifications
+	}
+	return sendNotifications, nil
+}
+
+func (r *chatRepository) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
+	logger := utils.GetLoggerFromCtx(ctx)
+	query := `UPDATE user_chat SET
+		send_notifications = $1
+		WHERE chat_id = $2 AND user_id = $3`
+
+	_, err := r.db.ExecContext(ctx, query, send, chatID, userID)
+	if err != nil {
+		logger.Error("Commit failed", zap.Error(err))
+		return ErrSetNotifications
+	}
+	return nil
+}
 
 func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
 	query := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`

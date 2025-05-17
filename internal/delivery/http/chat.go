@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
@@ -35,6 +36,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionC
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/leave", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.LeaveChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/notifications/{send}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendNotifications))).Methods(http.MethodPost)
 }
 
 // GetChats возвращает список чатов пользователя
@@ -161,6 +163,33 @@ func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
+}
+
+// @Router /chat/{chat_id}/notifications/{send} [post]
+func (c *chatController) SendNotifications(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+	userID := utils.GetUserIDFromCtx(r.Context())
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	send, parseErr := strconv.ParseBool(mux.Vars(r)["send"])
+	if parseErr != nil {
+		logger.Error("Invalid send notification status format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid send bool", false)
+		return
+	}
+	err := c.chatUsecase.SendNotifications(r.Context(), userID, chatID, send)
+	if err != nil {
+		logger.Error("Failed to set send notifications for chat", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, send, true)
 }
 
 // UpdateChat обновляет информацию о чате

@@ -15,4 +15,6 @@ var (
 	ErrDatabaseOperation   = errors.New("database operation failed")
 	ErrDatabaseScan        = errors.New("failed to scan database row")
 	ErrEmptyMessage        = errors.New("message body is empty")
+	ErrSetNotifications    = errors.New("failed to update send_notifications status")
+	ErrGetNotifications    = errors.New("failed to get send_notifications status")
 )
