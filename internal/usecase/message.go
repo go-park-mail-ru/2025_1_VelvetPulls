@@ -16,6 +16,7 @@ import (
 
 type IMessageUsecase interface {
 	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
+	GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
 	SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
 	UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
 	DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error
@@ -47,6 +48,25 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 	}
 	metrics.IncBusinessOp("get_messages")
 	return msgs, nil
+}
+
+func (uc *MessageUsecase) GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("GetMessagesAfter start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()), zap.String("messageID", messageID.String()))
+
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+		logger.Warn("Access denied при попытке получить сообщения до", zap.Error(err))
+		return nil, err
+	}
+
+	messages, err := uc.messageRepo.GetMessagesBefore(ctx, chatID, messageID)
+	if err != nil {
+		logger.Error("GetMessagesAfterID failed", zap.Error(err))
+		return nil, err
+	}
+
+	metrics.IncBusinessOp("get_messages_before")
+	return messages, nil
 }
 
 func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
