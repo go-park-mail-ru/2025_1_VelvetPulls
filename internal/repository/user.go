@@ -106,7 +106,7 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 		if current != nil {
 			oldAvatar = *current
 		}
-		newAvatar = fmt.Sprintf("./uploads/avatar/%s.png", uuid.New().String())
+		newAvatar = fmt.Sprintf("/uploads/avatar/%s.png", uuid.New().String())
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", idx))
 		args = append(args, newAvatar)
 		idx++

@@ -186,7 +186,7 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 		if oldAvatar != nil {
 			avatarOldPath = *oldAvatar
 		}
-		avatarNewPath = "./uploads/chats/" + uuid.New().String() + ".png"
+		avatarNewPath = "/uploads/chats/" + uuid.New().String() + ".png"
 		updates = append(updates, fmt.Sprintf("avatar_path = $%d", argIndex))
 		args = append(args, avatarNewPath)
 		argIndex++

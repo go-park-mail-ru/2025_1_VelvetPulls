@@ -24,25 +24,28 @@ func NewMessageRepo(db *sql.DB) IMessageRepo {
 	return &messageRepo{db: db}
 }
 
+var limit = 25
+
 func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error) {
 	query := `
-	SELECT 
-		m.id,
-		m.parent_message_id,
-		m.chat_id,
-		m.user_id,
-		m.body,
-		m.sent_at,
-		m.is_redacted,
-		u.username,
-		u.avatar_path
-	FROM message m
-	JOIN public.user u ON m.user_id = u.id
-	WHERE m.chat_id = $1
-	ORDER BY m.sent_at ASC
+		SELECT 
+			m.id,
+			m.parent_message_id,
+			m.chat_id,
+			m.user_id,
+			m.body,
+			m.sent_at,
+			m.is_redacted,
+			u.username,
+			u.avatar_path
+		FROM message m
+		JOIN public.user u ON m.user_id = u.id
+		WHERE m.chat_id = $1
+		ORDER BY m.sent_at DESC
+		LIMIT $2
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, chatID)
+	rows, err := r.db.QueryContext(ctx, query, chatID, limit)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}

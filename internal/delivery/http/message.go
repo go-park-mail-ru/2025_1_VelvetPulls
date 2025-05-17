@@ -27,6 +27,7 @@ func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase,
 	}
 
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}/messages/pages/{last_message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateMessage))).Methods(http.MethodPut)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteMessage))).Methods(http.MethodDelete)
