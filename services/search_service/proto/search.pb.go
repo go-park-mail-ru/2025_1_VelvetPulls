@@ -181,7 +181,9 @@ func (x *SearchUserChatsRequest) GetTypes() []string {
 
 type SearchUserChatsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Chats         []*Chat                `protobuf:"bytes,1,rep,name=chats,proto3" json:"chats,omitempty"`
+	Dialogs       []*Chat                `protobuf:"bytes,1,rep,name=dialogs,proto3" json:"dialogs,omitempty"`
+	Groups        []*Chat                `protobuf:"bytes,2,rep,name=groups,proto3" json:"groups,omitempty"`
+	Channels      []*Chat                `protobuf:"bytes,3,rep,name=channels,proto3" json:"channels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,9 +218,23 @@ func (*SearchUserChatsResponse) Descriptor() ([]byte, []int) {
 	return file_search_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SearchUserChatsResponse) GetChats() []*Chat {
+func (x *SearchUserChatsResponse) GetDialogs() []*Chat {
 	if x != nil {
-		return x.Chats
+		return x.Dialogs
+	}
+	return nil
+}
+
+func (x *SearchUserChatsResponse) GetGroups() []*Chat {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *SearchUserChatsResponse) GetChannels() []*Chat {
+	if x != nil {
+		return x.Channels
 	}
 	return nil
 }
@@ -227,7 +243,7 @@ type Chat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Type          ChatType               `protobuf:"varint,3,opt,name=type,proto3,enum=search.ChatType" json:"type,omitempty"` // Используем enum
 	AvatarPath    string                 `protobuf:"bytes,4,opt,name=avatar_path,json=avatarPath,proto3" json:"avatar_path,omitempty"`
 	UserRole      UserRole               `protobuf:"varint,5,opt,name=user_role,json=userRole,proto3,enum=search.UserRole" json:"user_role,omitempty"`
 	MembersCount  int32                  `protobuf:"varint,6,opt,name=members_count,json=membersCount,proto3" json:"members_count,omitempty"`
@@ -282,11 +298,11 @@ func (x *Chat) GetTitle() string {
 	return ""
 }
 
-func (x *Chat) GetType() string {
+func (x *Chat) GetType() ChatType {
 	if x != nil {
 		return x.Type
 	}
-	return ""
+	return ChatType_DIALOG
 }
 
 func (x *Chat) GetAvatarPath() string {
@@ -958,13 +974,15 @@ const file_search_proto_rawDesc = "" +
 	"\x16SearchUserChatsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +
-	"\x05types\x18\x03 \x03(\tR\x05types\"=\n" +
-	"\x17SearchUserChatsResponse\x12\"\n" +
-	"\x05chats\x18\x01 \x03(\v2\f.search.ChatR\x05chats\"\xab\x02\n" +
+	"\x05types\x18\x03 \x03(\tR\x05types\"\x91\x01\n" +
+	"\x17SearchUserChatsResponse\x12&\n" +
+	"\adialogs\x18\x01 \x03(\v2\f.search.ChatR\adialogs\x12$\n" +
+	"\x06groups\x18\x02 \x03(\v2\f.search.ChatR\x06groups\x12(\n" +
+	"\bchannels\x18\x03 \x03(\v2\f.search.ChatR\bchannels\"\xbd\x02\n" +
 	"\x04Chat\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1f\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x10.search.ChatTypeR\x04type\x12\x1f\n" +
 	"\vavatar_path\x18\x04 \x01(\tR\n" +
 	"avatarPath\x12-\n" +
 	"\tuser_role\x18\x05 \x01(\x0e2\x10.search.UserRoleR\buserRole\x12#\n" +
@@ -1068,25 +1086,28 @@ var file_search_proto_goTypes = []any{
 	(*Message)(nil),                 // 14: search.Message
 }
 var file_search_proto_depIdxs = []int32{
-	4,  // 0: search.SearchUserChatsResponse.chats:type_name -> search.Chat
-	1,  // 1: search.Chat.user_role:type_name -> search.UserRole
-	5,  // 2: search.Chat.last_message:type_name -> search.LastMessage
-	8,  // 3: search.SearchContactsResponse.contacts:type_name -> search.Contact
-	11, // 4: search.SearchUsersResponse.users:type_name -> search.User
-	14, // 5: search.SearchMessagesResponse.messages:type_name -> search.Message
-	2,  // 6: search.ChatService.SearchUserChats:input_type -> search.SearchUserChatsRequest
-	6,  // 7: search.ChatService.SearchContacts:input_type -> search.SearchContactsRequest
-	9,  // 8: search.ChatService.SearchUsers:input_type -> search.SearchUsersRequest
-	12, // 9: search.ChatService.SearchMessages:input_type -> search.SearchMessagesRequest
-	3,  // 10: search.ChatService.SearchUserChats:output_type -> search.SearchUserChatsResponse
-	7,  // 11: search.ChatService.SearchContacts:output_type -> search.SearchContactsResponse
-	10, // 12: search.ChatService.SearchUsers:output_type -> search.SearchUsersResponse
-	13, // 13: search.ChatService.SearchMessages:output_type -> search.SearchMessagesResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	4,  // 0: search.SearchUserChatsResponse.dialogs:type_name -> search.Chat
+	4,  // 1: search.SearchUserChatsResponse.groups:type_name -> search.Chat
+	4,  // 2: search.SearchUserChatsResponse.channels:type_name -> search.Chat
+	0,  // 3: search.Chat.type:type_name -> search.ChatType
+	1,  // 4: search.Chat.user_role:type_name -> search.UserRole
+	5,  // 5: search.Chat.last_message:type_name -> search.LastMessage
+	8,  // 6: search.SearchContactsResponse.contacts:type_name -> search.Contact
+	11, // 7: search.SearchUsersResponse.users:type_name -> search.User
+	14, // 8: search.SearchMessagesResponse.messages:type_name -> search.Message
+	2,  // 9: search.ChatService.SearchUserChats:input_type -> search.SearchUserChatsRequest
+	6,  // 10: search.ChatService.SearchContacts:input_type -> search.SearchContactsRequest
+	9,  // 11: search.ChatService.SearchUsers:input_type -> search.SearchUsersRequest
+	12, // 12: search.ChatService.SearchMessages:input_type -> search.SearchMessagesRequest
+	3,  // 13: search.ChatService.SearchUserChats:output_type -> search.SearchUserChatsResponse
+	7,  // 14: search.ChatService.SearchContacts:output_type -> search.SearchContactsResponse
+	10, // 15: search.ChatService.SearchUsers:output_type -> search.SearchUsersResponse
+	13, // 16: search.ChatService.SearchMessages:output_type -> search.SearchMessagesResponse
+	13, // [13:17] is the sub-list for method output_type
+	9,  // [9:13] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_search_proto_init() }

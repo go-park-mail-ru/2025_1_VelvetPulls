@@ -40,13 +40,15 @@ message SearchUserChatsRequest {
 }
 
 message SearchUserChatsResponse {
-  repeated Chat chats = 1;
+  repeated Chat dialogs = 1;
+  repeated Chat groups = 2;
+  repeated Chat channels = 3;
 }
 
 message Chat {
   string id = 1;
   string title = 2;
-  string type = 3;
+  ChatType type = 3;  // Используем enum
   string avatar_path = 4;
   UserRole user_role = 5;
   int32 members_count = 6;

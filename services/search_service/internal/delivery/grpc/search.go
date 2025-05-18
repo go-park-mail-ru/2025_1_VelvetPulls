@@ -42,7 +42,7 @@ func (h *ChatHandler) SearchUserChats(
 ) (*search.SearchUserChatsResponse, error) {
 	const method = "SearchUserChats"
 	logger := utils.GetLoggerFromCtx(ctx)
-	chats, err := h.chatUC.SearchUserChats(ctx, req.GetUserId(), req.GetQuery(), req.GetTypes())
+	groups, err := h.chatUC.SearchUserChats(ctx, req.GetUserId(), req.GetQuery())
 	if err != nil {
 		logger.Error(method, zap.Error(err))
 		if errors.Is(err, model.ErrValidation) {
@@ -52,33 +52,9 @@ func (h *ChatHandler) SearchUserChats(
 	}
 
 	resp := &search.SearchUserChatsResponse{
-		Chats: make([]*search.Chat, 0, len(chats)),
-	}
-
-	for _, c := range chats {
-		chatPB := &search.Chat{
-			Id:        c.ID.String(),
-			Type:      c.Type,
-			Title:     c.Title,
-			CreatedAt: c.CreatedAt,
-			UpdatedAt: c.UpdatedAt,
-		}
-
-		if c.AvatarPath != nil {
-			chatPB.AvatarPath = *c.AvatarPath
-		}
-
-		if c.LastMessage != nil {
-			chatPB.LastMessage = &search.LastMessage{
-				Id:       c.LastMessage.ID.String(),
-				UserId:   c.LastMessage.UserID.String(),
-				Body:     c.LastMessage.Body,
-				SentAt:   c.LastMessage.SentAt.Format(time.RFC3339),
-				Username: c.LastMessage.Username,
-			}
-		}
-
-		resp.Chats = append(resp.Chats, chatPB)
+		Dialogs:  convertChatsToPB(groups.Dialogs),
+		Groups:   convertChatsToPB(groups.Groups),
+		Channels: convertChatsToPB(groups.Channels),
 	}
 	return resp, nil
 }
@@ -205,4 +181,43 @@ func (h *ChatHandler) SearchMessages(
 		resp.Messages = append(resp.Messages, msgPB)
 	}
 	return resp, nil
+}
+
+func convertChatsToPB(chats []model.Chat) []*search.Chat {
+	pbChats := make([]*search.Chat, 0, len(chats))
+	for _, c := range chats {
+		chatPB := &search.Chat{
+			Id:        c.ID.String(),
+			Title:     c.Title,
+			CreatedAt: c.CreatedAt,
+			UpdatedAt: c.UpdatedAt,
+		}
+
+		switch c.Type {
+		case "dialog":
+			chatPB.Type = search.ChatType_DIALOG
+		case "group":
+			chatPB.Type = search.ChatType_GROUP
+		case "channel":
+			chatPB.Type = search.ChatType_CHANNEL
+		}
+
+		if c.AvatarPath != nil {
+			chatPB.AvatarPath = *c.AvatarPath
+		}
+
+		if c.LastMessage != nil {
+			lastMsgPB := &search.LastMessage{
+				Id:       c.LastMessage.ID.String(),
+				UserId:   c.LastMessage.UserID.String(),
+				Body:     c.LastMessage.Body,
+				SentAt:   c.LastMessage.SentAt.Format(time.RFC3339),
+				Username: c.LastMessage.Username,
+			}
+			chatPB.LastMessage = lastMsgPB
+		}
+
+		pbChats = append(pbChats, chatPB)
+	}
+	return pbChats
 }

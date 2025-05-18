@@ -39,12 +39,10 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 	userID := utils.GetUserIDFromCtx(r.Context()).String()
 
 	query := r.URL.Query().Get("query")
-	types := r.URL.Query()["type"]
 
 	resp, err := c.searchClient.SearchUserChats(r.Context(), &chatpb.SearchUserChatsRequest{
 		UserId: userID,
 		Query:  query,
-		Types:  types,
 	})
 	if err != nil {
 		logger.Error("gRPC SearchChats error", zap.Error(err))
@@ -53,7 +51,7 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, resp.Chats, true)
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 func (c *searchController) SearchMessages(w http.ResponseWriter, r *http.Request) {
