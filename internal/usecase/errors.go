@@ -28,5 +28,7 @@ var (
 	ErrMessageAccessDenied     = errors.New("user is not the author of the message")
 	ErrMessageUpdateFailed     = errors.New("failed to update message")
 	ErrMessageDeleteFailed     = errors.New("failed to delete message")
-	ErrMessagePublishFailed    = errors.New("failed to publish message event")
+
+	ErrMessagePublishFailed = errors.New("failed to publish message event")
+	ErrChatPublishFailed    = errors.New("failed to publish chat event")
 )

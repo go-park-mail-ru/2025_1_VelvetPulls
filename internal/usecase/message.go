@@ -16,6 +16,7 @@ import (
 
 type IMessageUsecase interface {
 	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
+	GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
 	SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
 	UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
 	DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error
@@ -49,6 +50,25 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 	return msgs, nil
 }
 
+func (uc *MessageUsecase) GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+	logger.Info("GetMessagesAfter start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()), zap.String("messageID", messageID.String()))
+
+	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+		logger.Warn("Access denied при попытке получить сообщения до", zap.Error(err))
+		return nil, err
+	}
+
+	messages, err := uc.messageRepo.GetMessagesBefore(ctx, chatID, messageID)
+	if err != nil {
+		logger.Error("GetMessagesAfterID failed", zap.Error(err))
+		return nil, err
+	}
+
+	metrics.IncBusinessOp("get_messages_before")
+	return messages, nil
+}
+
 func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
@@ -75,7 +95,10 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 	e := model.MessageEvent{Action: utils.NewMessage, Message: *saved}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("send_message")
 	return nil
@@ -116,7 +139,10 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 	e := model.MessageEvent{Action: utils.UpdateMessage, Message: *updated}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("update_message")
 	return nil
@@ -152,7 +178,10 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 	e := model.MessageEvent{Action: utils.DeleteMessage, Message: *deleted}
 	data, _ := json.Marshal(e)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
-	uc.nc.Publish(subj, data)
+	if err := uc.nc.Publish(subj, data); err != nil {
+		logger.Error("NATS publish failed", zap.Error(err))
+		return fmt.Errorf("%w: %v", ErrMessagePublishFailed, err)
+	}
 
 	metrics.IncBusinessOp("delete_message")
 	return nil

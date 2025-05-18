@@ -12,18 +12,28 @@ CREATE TYPE reaction_type AS ENUM ('like', 'dislike');
 CREATE TABLE IF NOT EXISTS public.user (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     avatar_path TEXT CHECK (avatar_path IS NULL OR (LENGTH(avatar_path) > 0 AND LENGTH(avatar_path) <= 255)),
-    first_name TEXT CHECK (LENGTH(first_name) > 0 AND LENGTH(first_name) <= 50),
-    last_name TEXT CHECK (LENGTH(last_name) > 0 AND LENGTH(last_name) <= 50),
+    name TEXT CHECK (LENGTH(name) > 0 AND LENGTH(name) <= 30),
     username TEXT UNIQUE NOT NULL CHECK (
-    LENGTH(username) >= 3 AND 
-    LENGTH(username) <= 30 AND 
-    username ~ '^[a-zA-Z0-9!@#$%^&*()_+= \\-]+$'
+        LENGTH(username) >= 3 AND 
+        LENGTH(username) <= 30 AND 
+        username ~ '^[a-zA-Z0-9!@#$%^&*()_+=\-]+$'
     ),
-    phone TEXT UNIQUE NOT NULL CHECK (phone ~ '^[0-9]{10,15}$'),
-    email TEXT UNIQUE CHECK (email IS NULL OR (LENGTH(email) <= 255 AND email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')),
     password TEXT NOT NULL CHECK (LENGTH(password) >= 8 AND LENGTH(password) <= 72),
+    birth_date DATE CHECK (birth_date <= CURRENT_DATE),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+);
+
+CREATE TABLE IF NOT EXISTS public.contact (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    contact_id UUID NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (updated_at >= created_at AND updated_at <= CURRENT_TIMESTAMP),
+    CHECK (user_id <> contact_id),
+    UNIQUE (user_id, contact_id),
+    FOREIGN KEY (user_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (contact_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS public.chat (
@@ -40,21 +50,10 @@ CREATE TABLE IF NOT EXISTS public.user_chat (
     chat_id UUID NOT NULL,
     user_role user_type NOT NULL,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (joined_at <= CURRENT_TIMESTAMP),
+    send_notifications boolean DEFAULT true NOT NULL,
     PRIMARY KEY (user_id, chat_id),
     FOREIGN KEY (user_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (chat_id) REFERENCES public.chat(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS public.contact (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    contact_id UUID NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (created_at <= CURRENT_TIMESTAMP),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (updated_at >= created_at AND updated_at <= CURRENT_TIMESTAMP),
-    CHECK (user_id <> contact_id),
-    UNIQUE (user_id, contact_id),
-    FOREIGN KEY (user_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (contact_id) REFERENCES public.user(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS public.message (
@@ -100,8 +99,7 @@ CREATE TABLE IF NOT EXISTS public.message_payload (
 DROP INDEX IF EXISTS idx_user_search_gin;
 DROP INDEX IF EXISTS idx_chat_title_gin;
 CREATE INDEX idx_user_username_trgm ON public.user USING gin (username gin_trgm_ops);
-CREATE INDEX idx_user_first_name_trgm ON public.user USING gin (first_name gin_trgm_ops);
-CREATE INDEX idx_user_last_name_trgm ON public.user USING gin (last_name gin_trgm_ops);
+CREATE INDEX idx_user_name_trgm ON public.user USING gin (name gin_trgm_ops);
 
 CREATE INDEX idx_chat_title_trgm ON chat USING gin (title gin_trgm_ops);
 CREATE INDEX idx_message_body_trgm ON message USING gin (body gin_trgm_ops);

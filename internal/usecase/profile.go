@@ -26,14 +26,15 @@ func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
 }
 
 func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *model.GetUserProfile {
-	return &model.GetUserProfile{
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		Username:   user.Username,
-		Phone:      user.Phone,
-		Email:      user.Email,
+	profile := &model.GetUserProfile{
+		ID:         user.ID,
 		AvatarPath: user.AvatarPath,
+		Name:       user.Name,
+		Username:   user.Username,
+		BirthDate:  user.BirthDate,
 	}
+
+	return profile
 }
 
 func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {

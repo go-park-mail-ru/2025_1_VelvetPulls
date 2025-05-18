@@ -56,6 +56,7 @@ var errToCode = map[error]int{
 	repository.ErrEmptyField:          http.StatusBadRequest,          // 400
 	repository.ErrDatabaseOperation:   http.StatusInternalServerError, // 500
 	repository.ErrDatabaseScan:        http.StatusInternalServerError, // 500
+	repository.ErrSetNotifications:    http.StatusInternalServerError, // 500
 
 	// Utils level
 	utils.ErrNotImage:      http.StatusBadRequest,          // 400

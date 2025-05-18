@@ -13,7 +13,7 @@ import (
 
 type IContactRepo interface {
 	GetContacts(ctx context.Context, userID uuid.UUID) ([]model.Contact, error)
-	AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error
+	AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) (*model.Contact, error)
 	DeleteContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error
 }
 
@@ -30,7 +30,7 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	logger.Info("Fetching contacts", zap.String("userID", userID.String()))
 
 	query := `
-		SELECT u.id, u.first_name, u.last_name, u.username, u.avatar_path
+		SELECT u.id, u.name, u.username, u.avatar_path
 		FROM public.contact c
 		JOIN public.user u ON c.contact_id = u.id
 		WHERE c.user_id = $1`
@@ -49,7 +49,7 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	var contacts []model.Contact
 	for rows.Next() {
 		var contact model.Contact
-		if err := rows.Scan(&contact.ID, &contact.FirstName, &contact.LastName, &contact.Username, &contact.AvatarURL); err != nil {
+		if err := rows.Scan(&contact.ID, &contact.Name, &contact.Username, &contact.AvatarURL); err != nil {
 			logger.Error("Failed to scan contact",
 				zap.String("userID", userID.String()),
 				zap.Error(err),
@@ -75,59 +75,45 @@ func (r *contactRepo) GetContacts(ctx context.Context, userID uuid.UUID) ([]mode
 	return contacts, nil
 }
 
-func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
+func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) (*model.Contact, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("Adding contact by username",
 		zap.String("userID", userID.String()),
 		zap.String("contactUsername", contactUsername),
 	)
 
-	var contactID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
-		"SELECT id FROM public.user WHERE username = $1",
-		contactUsername,
-	).Scan(&contactID)
+	var contact model.Contact
+	querySelect := `
+		SELECT id, name, username, avatar_path
+		FROM public.user
+		WHERE username = $1`
+	err := r.db.QueryRowContext(ctx, querySelect, contactUsername).Scan(
+		&contact.ID, &contact.Name, &contact.Username, &contact.AvatarURL,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.Warn("Contact user not found", zap.String("username", contactUsername))
-			return ErrUserNotFound
+			return nil, ErrUserNotFound
 		}
-		logger.Error("Failed to fetch contact ID", zap.Error(err))
-		return ErrDatabaseOperation
+		logger.Error("Failed to fetch contact", zap.Error(err))
+		return nil, ErrDatabaseOperation
 	}
 
-	// Самозапрещаем: нельзя добавить самого себя
-	if userID == contactID {
+	if userID == contact.ID {
 		logger.Warn("User attempted to add themselves as a contact")
-		return ErrSelfContact
+		return nil, ErrSelfContact
 	}
 
-	query := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-	logger.Debug("Executing insert",
-		zap.String("query", query),
-		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
-	)
-
-	res, err := r.db.ExecContext(ctx, query, userID, contactID)
+	queryInsert := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	logger.Debug("Executing insert", zap.String("query", queryInsert))
+	_, err = r.db.ExecContext(ctx, queryInsert, userID, contact.ID)
 	if err != nil {
 		logger.Error("Failed to insert contact", zap.Error(err))
-		return ErrDatabaseOperation
+		return nil, ErrDatabaseOperation
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		logger.Error("Failed to check affected rows", zap.Error(err))
-		return ErrDatabaseOperation
-	}
-
-	if rowsAffected == 0 {
-		logger.Info("Contact already exists")
-	} else {
-		logger.Info("Contact successfully added")
-	}
-
-	return nil
+	logger.Info("Contact successfully added or already exists", zap.String("contactID", contact.ID.String()))
+	return &contact, nil
 }
 
 func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.UUID, contactUsername string) error {
@@ -152,11 +138,7 @@ func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.U
 	}
 
 	query := `DELETE FROM public.contact WHERE user_id = $1 AND contact_id = $2`
-	logger.Debug("Executing delete",
-		zap.String("query", query),
-		zap.String("userID", userID.String()),
-		zap.String("contactID", contactID.String()),
-	)
+	logger.Debug("Executing delete", zap.String("query", query))
 
 	res, err := r.db.ExecContext(ctx, query, userID, contactID)
 	if err != nil {
@@ -171,15 +153,9 @@ func (r *contactRepo) DeleteContactByUsername(ctx context.Context, userID uuid.U
 	}
 
 	if rowsAffected == 0 {
-		logger.Warn("Contact not found for deletion",
-			zap.String("userID", userID.String()),
-			zap.String("contactUsername", contactUsername),
-		)
+		logger.Warn("Contact not found for deletion")
 	} else {
-		logger.Info("Successfully deleted contact",
-			zap.String("userID", userID.String()),
-			zap.String("contactUsername", contactUsername),
-		)
+		logger.Info("Successfully deleted contact")
 	}
 
 	return nil

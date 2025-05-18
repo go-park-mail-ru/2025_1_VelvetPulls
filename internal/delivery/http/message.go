@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
 	model "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	usecase "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
@@ -27,6 +28,7 @@ func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase,
 	}
 
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}/messages/pages/{last_message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetPaginatedMessageHistory))).Methods(http.MethodGet)
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateMessage))).Methods(http.MethodPut)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteMessage))).Methods(http.MethodDelete)
@@ -69,13 +71,59 @@ func (c *messageController) GetMessageHistory(w http.ResponseWriter, r *http.Req
 	utils.SendJSONResponse(w, r, http.StatusOK, messages, true)
 }
 
+// @Summary Получить страницу сообщений в чате
+// @Description Возвращает порцию сообщений чата начиная с last_message_id (исключительно), используется для пагинации
+// @Tags Message
+// @Produce json
+// @Param chat_id path string true "ID чата"
+// @Param last_message_id path string true "ID последнего сообщения на предыдущей странице"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/messages/pages/{last_message_id} [get]
+func (c *messageController) GetPaginatedMessageHistory(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+
+	vars := mux.Vars(r)
+	chatID, err := uuid.Parse(vars["chat_id"])
+	if err != nil {
+		logger.Error("Invalid chat ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	lastMessageID, err := uuid.Parse(vars["last_message_id"])
+	if err != nil {
+		logger.Error("Invalid last message ID format", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid last message ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("GetPaginatedMessageHistory", zap.String("chatID", chatID.String()), zap.String("lastMessageID", lastMessageID.String()), zap.String("userID", userID.String()))
+
+	messages, err := c.messageUsecase.GetMessagesBefore(r.Context(), userID, chatID, lastMessageID)
+	if err != nil {
+		logger.Error("Failed to get paginated message history", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, messages, true)
+}
+
 // @Summary Отправить сообщение в чат
 // @Description Отправляет новое сообщение в указанный чат
 // @Tags Message
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Param chat_id path string true "ID чата"
-// @Param message body model.MessageInput true "Сообщение"
+// @Param text formData string false "Текст сообщения"
+// @Param sticker formData string false "Стикер (URL или ID)"
+// @Param files formData file false "Файлы (можно несколько)"
+// @Param photos formData file false "Фотографии (можно несколько)"
 // @Success 201 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 401 {object} utils.JSONResponse
@@ -85,8 +133,7 @@ func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) 
 	logger := utils.GetLoggerFromCtx(r.Context())
 
 	// Парсим chat_id
-	vars := mux.Vars(r)
-	chatID, err := uuid.Parse(vars["chat_id"])
+	chatID, err := uuid.Parse(mux.Vars(r)["chat_id"])
 	if err != nil {
 		logger.Error("Invalid chat ID format", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
@@ -94,18 +141,41 @@ func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("SendMessage", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
 
-	// Декодируем тело
-	var input model.MessageInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		logger.Error("Failed to decode message input", zap.Error(err))
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
+	// Парсим multipart/form
+	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
+		logger.Error("Failed to parse multipart form", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
 		return
 	}
 
-	logger.Info("SendMessage", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+	var input model.MessageInput
+	// Читаем текст и стикер
+	if data := r.FormValue("text"); data != "" {
+		if err := json.Unmarshal([]byte(data), &input); err != nil {
+			logger.Error("Invalid chat data format", zap.Error(err))
+			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
+			return
+		}
+	}
+	sticker := r.FormValue("sticker")
 
-	// Отправляем через usecase
+	// Логируем полученные данные
+	logger.Info("Parsed message form values",
+		zap.String("sticker", sticker),
+	)
+
+	// Получаем файлы, но пока не обрабатываем
+	files := r.MultipartForm.File["files"]
+	photos := r.MultipartForm.File["photos"]
+
+	logger.Info("Received file counts",
+		zap.Int("files", len(files)),
+		zap.Int("photos", len(photos)),
+	)
+
+	// Вызываем usecase
 	if err := c.messageUsecase.SendMessage(r.Context(), &input, userID, chatID); err != nil {
 		logger.Error("Failed to send message", zap.Error(err))
 		code, msg := apperrors.GetErrAndCodeToSend(err)
