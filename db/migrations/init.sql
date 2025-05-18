@@ -103,3 +103,6 @@ CREATE INDEX idx_user_name_trgm ON public.user USING gin (name gin_trgm_ops);
 
 CREATE INDEX idx_chat_title_trgm ON chat USING gin (title gin_trgm_ops);
 CREATE INDEX idx_message_body_trgm ON message USING gin (body gin_trgm_ops);
+
+CREATE INDEX idx_message_chat_sent_at ON message(chat_id, sent_at DESC);
+CREATE INDEX idx_message_user_id ON message(user_id);
