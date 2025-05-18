@@ -12,26 +12,24 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ChatHandler struct {
 	search.UnimplementedChatServiceServer
 	chatUC    usecase.ChatUsecase
 	contactUC usecase.ContactUsecase
-	userUC    usecase.UserUsecase
 	messageUC usecase.MessageUsecase
 }
 
 func NewChatHandler(
 	chatUC usecase.ChatUsecase,
 	contactUC usecase.ContactUsecase,
-	userUC usecase.UserUsecase,
 	messageUC usecase.MessageUsecase,
 ) *ChatHandler {
 	return &ChatHandler{
 		chatUC:    chatUC,
 		contactUC: contactUC,
-		userUC:    userUC,
 		messageUC: messageUC,
 	}
 }
@@ -42,7 +40,7 @@ func (h *ChatHandler) SearchUserChats(
 ) (*search.SearchUserChatsResponse, error) {
 	const method = "SearchUserChats"
 	logger := utils.GetLoggerFromCtx(ctx)
-	groups, err := h.chatUC.SearchUserChats(ctx, req.GetUserId(), req.GetQuery())
+	globalChannels, groups, err := h.chatUC.SearchUserChats(ctx, req.GetUserId(), req.GetQuery())
 	if err != nil {
 		logger.Error(method, zap.Error(err))
 		if errors.Is(err, model.ErrValidation) {
@@ -52,9 +50,10 @@ func (h *ChatHandler) SearchUserChats(
 	}
 
 	resp := &search.SearchUserChatsResponse{
-		Dialogs:  convertChatsToPB(groups.Dialogs),
-		Groups:   convertChatsToPB(groups.Groups),
-		Channels: convertChatsToPB(groups.Channels),
+		GlobalChannels: convertChatsToPB(globalChannels),
+		Dialogs:        convertChatsToPB(groups.Dialogs),
+		Groups:         convertChatsToPB(groups.Groups),
+		Channels:       convertChatsToPB(groups.Channels),
 	}
 	return resp, nil
 }
@@ -65,7 +64,7 @@ func (h *ChatHandler) SearchContacts(
 ) (*search.SearchContactsResponse, error) {
 	const method = "SearchContacts"
 	logger := utils.GetLoggerFromCtx(ctx)
-	contacts, err := h.contactUC.SearchContacts(ctx, req.GetUserId(), req.GetQuery())
+	users, contacts, err := h.contactUC.SearchContacts(ctx, req.GetUserId(), req.GetQuery())
 	if err != nil {
 		logger.Error(method, zap.Error(err))
 		if errors.Is(err, model.ErrValidation) {
@@ -76,6 +75,7 @@ func (h *ChatHandler) SearchContacts(
 
 	resp := &search.SearchContactsResponse{
 		Contacts: make([]*search.Contact, 0, len(contacts)),
+		Users:    make([]*search.User, 0, len(users)),
 	}
 
 	for _, c := range contacts {
@@ -84,11 +84,8 @@ func (h *ChatHandler) SearchContacts(
 			Username: c.Username,
 		}
 
-		if c.FirstName != nil {
-			contactPB.FirstName = *c.FirstName
-		}
-		if c.LastName != nil {
-			contactPB.LastName = *c.LastName
+		if c.Name != nil {
+			contactPB.Name = *c.Name
 		}
 		if c.AvatarURL != nil {
 			contactPB.AvatarPath = *c.AvatarURL
@@ -96,42 +93,22 @@ func (h *ChatHandler) SearchContacts(
 
 		resp.Contacts = append(resp.Contacts, contactPB)
 	}
-	return resp, nil
-}
-
-func (h *ChatHandler) SearchUsers(
-	ctx context.Context,
-	req *search.SearchUsersRequest,
-) (*search.SearchUsersResponse, error) {
-	const method = "SearchUsers"
-	logger := utils.GetLoggerFromCtx(ctx)
-	if len(req.GetQuery()) < 3 {
-		return nil, status.Error(codes.InvalidArgument, "search query too short")
-	}
-
-	users, err := h.userUC.SearchUsers(ctx, req.GetQuery())
-	if err != nil {
-		logger.Error(method, zap.Error(err))
-		return nil, status.Error(codes.Internal, "internal server error")
-	}
-
-	resp := &search.SearchUsersResponse{
-		Users: make([]*search.User, 0, len(users)),
-	}
 
 	for _, u := range users {
 		userPB := &search.User{
+			Id:       u.ID.String(),
 			Username: u.Username,
 		}
 
-		if u.FirstName != nil {
-			userPB.FirstName = *u.FirstName
-		}
-		if u.LastName != nil {
-			userPB.LastName = *u.LastName
+		if u.Name != nil {
+			userPB.Name = *u.Name
 		}
 		if u.AvatarPath != nil {
 			userPB.AvatarPath = *u.AvatarPath
+		}
+
+		if u.BirthDate != nil {
+			userPB.BirthDate = timestamppb.New(*u.BirthDate)
 		}
 
 		resp.Users = append(resp.Users, userPB)

@@ -58,15 +58,20 @@ func (uc *ChatUsecase) SearchUserChats(
 	ctx context.Context,
 	userIDStr string,
 	query string,
-) (*model.ChatGroups, error) {
+) ([]model.Chat, *model.ChatGroups, error) {
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return nil, model.ErrValidation
+		return nil, nil, model.ErrValidation
 	}
 
 	chats, err := uc.chatRepo.SearchUserChats(ctx, userID, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	globalChannels, err := uc.chatRepo.SearchGlobalChannels(ctx, query)
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	groups := &model.ChatGroups{
@@ -86,7 +91,7 @@ func (uc *ChatUsecase) SearchUserChats(
 
 	allChats, err := uc.chatRepo.SearchUserChats(ctx, userID, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, chat := range allChats {
@@ -99,5 +104,5 @@ func (uc *ChatUsecase) SearchUserChats(
 	groups.Dialogs = filterChats(groups.Dialogs, query)
 
 	metrics.IncBusinessOp("search_chats")
-	return groups, nil
+	return globalChannels, groups, nil
 }
