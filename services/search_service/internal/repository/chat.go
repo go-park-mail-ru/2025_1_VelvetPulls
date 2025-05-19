@@ -101,28 +101,28 @@ func (r *ChatRepo) SearchUserChats(ctx context.Context, userID uuid.UUID, query 
 
 func (r *ChatRepo) SearchGlobalChannels(ctx context.Context, query string) ([]model.Chat, error) {
 	baseQuery := `
-        SELECT 
-            c.id, 
-            c.type, 
-            c.title, 
-            c.avatar_path,
-            c.created_at,
-            c.updated_at,
-			uc.send_notifications,
-            m.id AS last_message_id,
-            m.user_id AS last_message_user_id,
-            m.body AS last_message_body,
-            m.sent_at AS last_message_sent_at
-        FROM chat c
-        LEFT JOIN (
-            SELECT 
-                *,
-                ROW_NUMBER() OVER (PARTITION BY chat_id ORDER BY sent_at DESC) as rn
-            FROM message
-        ) m ON c.id = m.chat_id AND m.rn = 1
-        JOIN user_chat uc ON c.id = uc.chat_id
-        WHERE c.type = 'channel'
-    `
+	SELECT DISTINCT ON (c.id)
+		c.id, 
+		c.type, 
+		c.title, 
+		c.avatar_path,
+		c.created_at,
+		c.updated_at,
+		uc.send_notifications,
+		m.id AS last_message_id,
+		m.user_id AS last_message_user_id,
+		m.body AS last_message_body,
+		m.sent_at AS last_message_sent_at
+	FROM chat c
+	LEFT JOIN (
+		SELECT 
+			*,
+			ROW_NUMBER() OVER (PARTITION BY chat_id ORDER BY sent_at DESC) as rn
+		FROM message
+	) m ON c.id = m.chat_id AND m.rn = 1
+	JOIN user_chat uc ON c.id = uc.chat_id
+	WHERE c.type = 'channel'
+	`
 
 	args := []interface{}{}
 	paramCount := 1
