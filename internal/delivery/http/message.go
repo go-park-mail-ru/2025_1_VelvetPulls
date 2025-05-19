@@ -28,7 +28,7 @@ func NewMessageController(r *mux.Router, messageUsecase usecase.IMessageUsecase,
 	}
 
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetMessageHistory))).Methods(http.MethodGet)
-	r.Handle("/chat/{chat_id}/messages/pages/{last_message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetPaginatedMessageHistory))).Methods(http.MethodGet)
+	r.Handle("/chat/{chat_id}/messages/{direction}/{last_message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.GetPaginatedMessageHistory))).Methods(http.MethodGet)
 	r.Handle("/chat/{chat_id}/messages", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendMessage))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateMessage))).Methods(http.MethodPut)
 	r.Handle("/chat/{chat_id}/messages/{message_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteMessage))).Methods(http.MethodDelete)
@@ -81,11 +81,12 @@ func (c *messageController) GetMessageHistory(w http.ResponseWriter, r *http.Req
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 403 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
-// @Router /chat/{chat_id}/messages/pages/{last_message_id} [get]
+// @Router /chat/{chat_id}/messages/{direction}/{last_message_id} [get]
 func (c *messageController) GetPaginatedMessageHistory(w http.ResponseWriter, r *http.Request) {
 	logger := utils.GetLoggerFromCtx(r.Context())
 
 	vars := mux.Vars(r)
+
 	chatID, err := uuid.Parse(vars["chat_id"])
 	if err != nil {
 		logger.Error("Invalid chat ID format", zap.Error(err))
@@ -100,10 +101,28 @@ func (c *messageController) GetPaginatedMessageHistory(w http.ResponseWriter, r 
 		return
 	}
 
-	userID := utils.GetUserIDFromCtx(r.Context())
-	logger.Info("GetPaginatedMessageHistory", zap.String("chatID", chatID.String()), zap.String("lastMessageID", lastMessageID.String()), zap.String("userID", userID.String()))
+	direction := vars["direction"]
+	if direction != "up" && direction != "down" {
+		logger.Error("Invalid direction", zap.String("direction", direction))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid direction: must be 'up' or 'down'", false)
+		return
+	}
 
-	messages, err := c.messageUsecase.GetMessagesBefore(r.Context(), userID, chatID, lastMessageID)
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("GetPaginatedMessageHistory",
+		zap.String("direction", direction),
+		zap.String("chatID", chatID.String()),
+		zap.String("lastMessageID", lastMessageID.String()),
+		zap.String("userID", userID.String()),
+	)
+
+	var messages []model.Message
+	if direction == "up" {
+		messages, err = c.messageUsecase.GetMessagesBefore(r.Context(), userID, chatID, lastMessageID)
+	} else {
+		messages, err = c.messageUsecase.GetMessagesAfter(r.Context(), userID, chatID, lastMessageID)
+	}
+
 	if err != nil {
 		logger.Error("Failed to get paginated message history", zap.Error(err))
 		code, msg := apperrors.GetErrAndCodeToSend(err)

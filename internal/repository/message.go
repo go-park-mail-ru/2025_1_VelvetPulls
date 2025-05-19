@@ -11,6 +11,7 @@ import (
 type IMessageRepo interface {
 	GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error)
 	GetMessagesBefore(ctx context.Context, chatID uuid.UUID, beforeMessageID uuid.UUID) ([]model.Message, error)
+	GetMessagesAfter(ctx context.Context, chatID uuid.UUID, beforeMessageID uuid.UUID) ([]model.Message, error)
 	GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error)
 	CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error)
 	UpdateMessage(ctx context.Context, messageID uuid.UUID, newBody string) (*model.Message, error)
@@ -117,6 +118,82 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, b
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, chatID, beforeMessageID, limit)
+	if err != nil {
+		return nil, ErrDatabaseOperation
+	}
+	defer rows.Close()
+
+	var messages []model.Message
+
+	for rows.Next() {
+		var msg model.Message
+		var parentMsgID sql.NullString
+		var avatarPath sql.NullString
+
+		err := rows.Scan(
+			&msg.ID,
+			&parentMsgID,
+			&msg.ChatID,
+			&msg.UserID,
+			&msg.Body,
+			&msg.SentAt,
+			&msg.IsRedacted,
+			&avatarPath,
+			&msg.Username,
+		)
+		if err != nil {
+			return nil, ErrDatabaseScan
+		}
+
+		if parentMsgID.Valid {
+			parentUUID, err := uuid.Parse(parentMsgID.String)
+			if err == nil {
+				msg.ParentMessageID = &parentUUID
+			}
+		}
+
+		if avatarPath.Valid {
+			msg.AvatarPath = &avatarPath.String
+		}
+
+		messages = append(messages, msg)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDatabaseOperation
+	}
+
+	return messages, nil
+}
+
+func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, afterMessageID uuid.UUID) ([]model.Message, error) {
+	query := `
+	WITH ref_message AS (
+		SELECT sent_at, id FROM message WHERE id = $2
+	)
+	SELECT 
+		m.id,
+		m.parent_message_id,
+		m.chat_id,
+		m.user_id,
+		m.body,
+		m.sent_at,
+		m.is_redacted,
+		u.avatar_path,
+		u.username
+	FROM message m
+	JOIN public.user u ON m.user_id = u.id
+	JOIN ref_message r ON TRUE
+	WHERE m.chat_id = $1
+	  AND (
+	    m.sent_at > r.sent_at
+	    OR (m.sent_at = r.sent_at AND m.id::text > r.id::text)
+	  )
+	ORDER BY m.sent_at ASC, m.id ASC
+	LIMIT $3
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, chatID, afterMessageID, limit)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}
