@@ -63,18 +63,20 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChat", zap.String("chatID", chatID.String()))
 
-	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
 		return nil, err
+	}
+
+	if chat.Type != string(model.ChatTypeChannel) {
+		if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+			return nil, err
+		}
 	}
 
 	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		logger.Error("GetChatInfo: failed to get user role", zap.Error(err))
-		return nil, err
-	}
-
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
-	if err != nil {
 		return nil, err
 	}
 
@@ -105,13 +107,15 @@ func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChat", zap.String("chatID", chatID.String()))
 
-	if err := uc.ensureMember(ctx, userID, chatID); err != nil {
-		return nil, err
-	}
-
 	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
 		return nil, err
+	}
+
+	if chat.Type != string(model.ChatTypeChannel) {
+		if err := uc.ensureMember(ctx, userID, chatID); err != nil {
+			return nil, err
+		}
 	}
 
 	users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
@@ -166,13 +170,6 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 	if err != nil {
 		return nil, err
 	}
-
-	// if req.Avatar != nil {
-	// 	if err := utils.RewritePhoto(*req.Avatar, avatarURL); err != nil {
-	// 		logger.Error("CreateChat: RewritePhoto failed", zap.Error(err))
-	// 		return nil, err
-	// 	}
-	// }
 
 	switch model.ChatType(req.Type) {
 	case model.ChatTypeDialog:

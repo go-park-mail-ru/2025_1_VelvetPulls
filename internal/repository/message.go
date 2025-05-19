@@ -91,7 +91,17 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 }
 
 func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, beforeMessageID uuid.UUID) ([]model.Message, error) {
-	query := `
+	var totalCount int
+	countQuery := `SELECT COUNT(*) FROM message WHERE chat_id = $1`
+	if err := r.db.QueryRowContext(ctx, countQuery, chatID).Scan(&totalCount); err != nil {
+		return nil, ErrDatabaseOperation
+	}
+
+	if totalCount < limit {
+		return nil, nil
+	}
+
+	queryBefore := `
 	WITH ref_message AS (
 		SELECT sent_at, id FROM message WHERE id = $2
 	)
@@ -117,20 +127,21 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, b
 	LIMIT $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, chatID, beforeMessageID, limit)
+	rows, err := r.db.QueryContext(ctx, queryBefore, chatID, beforeMessageID, limit)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}
 	defer rows.Close()
 
 	var messages []model.Message
+	msgIDs := map[uuid.UUID]struct{}{}
 
 	for rows.Next() {
 		var msg model.Message
 		var parentMsgID sql.NullString
 		var avatarPath sql.NullString
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&msg.ID,
 			&parentMsgID,
 			&msg.ChatID,
@@ -140,14 +151,12 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, b
 			&msg.IsRedacted,
 			&avatarPath,
 			&msg.Username,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, ErrDatabaseScan
 		}
 
 		if parentMsgID.Valid {
-			parentUUID, err := uuid.Parse(parentMsgID.String)
-			if err == nil {
+			if parentUUID, err := uuid.Parse(parentMsgID.String); err == nil {
 				msg.ParentMessageID = &parentUUID
 			}
 		}
@@ -157,17 +166,93 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, b
 		}
 
 		messages = append(messages, msg)
+		msgIDs[msg.ID] = struct{}{}
 	}
 
-	if err := rows.Err(); err != nil {
+	if len(messages) >= limit {
+		return messages, nil
+	}
+
+	// Нужно добрать
+	queryFill := `
+	SELECT 
+		m.id,
+		m.parent_message_id,
+		m.chat_id,
+		m.user_id,
+		m.body,
+		m.sent_at,
+		m.is_redacted,
+		u.avatar_path,
+		u.username
+	FROM message m
+	JOIN public.user u ON m.user_id = u.id
+	WHERE m.chat_id = $1
+	ORDER BY m.sent_at DESC, m.id DESC
+	LIMIT $2
+	`
+
+	fillRows, err := r.db.QueryContext(ctx, queryFill, chatID, limit)
+	if err != nil {
 		return nil, ErrDatabaseOperation
+	}
+	defer fillRows.Close()
+
+	for fillRows.Next() {
+		var msg model.Message
+		var parentMsgID sql.NullString
+		var avatarPath sql.NullString
+
+		if err := fillRows.Scan(
+			&msg.ID,
+			&parentMsgID,
+			&msg.ChatID,
+			&msg.UserID,
+			&msg.Body,
+			&msg.SentAt,
+			&msg.IsRedacted,
+			&avatarPath,
+			&msg.Username,
+		); err != nil {
+			return nil, ErrDatabaseScan
+		}
+
+		if _, exists := msgIDs[msg.ID]; exists {
+			continue
+		}
+
+		if parentMsgID.Valid {
+			if parentUUID, err := uuid.Parse(parentMsgID.String); err == nil {
+				msg.ParentMessageID = &parentUUID
+			}
+		}
+
+		if avatarPath.Valid {
+			msg.AvatarPath = &avatarPath.String
+		}
+
+		messages = append(messages, msg)
+
+		if len(messages) >= limit {
+			break
+		}
 	}
 
 	return messages, nil
 }
 
 func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, afterMessageID uuid.UUID) ([]model.Message, error) {
-	query := `
+	var totalCount int
+	countQuery := `SELECT COUNT(*) FROM message WHERE chat_id = $1`
+	if err := r.db.QueryRowContext(ctx, countQuery, chatID).Scan(&totalCount); err != nil {
+		return nil, ErrDatabaseOperation
+	}
+
+	if totalCount < limit {
+		return nil, nil
+	}
+
+	queryAfter := `
 	WITH ref_message AS (
 		SELECT sent_at, id FROM message WHERE id = $2
 	)
@@ -193,20 +278,21 @@ func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, af
 	LIMIT $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, chatID, afterMessageID, limit)
+	rows, err := r.db.QueryContext(ctx, queryAfter, chatID, afterMessageID, limit)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}
 	defer rows.Close()
 
 	var messages []model.Message
+	msgIDs := map[uuid.UUID]struct{}{}
 
 	for rows.Next() {
 		var msg model.Message
 		var parentMsgID sql.NullString
 		var avatarPath sql.NullString
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&msg.ID,
 			&parentMsgID,
 			&msg.ChatID,
@@ -216,14 +302,12 @@ func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, af
 			&msg.IsRedacted,
 			&avatarPath,
 			&msg.Username,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, ErrDatabaseScan
 		}
 
 		if parentMsgID.Valid {
-			parentUUID, err := uuid.Parse(parentMsgID.String)
-			if err == nil {
+			if parentUUID, err := uuid.Parse(parentMsgID.String); err == nil {
 				msg.ParentMessageID = &parentUUID
 			}
 		}
@@ -233,10 +317,76 @@ func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, af
 		}
 
 		messages = append(messages, msg)
+		msgIDs[msg.ID] = struct{}{}
 	}
 
-	if err := rows.Err(); err != nil {
+	if len(messages) >= limit {
+		return messages, nil
+	}
+
+	// Добираем с начала (самые старые сообщения чата)
+	queryFill := `
+	SELECT 
+		m.id,
+		m.parent_message_id,
+		m.chat_id,
+		m.user_id,
+		m.body,
+		m.sent_at,
+		m.is_redacted,
+		u.avatar_path,
+		u.username
+	FROM message m
+	JOIN public.user u ON m.user_id = u.id
+	WHERE m.chat_id = $1
+	ORDER BY m.sent_at ASC, m.id ASC
+	LIMIT $2
+	`
+
+	fillRows, err := r.db.QueryContext(ctx, queryFill, chatID, limit)
+	if err != nil {
 		return nil, ErrDatabaseOperation
+	}
+	defer fillRows.Close()
+
+	for fillRows.Next() {
+		var msg model.Message
+		var parentMsgID sql.NullString
+		var avatarPath sql.NullString
+
+		if err := fillRows.Scan(
+			&msg.ID,
+			&parentMsgID,
+			&msg.ChatID,
+			&msg.UserID,
+			&msg.Body,
+			&msg.SentAt,
+			&msg.IsRedacted,
+			&avatarPath,
+			&msg.Username,
+		); err != nil {
+			return nil, ErrDatabaseScan
+		}
+
+		if _, exists := msgIDs[msg.ID]; exists {
+			continue
+		}
+
+		if parentMsgID.Valid {
+			if parentUUID, err := uuid.Parse(parentMsgID.String); err == nil {
+				msg.ParentMessageID = &parentUUID
+			}
+		}
+
+		if avatarPath.Valid {
+			msg.AvatarPath = &avatarPath.String
+		}
+
+		messages = append(messages, msg)
+
+		if len(messages) >= limit {
+			break
+		}
 	}
 
 	return messages, nil
