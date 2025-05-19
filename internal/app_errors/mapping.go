@@ -34,6 +34,7 @@ var errToCode = map[error]int{
 	usecase.ErrAddParticipantToDialog:  http.StatusInternalServerError, // 500
 	usecase.ErrAddOwnerToGroup:         http.StatusInternalServerError, // 500
 	usecase.ErrOnlyOwnerCanDelete:      http.StatusForbidden,           // 403
+	usecase.ErrNotChannel:              http.StatusForbidden,           // 403
 	usecase.ErrOnlyOwnerCanAddUsers:    http.StatusForbidden,           // 403
 	usecase.ErrOnlyOwnerCanDeleteUsers: http.StatusForbidden,           // 403
 

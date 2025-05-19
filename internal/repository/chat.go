@@ -270,15 +270,25 @@ func (r *chatRepository) SendNotifications(ctx context.Context, userID uuid.UUID
 }
 
 func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
-	query := `INSERT INTO user_chat (user_id, chat_id, user_role, joined_at) VALUES ($1, $2, $3, NOW())`
-	_, err := r.db.ExecContext(ctx, query, userID, chatID, userRole)
-	return err
+	query := `
+		INSERT INTO user_chat (user_id, chat_id, user_role, joined_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (user_id, chat_id) DO NOTHING
+	`
+	if _, err := r.db.ExecContext(ctx, query, userID, chatID, userRole); err != nil {
+		return ErrDatabaseOperation
+	}
+	return nil
 }
 
 func (r *chatRepository) AddUserToChatByUsername(ctx context.Context, username, userRole string, chatID uuid.UUID) error {
+	const getUserIDQuery = `SELECT id FROM public.user WHERE username = $1`
 	var userID uuid.UUID
-	if err := r.db.QueryRowContext(ctx, `SELECT id FROM public.user WHERE username = $1`, username).Scan(&userID); err != nil {
-		return err
+	if err := r.db.QueryRowContext(ctx, getUserIDQuery, username).Scan(&userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return ErrDatabaseScan
 	}
 	return r.AddUserToChatByID(ctx, userID, userRole, chatID)
 }

@@ -30,6 +30,7 @@ type IChatUsecase interface {
 	SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error
 	DeleteChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
 	AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error)
+	SubscribeToChannel(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error
 	DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernamesDelete []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error)
 	LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error
 }
@@ -288,6 +289,20 @@ func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, u
 
 	metrics.IncBusinessOp("add_user_into_chat")
 	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
+}
+
+func (uc *ChatUsecase) SubscribeToChannel(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
+	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return err
+	}
+	if model.ChatType(chat.Type) != model.ChatTypeChannel {
+		return ErrNotChannel
+	}
+	if err := uc.chatRepo.AddUserToChatByID(ctx, userID, string(model.RoleMember), chatID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {

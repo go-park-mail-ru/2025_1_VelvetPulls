@@ -34,6 +34,7 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionC
 	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
 	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/join", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.JoinChannel))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/leave", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.LeaveChat))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/notifications/{send}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendNotifications))).Methods(http.MethodPost)
@@ -313,6 +314,41 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+}
+
+// JoinChannel подписывает пользователя на канал
+// @Summary Подписаться на канал
+// @Description Подписывает текущего пользователя на канал (доступно для всех пользователей)
+// @Tags Chat
+// @Accept json
+// @Produce json
+// @Param chat_id path string true "ID канала"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/join [post]
+func (c *chatController) JoinChannel(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("JoinChannel", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+
+	err := c.chatUsecase.SubscribeToChannel(r.Context(), userID, chatID)
+	if err != nil {
+		logger.Error("Failed to subscribe to channel", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "Successfully subscribed to channel", true)
 }
 
 // RemoveUsersFromChat удаляет пользователей из чата
