@@ -195,7 +195,7 @@ func (r *ChatRepo) GetUsersFromChat(ctx context.Context, chatID uuid.UUID) ([]mo
 	var users []model.UserInChat
 	for rows.Next() {
 		var user model.UserInChat
-		if err := rows.Scan(&user.ID, &user.Name, &user.AvatarPath, &user.Role); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Name, &user.AvatarPath, &user.Role); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
