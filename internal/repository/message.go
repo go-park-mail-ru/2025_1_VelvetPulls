@@ -117,7 +117,7 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID uuid.UUID, b
     LIMIT $3
     `
 
-	rows, err := r.db.QueryContext(ctx, query, chatID, beforeMessageID, limit)
+	rows, err := r.db.QueryContext(ctx, query, chatID, beforeMessageID, 5)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}
@@ -193,7 +193,7 @@ func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID uuid.UUID, af
     LIMIT $3
     `
 
-	rows, err := r.db.QueryContext(ctx, query, chatID, afterMessageID, limit)
+	rows, err := r.db.QueryContext(ctx, query, chatID, afterMessageID, 5)
 	if err != nil {
 		return nil, ErrDatabaseOperation
 	}
