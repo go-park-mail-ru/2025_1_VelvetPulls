@@ -93,7 +93,29 @@ CREATE TABLE IF NOT EXISTS public.message_payload (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     message_id UUID NOT NULL,
     file_path TEXT NOT NULL CHECK (LENGTH(file_path) > 0 AND LENGTH(file_path) <= 255),
+    file_name TEXT NOT NULL CHECK (LENGTH(file_name) > 0 AND LENGTH(file_name) <= 255),
+    content_type TEXT NOT NULL,
+    file_size INT CHECK (file_size >= 0),
     FOREIGN KEY (message_id) REFERENCES public.message(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE public.sticker_pack (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    is_public BOOLEAN DEFAULT false,
+    owner_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE public.sticker (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pack_id UUID NOT NULL REFERENCES sticker_pack(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    image_path TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
+    CONSTRAINT sticker_unique UNIQUE (image_path)
 );
 
 DROP INDEX IF EXISTS idx_user_search_gin;

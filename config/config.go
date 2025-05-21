@@ -47,6 +47,15 @@ var Postgre = struct {
 	SSLMode  string
 }{}
 
+var Minio = struct {
+	Host      string
+	Port      string
+	AccessKey string
+	SecretKey string
+	UseSSL    bool
+	Bucket    string
+}{}
+
 var Redis = struct {
 	Host     string
 	Port     string
@@ -64,11 +73,22 @@ func Init() {
 	Redis.Host = os.Getenv("REDIS_HOST")
 	Redis.Port = os.Getenv("REDIS_PORT")
 	Redis.Password = os.Getenv("REDIS_PASSWORD")
+
+	Minio.Host = os.Getenv("MINIO_HOST")
+	Minio.Port = os.Getenv("MINIO_PORT")
+	Minio.AccessKey = os.Getenv("MINIO_ACCESS_KEY")
+	Minio.SecretKey = os.Getenv("MINIO_SECRET_KEY")
+	Minio.UseSSL = os.Getenv("MINIO_USE_SSL") == "true"
+	Minio.Bucket = os.Getenv("MINIO_BUCKET")
 }
 
 func GetPostgresDSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		Postgre.User, Postgre.Password, Postgre.Host, Postgre.Port, Postgre.DBName, Postgre.SSLMode)
+}
+
+func GetMinioEndpoint() string {
+	return fmt.Sprintf("%s:%s", Minio.Host, Minio.Port)
 }
 
 func GetRedisAddr() string {
