@@ -104,7 +104,23 @@ func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID
 		return nil, ErrSelfContact
 	}
 
-	queryInsert := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	// Проверяем, есть ли уже такой контакт
+	var exists bool
+	queryCheck := `SELECT EXISTS(SELECT 1 FROM public.contact WHERE user_id = $1 AND contact_id = $2)`
+	err = r.db.QueryRowContext(ctx, queryCheck, userID, contact.ID).Scan(&exists)
+	if err != nil {
+		logger.Error("Failed to check contact existence", zap.Error(err))
+		return nil, ErrDatabaseOperation
+	}
+
+	if exists {
+		logger.Warn("Contact already exists",
+			zap.String("userID", userID.String()),
+			zap.String("contactID", contact.ID.String()))
+		return nil, ErrContactAlreadyExists
+	}
+
+	queryInsert := `INSERT INTO public.contact (user_id, contact_id) VALUES ($1, $2)`
 	logger.Debug("Executing insert", zap.String("query", queryInsert))
 	_, err = r.db.ExecContext(ctx, queryInsert, userID, contact.ID)
 	if err != nil {
@@ -112,7 +128,7 @@ func (r *contactRepo) AddContactByUsername(ctx context.Context, userID uuid.UUID
 		return nil, ErrDatabaseOperation
 	}
 
-	logger.Info("Contact successfully added or already exists", zap.String("contactID", contact.ID.String()))
+	logger.Info("Contact successfully added", zap.String("contactID", contact.ID.String()))
 	return &contact, nil
 }
 
