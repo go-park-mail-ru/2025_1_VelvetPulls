@@ -19,12 +19,13 @@ type Payload struct {
 }
 
 type GetStickerPackResponse struct {
-	Photo string   `json:"photo" valid:"-" example:"url1"`
-	URLs  []string `json:"stickers" valid:"-" example:"url1,url2,url3"`
+	Photo string   `json:"photo" valid:"-"`
+	URLs  []string `json:"stickers" valid:"-"`
 }
 
 type StickerPack struct {
-	Photo  string    `json:"photo" valid:"-" example:"url1"`
+	Photo  string    `json:"photo" valid:"-"`
+	Name   string    `json:"name"`
 	PackID uuid.UUID `json:"id" valid:"-"`
 }
 

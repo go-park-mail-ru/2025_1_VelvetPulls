@@ -77,7 +77,7 @@ func (s *Server) Run(address string) error {
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
-	filesRepo := repository.NewFilesRepo(s.minioClient, config.Minio.Bucket)
+	filesRepo := repository.NewFilesRepo(s.minioClient, s.dbConn, config.Minio.Bucket)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)

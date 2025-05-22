@@ -99,23 +99,27 @@ CREATE TABLE IF NOT EXISTS public.message_payload (
     FOREIGN KEY (message_id) REFERENCES public.message(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE public.sticker_pack (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    is_public BOOLEAN DEFAULT false,
-    owner_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT now(),
-    updated_at TIMESTAMP DEFAULT now()
+CREATE TABLE IF NOT EXISTS public.sticker (
+	id uuid NOT NULL,
+	sticker_path text NOT NULL,
+	CONSTRAINT sticker_pk PRIMARY KEY (id),
+	CONSTRAINT sticker_unique UNIQUE (sticker_path)
 );
 
-CREATE TABLE public.sticker (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pack_id UUID NOT NULL REFERENCES sticker_pack(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    image_path TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT now(),
-    CONSTRAINT sticker_unique UNIQUE (image_path)
+CREATE TABLE IF NOT EXISTS public.sticker_pack (
+	id uuid NOT NULL,
+	"name" text NULL,
+	photo_id text NOT NULL,
+	CONSTRAINT sticker_pack_pk PRIMARY KEY (id)
+);
+
+CREATE TABLE public.sticker_sticker_pack (
+	id uuid NOT NULL,
+	sticker uuid NOT NULL,
+	pack uuid NOT NULL,
+	CONSTRAINT sticker_sticker_pack_pk PRIMARY KEY (id),
+	CONSTRAINT sticker_sticker_pack_sticker_fk FOREIGN KEY (sticker) REFERENCES public.sticker(id),
+	CONSTRAINT sticker_sticker_pack_sticker_pack_fk FOREIGN KEY (pack) REFERENCES public.sticker_pack(id)
 );
 
 DROP INDEX IF EXISTS idx_user_search_gin;

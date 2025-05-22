@@ -3,13 +3,13 @@ package repository
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/google/uuid"
@@ -17,22 +17,22 @@ import (
 )
 
 type IFilesRepo interface {
-	GetFile(ctx context.Context, fileID string, userID string) (*bytes.Buffer, *model.FileMetaData, error)
-	SaveFile(ctx context.Context, fileBuffer *bytes.Buffer, metadata model.FileMetaData, allowedUsers []string) (string, error)
+	GetFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) (*bytes.Buffer, *model.FileMetaData, error)
+	SaveFile(ctx context.Context, buf *bytes.Buffer, filename, contentType string, size int64, allowedUsers []string) (string, error)
 	DeleteFile(ctx context.Context, fileID string, userID string) error
 	RewriteFile(ctx context.Context, fileID string, fileBuffer *bytes.Buffer, metadata model.FileMetaData) error
-
-	CreateSticker(ctx context.Context, fileBuffer *bytes.Buffer, metadata model.FileMetaData, packName string) error
-	GetStickerPack(ctx context.Context, packID string) (model.StickerPack, error)
-	GetStickerPacks(ctx context.Context) ([]model.StickerPack, error)
+	CreateSticker(ctx context.Context, fileBuffer *bytes.Buffer, metadata model.FileMetaData, packName string) (uuid.UUID, error)
+	GetStickerPack(ctx context.Context, packID string) (model.GetStickerPackResponse, error)
+	GetStickerPacks(ctx context.Context) (model.StickerPacks, error)
 }
 
 type filesRepository struct {
 	minioClient *minio.Client
+	db          *sql.DB
 	bucketName  string
 }
 
-func NewFilesRepo(minioClient *minio.Client, bucketName string) IFilesRepo {
+func NewFilesRepo(minioClient *minio.Client, db *sql.DB, bucketName string) IFilesRepo {
 	ctx := context.Background()
 	exists, err := minioClient.BucketExists(ctx, bucketName)
 	if err != nil {
@@ -46,23 +46,26 @@ func NewFilesRepo(minioClient *minio.Client, bucketName string) IFilesRepo {
 	}
 	return &filesRepository{
 		minioClient: minioClient,
+		db:          db,
 		bucketName:  bucketName,
 	}
 }
 
-func (r *filesRepository) GetFile(ctx context.Context, fileID, userID string) (*bytes.Buffer, *model.FileMetaData, error) {
-	info, err := r.minioClient.StatObject(ctx, r.bucketName, fileID, minio.StatObjectOptions{})
+func (r *filesRepository) GetFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) (*bytes.Buffer, *model.FileMetaData, error) {
+	info, err := r.minioClient.StatObject(ctx, r.bucketName, fileID.String(), minio.StatObjectOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := checkAccess(info, userID); err != nil {
+	if err := checkAccess(info, userID.String()); err != nil {
 		return nil, nil, err
 	}
+	log.Println(err)
 
-	obj, err := r.minioClient.GetObject(ctx, r.bucketName, fileID, minio.GetObjectOptions{})
+	obj, err := r.minioClient.GetObject(ctx, r.bucketName, fileID.String(), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Println(r.bucketName, fileID.String())
 	defer obj.Close()
 
 	buf := new(bytes.Buffer)
@@ -79,22 +82,35 @@ func (r *filesRepository) GetFile(ctx context.Context, fileID, userID string) (*
 	return buf, fileMeta, nil
 }
 
-func (r *filesRepository) SaveFile(ctx context.Context, buf *bytes.Buffer, meta model.FileMetaData, allowedUsers []string) (string, error) {
+func (r *filesRepository) SaveFile(ctx context.Context, buf *bytes.Buffer, filename, contentType string, size int64, allowedUsers []string) (string, error) {
 	fileID := generateID()
-	userMeta := map[string]string{
-		"filename":     meta.Filename,
-		"content-type": meta.ContentType,
-		"size":         strconv.FormatInt(meta.FileSize, 10),
-		"users":        strings.Join(allowedUsers, ","),
+
+	userMetadata := map[string]string{
+		"filename":     filename,
+		"content-type": contentType,
+		"size":         strconv.FormatInt(size, 10),
 	}
-	_, err := r.minioClient.PutObject(ctx, r.bucketName, fileID,
-		bytes.NewReader(buf.Bytes()), int64(buf.Len()),
+
+	if len(allowedUsers) > 0 {
+		userMetadata["allowed-users"] = strings.Join(allowedUsers, ",")
+	}
+
+	_, err := r.minioClient.PutObject(
+		ctx,
+		r.bucketName,
+		fileID,
+		buf,
+		size,
 		minio.PutObjectOptions{
-			ContentType:  meta.ContentType,
-			UserMetadata: userMeta,
+			ContentType:  contentType,
+			UserMetadata: userMetadata,
 		},
 	)
-	return fileID, err
+	if err != nil {
+		return "", err
+	}
+
+	return fileID, nil
 }
 
 func (r *filesRepository) DeleteFile(ctx context.Context, fileID string, userID string) error {
@@ -140,159 +156,135 @@ func (r *filesRepository) RewriteFile(ctx context.Context, fileID string, fileBu
 	return nil
 }
 
-// CreateSticker сохраняет стикер в папку с названием стикерпакa
-func (r *filesRepository) CreateSticker(ctx context.Context, fileBuffer *bytes.Buffer, metadata model.FileMetaData, packName string) error {
-	// Генерируем уникальное имя файла для стикера
-	fileID := fmt.Sprintf("stickers/%s/%s-%d", packName, metadata.Filename, time.Now().UnixNano())
+func (r *filesRepository) CreateSticker(ctx context.Context, fileBuffer *bytes.Buffer, metadata model.FileMetaData, packName string) (uuid.UUID, error) {
+	stickerID := uuid.New()
 
-	_, err := r.minioClient.PutObject(ctx, r.bucketName, fileID, bytes.NewReader(fileBuffer.Bytes()), int64(fileBuffer.Len()), minio.PutObjectOptions{
+	// Загрузка файла в MinIO (по ID, как имя объекта)
+	_, err := r.minioClient.PutObject(ctx, r.bucketName, stickerID.String(), fileBuffer, metadata.FileSize, minio.PutObjectOptions{
 		ContentType: metadata.ContentType,
+		UserMetadata: map[string]string{
+			"X-Amz-Meta-Filename":     metadata.Filename,
+			"X-Amz-Meta-Content-Type": metadata.ContentType,
+			"X-Amz-Meta-Size":         fmt.Sprintf("%d", metadata.FileSize),
+		},
 	})
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 
-	// Обновляем/создаем метаинформацию по стикерпаку
-	return r.updateStickerPackMeta(ctx, packName, fileID)
+	// Добавление в таблицу sticker
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO sticker (id, sticker_path)
+		VALUES ($1, $2)
+	`, stickerID, fmt.Sprintf("/stickers/%s", stickerID)) // sticker_path — не используется в MinIO, только в UI
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	// Получение packID, создание при необходимости
+	var packID uuid.UUID
+	err = r.db.QueryRowContext(ctx, `
+		SELECT id FROM sticker_pack WHERE name = $1
+	`, packName).Scan(&packID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Пака нет — создаём новую, используем этот стикер как превью
+			packID = uuid.New()
+			_, err = r.db.ExecContext(ctx, `
+				INSERT INTO sticker_pack (id, name, photo_id)
+				VALUES ($1, $2, $3)
+			`, packID, packName, stickerID)
+			if err != nil {
+				return uuid.Nil, err
+			}
+		} else {
+			return uuid.Nil, err
+		}
+	}
+
+	// Добавление связи sticker — pack
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO sticker_sticker_pack (id, sticker, pack)
+		VALUES ($1, $2, $3)
+	`, uuid.New(), stickerID, packID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return stickerID, nil
 }
 
-// updateStickerPackMeta добавляет/обновляет JSON с информацией о стикерпаке
-func (r *filesRepository) updateStickerPackMeta(ctx context.Context, packName string, newPhoto string) error {
-	// Сначала пытаемся получить существующий JSON с метаинфой
-	metaObjectName := fmt.Sprintf("stickers/%s/meta.json", packName)
-
-	object, err := r.minioClient.GetObject(ctx, r.bucketName, metaObjectName, minio.GetObjectOptions{})
+func (r *filesRepository) GetStickerPacks(ctx context.Context) (model.StickerPacks, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, photo_id FROM public.sticker_pack`)
 	if err != nil {
-		// Если объекта нет — создаём новый
-		return r.saveStickerPackMeta(ctx, packName, newPhoto)
+		return model.StickerPacks{}, err
 	}
-	defer object.Close()
+	defer rows.Close()
 
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, object)
-	if err != nil {
-		return err
-	}
-
-	var pack model.StickerPack
-	err = json.Unmarshal(buf.Bytes(), &pack)
-	if err != nil {
-		// Если не удалось распарсить — создаём новый
-		return r.saveStickerPackMeta(ctx, packName, newPhoto)
-	}
-
-	// Обновляем photo и packID (если пусто)
-	pack.Photo = newPhoto
-	if pack.PackID == uuid.Nil {
-		pack.PackID = uuid.New()
-	}
-
-	return r.saveStickerPackMeta(ctx, packName, pack.Photo)
-}
-
-// saveStickerPackMeta сохраняет JSON с метаинформацией
-func (r *filesRepository) saveStickerPackMeta(ctx context.Context, packName, photo string) error {
-	metaObjectName := fmt.Sprintf("stickers/%s/meta.json", packName)
-	pack := model.StickerPack{
-		Photo:  photo,
-		PackID: uuid.New(),
-	}
-	metaBytes, err := json.Marshal(pack)
-	if err != nil {
-		return err
-	}
-
-	_, err = r.minioClient.PutObject(ctx, r.bucketName, metaObjectName, bytes.NewReader(metaBytes), int64(len(metaBytes)), minio.PutObjectOptions{
-		ContentType: "application/json",
-	})
-	return err
-}
-
-// GetStickerPack возвращает стикерпак по packID (ищет в бакете все meta.json и сравнивает)
-func (r *filesRepository) GetStickerPack(ctx context.Context, packID string) (model.StickerPack, error) {
-	// Перебираем все объекты с префиксом stickers/
-	// Ищем meta.json файлов и сравниваем packID
-	var foundPack model.StickerPack
-
-	opts := minio.ListObjectsOptions{
-		Prefix:    "stickers/",
-		Recursive: true,
-	}
-
-	for object := range r.minioClient.ListObjects(ctx, r.bucketName, opts) {
-		if object.Err != nil {
-			continue
-		}
-		if !endsWith(object.Key, "meta.json") {
-			continue
-		}
-
-		obj, err := r.minioClient.GetObject(ctx, r.bucketName, object.Key, minio.GetObjectOptions{})
-		if err != nil {
-			continue
-		}
-
-		buf := new(bytes.Buffer)
-		_, err = io.Copy(buf, obj)
-		obj.Close()
-		if err != nil {
-			continue
-		}
-
-		var pack model.StickerPack
-		err = json.Unmarshal(buf.Bytes(), &pack)
-		if err != nil {
-			continue
-		}
-
-		if pack.PackID.String() == packID {
-			foundPack = pack
-			return foundPack, nil
-		}
-	}
-
-	return model.StickerPack{}, fmt.Errorf("sticker pack not found")
-}
-
-// GetStickerPacks возвращает список всех стикерпаков
-func (r *filesRepository) GetStickerPacks(ctx context.Context) ([]model.StickerPack, error) {
 	var packs []model.StickerPack
-
-	opts := minio.ListObjectsOptions{
-		Prefix:    "stickers/",
-		Recursive: true,
-	}
-
-	for object := range r.minioClient.ListObjects(ctx, r.bucketName, opts) {
-		if object.Err != nil {
-			continue
-		}
-		if !endsWith(object.Key, "meta.json") {
-			continue
-		}
-
-		obj, err := r.minioClient.GetObject(ctx, r.bucketName, object.Key, minio.GetObjectOptions{})
-		if err != nil {
-			continue
-		}
-
-		buf := new(bytes.Buffer)
-		_, err = io.Copy(buf, obj)
-		obj.Close()
-		if err != nil {
-			continue
-		}
-
+	for rows.Next() {
 		var pack model.StickerPack
-		err = json.Unmarshal(buf.Bytes(), &pack)
-		if err != nil {
-			continue
+		var photoID uuid.UUID
+
+		if err := rows.Scan(&pack.PackID, &pack.Name, &photoID); err != nil {
+			log.Println(err)
+			return model.StickerPacks{}, err
 		}
 
+		// Генерируем URL на превью
+		pack.Photo = fmt.Sprintf("/files/%s", photoID.String())
 		packs = append(packs, pack)
 	}
 
-	return packs, nil
+	if err := rows.Err(); err != nil {
+		return model.StickerPacks{}, err
+	}
+	return model.StickerPacks{Packs: packs}, nil
+}
+
+func (r *filesRepository) GetStickerPack(ctx context.Context, packID string) (model.GetStickerPackResponse, error) {
+	id, err := uuid.Parse(packID)
+	if err != nil {
+		return model.GetStickerPackResponse{}, fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	var photoPath string
+	err = r.db.QueryRowContext(ctx,
+		`SELECT photo_id FROM sticker_pack WHERE id = $1`, id).
+		Scan(&photoPath)
+	if err != nil {
+		return model.GetStickerPackResponse{}, err
+	}
+
+	// Получаем ID стикеров, входящих в пак, через связь
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT s.id
+		FROM sticker_sticker_pack sp
+		JOIN sticker s ON s.id = sp.sticker
+		WHERE sp.pack = $1
+	`, id)
+	if err != nil {
+		return model.GetStickerPackResponse{}, err
+	}
+	defer rows.Close()
+
+	var urls []string
+	for rows.Next() {
+		var stickerID uuid.UUID
+		if err := rows.Scan(&stickerID); err != nil {
+			return model.GetStickerPackResponse{}, err
+		}
+		urls = append(urls, fmt.Sprintf("/files/%s", stickerID.String()))
+	}
+	if err := rows.Err(); err != nil {
+		return model.GetStickerPackResponse{}, err
+	}
+
+	return model.GetStickerPackResponse{
+		Photo: photoPath, // это уже путь вида "/uploads/stickers/..."
+		URLs:  urls,
+	}, nil
 }
 
 // простая функция для проверки окончания строки
@@ -306,7 +298,6 @@ func endsWith(s, suffix string) bool {
 func checkAccess(info minio.ObjectInfo, userID string) error {
 	usersMeta := info.UserMetadata["X-Amz-Meta-Users"]
 	if usersMeta == "" {
-		// нет метаданных — либо публичный, либо запрещаем всем
 		return nil
 	}
 	for _, uid := range strings.Split(usersMeta, ",") {

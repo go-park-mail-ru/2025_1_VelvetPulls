@@ -89,6 +89,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    volumes:
+      - ../uploads:/uploads
     restart: unless-stopped
 
   auth:
