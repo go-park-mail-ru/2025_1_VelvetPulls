@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
@@ -18,19 +19,20 @@ type IMessageUsecase interface {
 	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
 	GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
 	GetMessagesAfter(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
-	SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
+	SendMessage(ctx context.Context, input *model.Message, userID uuid.UUID, chatID uuid.UUID) error
 	UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error
 	DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error
 }
 
 type MessageUsecase struct {
-	messageRepo repository.IMessageRepo
-	chatRepo    repository.IChatRepo
-	nc          *nats.Conn
+	messageRepo  repository.IMessageRepo
+	filesUsecase IFilesUsecase
+	chatRepo     repository.IChatRepo
+	nc           *nats.Conn
 }
 
-func NewMessageUsecase(msgRepo repository.IMessageRepo, chatRepo repository.IChatRepo, nc *nats.Conn) IMessageUsecase {
-	return &MessageUsecase{messageRepo: msgRepo, chatRepo: chatRepo, nc: nc}
+func NewMessageUsecase(msgRepo repository.IMessageRepo, filesUsecase IFilesUsecase, chatRepo repository.IChatRepo, nc *nats.Conn) IMessageUsecase {
+	return &MessageUsecase{messageRepo: msgRepo, filesUsecase: filesUsecase, chatRepo: chatRepo, nc: nc}
 }
 
 func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
@@ -93,7 +95,7 @@ func (uc *MessageUsecase) GetMessagesAfter(ctx context.Context, userID, chatID, 
 	return messages, nil
 }
 
-func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
+func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
@@ -102,22 +104,74 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, input *model.MessageI
 		return err
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := msg.Validate(); err != nil {
 		logger.Error("Validation failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageValidationFailed, err)
 	}
+	log.Println(len(msg.Photos), len(msg.Files))
+	// Если есть файлы/фото и сообщение не только стикер
+	if len(msg.Files) > 0 || len(msg.Photos) > 0 || msg.Sticker == "" {
+		var userIDs []string
+		chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+		if err != nil {
+			logger.Error("Не удалось получить тип чата", zap.Error(err))
+			return err
+		}
 
-	msg := &model.Message{ChatID: chatID, UserID: userID, Body: input.Message}
+		if model.ChatType(chat.Type) == model.ChatTypeDialog || model.ChatType(chat.Type) == model.ChatTypeGroup {
+			users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
+			if err != nil {
+				logger.Error("Не удалось получить пользователей чата", zap.Error(err))
+				return err
+			}
+			for _, u := range users {
+				userIDs = append(userIDs, u.ID.String())
+			}
+		}
 
-	saved, err := uc.messageRepo.CreateMessage(ctx, msg)
+		// Сохраняем файлы
+		for i := range msg.Files {
+			log.Println(msg.FilesDTO)
+			savedFile, err := uc.filesUsecase.SaveFile(ctx, msg.Files[i], msg.FilesHeaders[i], userIDs)
+			if err != nil {
+				logger.Error("Не удалось сохранить файл", zap.Error(err))
+				return err
+			}
+			log.Println("bebra123", savedFile.ContentType)
+			msg.FilesDTO = append(msg.FilesDTO, model.Payload{
+				URL:         savedFile.URL,
+				Filename:    savedFile.Filename,
+				ContentType: savedFile.ContentType,
+				Size:        savedFile.Size,
+			})
+			log.Println(msg.FilesDTO)
+		}
+
+		for i := range msg.Photos {
+			savedPhoto, err := uc.filesUsecase.SavePhoto(ctx, msg.Photos[i], msg.PhotosHeaders[i], userIDs)
+			if err != nil {
+				logger.Error("Не удалось сохранить фото", zap.Error(err))
+				return err
+			}
+			msg.PhotosDTO = append(msg.PhotosDTO, model.Payload{
+				URL:         savedPhoto.URL,
+				Filename:    savedPhoto.Filename,
+				ContentType: savedPhoto.ContentType,
+				Size:        savedPhoto.Size,
+			})
+		}
+	}
+	savedMsg, err := uc.messageRepo.CreateMessage(ctx, msg)
 	if err != nil {
+		log.Println(savedMsg, err)
 		logger.Error("CreateMessage failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageCreationFailed, err)
 	}
 
-	// publish new-message event
-	e := model.MessageEvent{Action: utils.NewMessage, Message: *saved}
-	data, _ := json.Marshal(e)
+	log.Println(savedMsg)
+	// Отправка события в NATS
+	event := model.MessageEvent{Action: utils.NewMessage, Message: *savedMsg}
+	data, _ := json.Marshal(event)
 	subj := fmt.Sprintf("chat.%s.messages", chatID.String())
 	if err := uc.nc.Publish(subj, data); err != nil {
 		logger.Error("NATS publish failed", zap.Error(err))

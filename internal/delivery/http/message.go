@@ -181,21 +181,44 @@ func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) 
 	sticker := r.FormValue("sticker")
 
 	// Логируем полученные данные
-	logger.Info("Parsed message form values",
-		zap.String("sticker", sticker),
-	)
+	logger.Info("Parsed message form values", zap.String("sticker", sticker))
 
-	// Получаем файлы, но пока не обрабатываем
+	var msg model.Message
+	msg.Body = input.Message
+	msg.ChatID = chatID
+	msg.UserID = userID
+	msg.Sticker = sticker
+
 	files := r.MultipartForm.File["files"]
-	photos := r.MultipartForm.File["photos"]
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			logger.Error("Failed to open file", zap.Error(err))
+			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Failed to open files", false)
+			return
+		}
+		defer file.Close()
 
-	logger.Info("Received file counts",
-		zap.Int("files", len(files)),
-		zap.Int("photos", len(photos)),
-	)
+		msg.Files = append(msg.Files, file)
+		msg.FilesHeaders = append(msg.FilesHeaders, header)
+	}
+
+	photos := r.MultipartForm.File["photos"]
+	for _, header := range photos {
+		photo, err := header.Open()
+		if err != nil {
+			logger.Error("Failed to open photo", zap.Error(err))
+			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Failed to open photos", false)
+			return
+		}
+		defer photo.Close()
+
+		msg.Photos = append(msg.Photos, photo)
+		msg.PhotosHeaders = append(msg.PhotosHeaders, header)
+	}
 
 	// Вызываем usecase
-	if err := c.messageUsecase.SendMessage(r.Context(), &input, userID, chatID); err != nil {
+	if err := c.messageUsecase.SendMessage(r.Context(), &msg, userID, chatID); err != nil {
 		logger.Error("Failed to send message", zap.Error(err))
 		code, msg := apperrors.GetErrAndCodeToSend(err)
 		utils.SendJSONResponse(w, r, code, msg, false)

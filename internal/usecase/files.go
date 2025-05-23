@@ -23,7 +23,7 @@ type IFilesUsecase interface {
 	GetStickerPack(ctx context.Context, packID string) (model.GetStickerPackResponse, error)
 	GetStickerPacks(ctx context.Context) (model.StickerPacks, error)
 	SaveSticker(ctx context.Context, file multipart.File, header *multipart.FileHeader, name string) error
-	// SavePhoto(ctx context.Context, file multipart.File, header *multipart.FileHeader, users []string) (model.Payload, error)
+	SavePhoto(ctx context.Context, file multipart.File, header *multipart.FileHeader, users []string) (model.Payload, error)
 	// SaveAvatar(ctx context.Context, file multipart.File, header *multipart.FileHeader) (string, error)
 	// RewritePhoto(ctx context.Context, file multipart.File, header multipart.FileHeader, fileIDStr string) error
 	// DeletePhoto(ctx context.Context, fileIDStr string) error
@@ -53,6 +53,7 @@ func (u *filesUsecase) SaveFile(ctx context.Context, file multipart.File, header
 			zap.String("filename", header.Filename),
 			zap.Error(err),
 		)
+		fmt.Println(err)
 		return model.Payload{}, fmt.Errorf("failed to create file buffer: %w", err)
 	}
 
@@ -65,6 +66,7 @@ func (u *filesUsecase) SaveFile(ctx context.Context, file multipart.File, header
 		users,
 	)
 	if err != nil {
+		fmt.Println(err)
 		logger.Error("Failed to save file in repository",
 			zap.String("filename", header.Filename),
 			zap.Error(err),
@@ -73,12 +75,62 @@ func (u *filesUsecase) SaveFile(ctx context.Context, file multipart.File, header
 	}
 
 	out := model.Payload{
-		URL:      addFileURLPrefix(fileID),
-		Filename: header.Filename,
-		Size:     header.Size,
+		URL:         addFileURLPrefix(fileID),
+		Filename:    header.Filename,
+		ContentType: "file",
+		Size:        header.Size,
 	}
 
 	logger.Info("File successfully saved",
+		zap.String("file_id", fileID),
+		zap.String("result_url", out.URL),
+	)
+
+	return out, nil
+}
+
+func (u *filesUsecase) SavePhoto(ctx context.Context, file multipart.File, header *multipart.FileHeader, users []string) (model.Payload, error) {
+	logger := utils.GetLoggerFromCtx(ctx)
+
+	logger.Info("Starting photo save operation",
+		zap.String("filename", header.Filename),
+		zap.Int64("size", header.Size),
+		zap.Int("users_count", len(users)),
+	)
+
+	fileBuffer, err := getFileBuffer(file)
+	if err != nil {
+		logger.Error("Failed to create photo buffer",
+			zap.String("filename", header.Filename),
+			zap.Error(err),
+		)
+		return model.Payload{}, fmt.Errorf("failed to create photo buffer: %w", err)
+	}
+
+	fileID, err := u.fileRepo.SaveFile(
+		ctx,
+		fileBuffer,
+		header.Filename,
+		header.Header.Get("Content-Type"),
+		header.Size,
+		users,
+	)
+	if err != nil {
+		logger.Error("Failed to save photo in repository",
+			zap.String("filename", header.Filename),
+			zap.Error(err),
+		)
+		return model.Payload{}, fmt.Errorf("failed to save photo in repository: %w", err)
+	}
+
+	out := model.Payload{
+		URL:         addFileURLPrefix(fileID),
+		Filename:    header.Filename,
+		ContentType: "photo", // указываем явно, что это фото
+		Size:        header.Size,
+	}
+
+	logger.Info("Photo successfully saved",
 		zap.String("file_id", fileID),
 		zap.String("result_url", out.URL),
 	)

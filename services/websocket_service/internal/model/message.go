@@ -17,6 +17,17 @@ type Message struct {
 	IsRedacted      bool       `json:"is_redacted,omitempty"`
 	AvatarPath      *string    `json:"avatar_path,omitempty"`
 	Username        string     `json:"user,omitempty"`
+	FilesDTO        []Payload  `json:"files,omitempty" valid:"-"`
+	PhotosDTO       []Payload  `json:"photos,omitempty" valid:"-"`
+
+	Sticker string `json:"sticker" valid:"optional,length(0|255)"`
+}
+
+type Payload struct {
+	URL         string
+	Filename    string
+	ContentType string
+	Size        int64
 }
 
 type Chat struct {

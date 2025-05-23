@@ -86,9 +86,8 @@ func (r *filesRepository) SaveFile(ctx context.Context, buf *bytes.Buffer, filen
 	fileID := generateID()
 
 	userMetadata := map[string]string{
-		"filename":     filename,
-		"content-type": contentType,
-		"size":         strconv.FormatInt(size, 10),
+		"filename": filename,
+		"size":     strconv.FormatInt(size, 10),
 	}
 
 	if len(allowedUsers) > 0 {
@@ -107,6 +106,7 @@ func (r *filesRepository) SaveFile(ctx context.Context, buf *bytes.Buffer, filen
 		},
 	)
 	if err != nil {
+		fmt.Println(err)
 		return "", err
 	}
 

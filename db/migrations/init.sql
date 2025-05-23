@@ -6,6 +6,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TYPE chat_type AS ENUM ('dialog', 'group', 'channel');
+CREATE TYPE message_type AS ENUM ('default', 'with_payload', 'sticker');
 CREATE TYPE user_type AS ENUM ('owner', 'member');
 CREATE TYPE reaction_type AS ENUM ('like', 'dislike');
 
@@ -56,11 +57,14 @@ CREATE TABLE IF NOT EXISTS public.user_chat (
     FOREIGN KEY (chat_id) REFERENCES public.chat(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+
 CREATE TABLE IF NOT EXISTS public.message (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     parent_message_id UUID,
+    message_type message_type NOT NULL,
     chat_id UUID NOT NULL,
     user_id UUID NOT NULL,
+    sticker_path text,
     body TEXT NOT NULL CHECK (LENGTH(body) > 0 AND LENGTH(body) <= 2000),
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (sent_at <= CURRENT_TIMESTAMP),
     is_redacted BOOLEAN DEFAULT FALSE,

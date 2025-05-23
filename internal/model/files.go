@@ -13,9 +13,10 @@ type FileMetaData struct {
 }
 
 type Payload struct {
-	URL      string
-	Filename string
-	Size     int64
+	URL         string
+	Filename    string
+	ContentType string
+	Size        int64
 }
 
 type GetStickerPackResponse struct {

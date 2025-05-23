@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"time"
 
 	"github.com/asaskevich/govalidator"
@@ -23,11 +24,30 @@ type Message struct {
 	ParentMessageID *uuid.UUID `json:"parent_message_id,omitempty"`
 	ChatID          uuid.UUID  `json:"chat_id,omitempty"`
 	UserID          uuid.UUID  `json:"user_id,omitempty"`
-	Body            string     `json:"body,omitempty"`
-	SentAt          time.Time  `json:"sent_at,omitempty"`
-	IsRedacted      bool       `json:"is_redacted,omitempty"`
-	AvatarPath      *string    `json:"avatar_path,omitempty"`
-	Username        string     `json:"user,omitempty"`
+
+	Body        string    `json:"body,omitempty" valid:"optional,length(1|1000)"`
+	SentAt      time.Time `json:"sent_at,omitempty"`
+	IsRedacted  bool      `json:"is_redacted,omitempty"`
+	AvatarPath  *string   `json:"avatar_path,omitempty"`
+	Username    string    `json:"user,omitempty"`
+	MessageType string    `json:"message_type" valid:"optional,in(text|sticker|file|photo)"`
+
+	Files        []multipart.File        `json:"-" valid:"-"`
+	FilesHeaders []*multipart.FileHeader `json:"-" valid:"-"`
+	FilesDTO     []Payload               `json:"files,omitempty" valid:"-"`
+
+	Photos        []multipart.File        `json:"-" valid:"-"`
+	PhotosHeaders []*multipart.FileHeader `json:"-" valid:"-"`
+	PhotosDTO     []Payload               `json:"photos,omitempty" valid:"-"`
+
+	Sticker string `json:"sticker" valid:"optional,length(0|255)"`
+}
+
+func (m *Message) Validate() error {
+	if _, err := govalidator.ValidateStruct(m); err != nil {
+		return errors.Join(ErrValidation, fmt.Errorf("invalid message input: %w", err))
+	}
+	return nil
 }
 
 type LastMessage struct {
