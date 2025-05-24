@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.message (
     chat_id UUID NOT NULL,
     user_id UUID NOT NULL,
     sticker_path text,
-    body TEXT NOT NULL CHECK (LENGTH(body) > 0 AND LENGTH(body) <= 2000),
+    body TEXT NOT NULL CHECK (LENGTH(body) <= 2000),
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP CHECK (sent_at <= CURRENT_TIMESTAMP),
     is_redacted BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (parent_message_id) REFERENCES public.message(id) ON DELETE SET NULL ON UPDATE CASCADE,
