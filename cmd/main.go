@@ -9,6 +9,8 @@ import (
 	_ "github.com/go-park-mail-ru/2025_1_VelvetPulls/docs"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/server"
 	_ "github.com/lib/pq"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -53,6 +55,14 @@ func main() {
 	}
 	defer authConn.Close()
 
+	minioClient, err := minio.New(config.GetMinioEndpoint(), &minio.Options{
+		Creds:  credentials.NewStaticV4(config.Minio.AccessKey, config.Minio.SecretKey, ""),
+		Secure: config.Minio.UseSSL,
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to minio: %v", err)
+	}
+
 	log.Printf("Starting server on %s", config.PORT)
 	searchConn, err := grpc.NewClient("search:8083", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -60,7 +70,7 @@ func main() {
 	}
 	defer searchConn.Close()
 
-	s := server.NewServer(dbConn, authConn, searchConn, nc)
+	s := server.NewServer(dbConn, minioClient, authConn, searchConn, nc)
 	if err := s.Run(config.PORT); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

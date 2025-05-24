@@ -20,6 +20,7 @@ var (
 	ErrAddOwnerToGroup         = errors.New("failed to add owner to group")
 	ErrOnlyOwnerCanDelete      = errors.New("only chat owner can delete chat")
 	ErrOnlyOwnerCanAddUsers    = errors.New("only chat owner can add users")
+	ErrNotChannel              = errors.New("chat type is not channel")
 	ErrOnlyOwnerCanDeleteUsers = errors.New("only chat owner can delete users")
 
 	ErrMessageValidationFailed = errors.New("message validation failed")

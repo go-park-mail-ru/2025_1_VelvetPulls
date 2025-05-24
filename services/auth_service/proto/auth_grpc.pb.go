@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: services/auth_service/delivery/proto/auth.proto
+// source: services/auth_service/proto/auth.proto
 
 package authpb
 
@@ -194,7 +194,7 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "services/auth_service/delivery/proto/auth.proto",
+	Metadata: "services/auth_service/proto/auth.proto",
 }
 
 const (
@@ -296,5 +296,5 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "services/auth_service/delivery/proto/auth.proto",
+	Metadata: "services/auth_service/proto/auth.proto",
 }

@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"mime/multipart"
+	"time"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
@@ -10,28 +11,26 @@ import (
 )
 
 type GetUserProfile struct {
-	AvatarPath *string `json:"avatar_path,omitempty"`
-	FirstName  *string `json:"first_name,omitempty"`
-	LastName   *string `json:"last_name,omitempty"`
-	Username   string  `json:"username"`
-	Phone      string  `json:"phone"`
-	Email      *string `json:"email,omitempty"`
+	ID         uuid.UUID  `json:"id"`
+	AvatarPath *string    `json:"avatar_path,omitempty"`
+	Name       string     `json:"name"`
+	Username   string     `json:"username"`
+	BirthDate  *time.Time `json:"birth_date,omitempty"`
 }
 
 type UpdateUserProfile struct {
 	ID        uuid.UUID       `json:"id"`
 	Avatar    *multipart.File `json:"-" valid:"-"`
-	FirstName *string         `json:"first_name,omitempty" valid:"optional,stringlength(1|50)"`
-	LastName  *string         `json:"last_name,omitempty" valid:"optional,stringlength(1|50)"`
-	Username  *string         `json:"username" valid:"optional,alphanum,length(3|20)"`
-	Phone     *string         `json:"phone" valid:"optional"`
-	Email     *string         `json:"email,omitempty" valid:"optional,email"`
+	Name      *string         `json:"name,omitempty" valid:"optional,stringlength(1|100)"`
+	Username  *string         `json:"username,omitempty" valid:"optional,alphanum,stringlength(3|20)"`
+	BirthDate *time.Time      `json:"birth_date,omitempty"`
 	Password  string          `json:"password,omitempty" valid:"optional,stringlength(8|100)"`
 }
 
+// Валидация: хотя бы одно поле должно быть заполнено
 func (up *UpdateUserProfile) Validate() error {
-	if up.FirstName == nil && up.LastName == nil && up.Username == nil &&
-		up.Phone == nil && up.Email == nil && up.Avatar == nil && up.Password == "" {
+	if up.Name == nil && up.Username == nil &&
+		up.Avatar == nil && up.BirthDate == nil && up.Password == "" {
 		return errors.Join(ErrValidation, errors.New("at least one field must be provided for update"))
 	}
 
@@ -45,43 +44,19 @@ func (up *UpdateUserProfile) Validate() error {
 	return nil
 }
 
+// Санитизация
 func (g *GetUserProfile) Sanitize() {
 	g.Username = utils.SanitizeString(g.Username)
-	g.Phone = utils.SanitizeString(g.Phone)
-
-	if g.FirstName != nil {
-		s := utils.SanitizeString(*g.FirstName)
-		g.FirstName = &s
-	}
-	if g.LastName != nil {
-		s := utils.SanitizeString(*g.LastName)
-		g.LastName = &s
-	}
-	if g.Email != nil {
-		s := utils.SanitizeString(*g.Email)
-		g.Email = &s
-	}
+	g.Name = utils.SanitizeString(g.Name)
 }
 
 func (u *UpdateUserProfile) Sanitize() {
-	if u.FirstName != nil {
-		s := utils.SanitizeString(*u.FirstName)
-		u.FirstName = &s
-	}
-	if u.LastName != nil {
-		s := utils.SanitizeString(*u.LastName)
-		u.LastName = &s
+	if u.Name != nil {
+		s := utils.SanitizeString(*u.Name)
+		u.Name = &s
 	}
 	if u.Username != nil {
 		s := utils.SanitizeString(*u.Username)
 		u.Username = &s
-	}
-	if u.Phone != nil {
-		s := utils.SanitizeString(*u.Phone)
-		u.Phone = &s
-	}
-	if u.Email != nil {
-		s := utils.SanitizeString(*u.Email)
-		u.Email = &s
 	}
 }

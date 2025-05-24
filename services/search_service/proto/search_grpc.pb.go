@@ -21,7 +21,6 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ChatService_SearchUserChats_FullMethodName = "/search.ChatService/SearchUserChats"
 	ChatService_SearchContacts_FullMethodName  = "/search.ChatService/SearchContacts"
-	ChatService_SearchUsers_FullMethodName     = "/search.ChatService/SearchUsers"
 	ChatService_SearchMessages_FullMethodName  = "/search.ChatService/SearchMessages"
 )
 
@@ -33,8 +32,6 @@ type ChatServiceClient interface {
 	SearchUserChats(ctx context.Context, in *SearchUserChatsRequest, opts ...grpc.CallOption) (*SearchUserChatsResponse, error)
 	// Контакты
 	SearchContacts(ctx context.Context, in *SearchContactsRequest, opts ...grpc.CallOption) (*SearchContactsResponse, error)
-	// Пользователи
-	SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error)
 	// Сообщения
 	SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*SearchMessagesResponse, error)
 }
@@ -67,16 +64,6 @@ func (c *chatServiceClient) SearchContacts(ctx context.Context, in *SearchContac
 	return out, nil
 }
 
-func (c *chatServiceClient) SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SearchUsersResponse)
-	err := c.cc.Invoke(ctx, ChatService_SearchUsers_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *chatServiceClient) SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*SearchMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SearchMessagesResponse)
@@ -95,8 +82,6 @@ type ChatServiceServer interface {
 	SearchUserChats(context.Context, *SearchUserChatsRequest) (*SearchUserChatsResponse, error)
 	// Контакты
 	SearchContacts(context.Context, *SearchContactsRequest) (*SearchContactsResponse, error)
-	// Пользователи
-	SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error)
 	// Сообщения
 	SearchMessages(context.Context, *SearchMessagesRequest) (*SearchMessagesResponse, error)
 	mustEmbedUnimplementedChatServiceServer()
@@ -114,9 +99,6 @@ func (UnimplementedChatServiceServer) SearchUserChats(context.Context, *SearchUs
 }
 func (UnimplementedChatServiceServer) SearchContacts(context.Context, *SearchContactsRequest) (*SearchContactsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchContacts not implemented")
-}
-func (UnimplementedChatServiceServer) SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SearchUsers not implemented")
 }
 func (UnimplementedChatServiceServer) SearchMessages(context.Context, *SearchMessagesRequest) (*SearchMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchMessages not implemented")
@@ -178,24 +160,6 @@ func _ChatService_SearchContacts_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ChatService_SearchUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SearchUsersRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChatServiceServer).SearchUsers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ChatService_SearchUsers_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).SearchUsers(ctx, req.(*SearchUsersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ChatService_SearchMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SearchMessagesRequest)
 	if err := dec(in); err != nil {
@@ -228,10 +192,6 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchContacts",
 			Handler:    _ChatService_SearchContacts_Handler,
-		},
-		{
-			MethodName: "SearchUsers",
-			Handler:    _ChatService_SearchUsers_Handler,
 		},
 		{
 			MethodName: "SearchMessages",

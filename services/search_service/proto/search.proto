@@ -5,6 +5,7 @@ package search;
 option go_package = "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/delivery/proto;search";
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 service ChatService {
   // Чат
@@ -12,9 +13,6 @@ service ChatService {
   
   // Контакты
   rpc SearchContacts(SearchContactsRequest) returns (SearchContactsResponse);
-  
-  // Пользователи
-  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
   
   // Сообщения
   rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
@@ -40,13 +38,16 @@ message SearchUserChatsRequest {
 }
 
 message SearchUserChatsResponse {
-  repeated Chat chats = 1;
+  repeated Chat dialogs = 1;
+  repeated Chat groups = 2;
+  repeated Chat channels = 3;
+  repeated Chat global_channels = 4;
 }
 
 message Chat {
   string id = 1;
   string title = 2;
-  string type = 3;
+  ChatType type = 3;  // Используем enum
   string avatar_path = 4;
   UserRole user_role = 5;
   int32 members_count = 6;
@@ -71,31 +72,22 @@ message SearchContactsRequest {
 
 message SearchContactsResponse {
   repeated Contact contacts = 1;
+  repeated User users = 2;
 }
 
 message Contact {
   string id = 1;
-  string username = 2;
-  string first_name = 3;
-  string last_name = 4;
-  string avatar_path = 5;
-}
-
-// ================== Пользователи ==================
-message SearchUsersRequest {
-  string query = 1;  // Поиск по username/имени
-}
-
-message SearchUsersResponse {
-  repeated User users = 1;
+  string name = 2;
+  string username = 3;
+  string avatar_path = 4;
 }
 
 message User {
   string id = 1;
-  string username = 2;
-  string first_name = 3;
-  string last_name = 4;
-  string avatar_path = 5;
+  string name = 2;
+  string username = 3;
+  string avatar_path = 4;
+  google.protobuf.Timestamp birth_date = 5;
 }
 
 // ================== Сообщения ==================

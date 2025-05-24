@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
 	"github.com/google/uuid"
 )
 
@@ -16,15 +17,26 @@ type Message struct {
 	IsRedacted      bool       `json:"is_redacted,omitempty"`
 	AvatarPath      *string    `json:"avatar_path,omitempty"`
 	Username        string     `json:"user,omitempty"`
+	FilesDTO        []Payload  `json:"files,omitempty" valid:"-"`
+	PhotosDTO       []Payload  `json:"photos,omitempty" valid:"-"`
+
+	Sticker string `json:"sticker" valid:"optional,length(0|255)"`
 }
 
-type ChatInfo struct {
-	ID         uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath *string      `json:"avatar_path,omitempty"`
-	Type       string       `json:"type" valid:"in(dialog|group|channel)"`
-	Title      string       `json:"title" valid:"length(1|100)"`
-	CountUsers int          `json:"count_users" valid:"range(0|5000)"`
-	Users      []UserInChat `json:"users"`
+type Payload struct {
+	URL         string
+	Filename    string
+	ContentType string
+	Size        int64
+}
+
+type Chat struct {
+	ID          uuid.UUID          `json:"id" valid:"uuid"`
+	AvatarPath  *string            `json:"avatar_path,omitempty"`
+	Type        string             `json:"type" valid:"in(dialog|group|channel),required"`
+	Title       string             `json:"title" valid:"required~Title is required,length(1|100)"`
+	LastMessage *model.LastMessage `json:"last_message,omitempty"`
+	CountUsers  int                `json:"count_users" valid:"range(0|5000)"`
 }
 
 type UserInChat struct {

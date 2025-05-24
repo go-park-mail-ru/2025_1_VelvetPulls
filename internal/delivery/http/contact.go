@@ -61,7 +61,7 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 // @Accept json
 // @Produce json
 // @Param contact body model.RequestContact true "Данные контакта"
-// @Success 200 {object} utils.JSONResponse
+// @Success 200 {object} model.Contact
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /contacts [post]
@@ -78,14 +78,17 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username); err != nil {
+	addedContact, err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username)
+	if err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
 		code, errToSend := apperrors.GetErrAndCodeToSend(err)
 		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, "Contact added successfully", true)
+	// Возвращаем добавленного пользователя
+	addedContact.Sanitize()
+	utils.SendJSONResponse(w, r, http.StatusOK, addedContact, true)
 }
 
 // DeleteContact удаляет контакт пользователя

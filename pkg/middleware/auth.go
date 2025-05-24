@@ -26,7 +26,6 @@ func AuthMiddleware(sessionClient generatedAuth.SessionServiceClient) func(http.
 				utils.SendJSONResponse(w, r, http.StatusUnauthorized, "Invalid session", false)
 				return
 			}
-
 			userID, err := uuid.Parse(resp.UserId)
 			if err != nil {
 				utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid user ID", false)
