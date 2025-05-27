@@ -1,0 +1,52 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [deploy]
+
+jobs:
+  lint:
+    name: Linters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.0'
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.24'
+
+      - name: Run Tests
+        run: make test
+
+  build-and-deploy:
+      needs: [lint, test]
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      steps:
+        - name: Deploy with SSH to server
+          uses: appleboy/ssh-action@master
+          with:
+            host: ${{ secrets.SSH_HOST }}
+            username: ${{ secrets.SSH_USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            script: |
+              cd /backend/2025_1_VelvetPulls/
+              git pull
+              make run
