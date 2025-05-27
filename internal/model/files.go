@@ -1,7 +1,9 @@
+//go:generate easyjson -all files.go
 package model
 
 import "github.com/google/uuid"
 
+//easyjson:json
 type UploadFileResponse struct {
 	FileID string `json:"file_id"`
 }
@@ -12,6 +14,7 @@ type FileMetaData struct {
 	FileSize    int64
 }
 
+//easyjson:json
 type Payload struct {
 	URL         string
 	Filename    string
@@ -19,11 +22,13 @@ type Payload struct {
 	Size        int64
 }
 
+//easyjson:json
 type GetStickerPackResponse struct {
 	Photo string   `json:"photo" valid:"-"`
 	URLs  []string `json:"stickers" valid:"-"`
 }
 
+//easyjson:json
 type StickerPack struct {
 	Photo  string    `json:"photo" valid:"-"`
 	Name   string    `json:"name"`

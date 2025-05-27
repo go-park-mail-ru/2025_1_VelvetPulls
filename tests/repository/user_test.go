@@ -217,8 +217,8 @@ func TestUpdateUser_EmptyField(t *testing.T) {
 	userID := uuid.New()
 	empty := ""
 	profile := &model.UpdateUserProfile{
-		ID:        userID,
-		FirstName: &empty,
+		ID:   userID,
+		Name: &empty,
 	}
 
 	// Ожидаем начало транзакции и затем откат.

@@ -9,9 +9,9 @@ import (
 
 // JSONResponse - структура для унифицированного ответа.
 type JSONResponse struct {
-	Status bool        `json:"status"`
-	Data   interface{} `json:"data,omitempty"`
-	Error  string      `json:"error,omitempty"`
+	Status bool            `json:"status"`
+	Data   json.RawMessage `json:"data"`
+	Error  string          `json:"error,omitempty"`
 }
 
 // ParseJSONRequest парсит JSON из тела запроса в переданную структуру.
@@ -32,14 +32,31 @@ func SendJSONResponse(w http.ResponseWriter, r *http.Request, statusCode int, v 
 	}
 
 	if success {
-		if s, ok := v.(Sanitizable); ok {
-			s.Sanitize()
-		}
+		switch data := v.(type) {
+		case []byte:
+			// Если данные уже в формате JSON, используем их как есть
+			response.Data = json.RawMessage(data)
 
-		if str, ok := v.(string); ok {
-			response.Data = SanitizeString(str)
-		} else {
-			response.Data = v
+		case string:
+			// Санируем и преобразуем строку
+			sanitized := SanitizeString(data)
+			response.Data = json.RawMessage(`"` + sanitized + `"`)
+
+		default:
+			// Санизация и стандартное кодирование
+			if s, ok := v.(Sanitizable); ok {
+				s.Sanitize()
+			}
+
+			// Кодируем объект в JSON
+			jsonData, err := json.Marshal(v)
+			if err != nil {
+				if logger != nil {
+					logger.Error("failed to marshal data", zap.Error(err))
+				}
+				jsonData = []byte("null")
+			}
+			response.Data = jsonData
 		}
 	} else {
 		if err, ok := v.(error); ok {
@@ -51,6 +68,7 @@ func SendJSONResponse(w http.ResponseWriter, r *http.Request, statusCode int, v 
 		}
 	}
 
+	// Кодируем финальный ответ
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		if logger != nil {
 			logger.Error("failed to encode JSON response", zap.Error(err))

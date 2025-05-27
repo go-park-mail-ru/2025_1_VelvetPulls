@@ -48,7 +48,6 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
 	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 

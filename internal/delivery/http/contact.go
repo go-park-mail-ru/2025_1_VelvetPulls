@@ -10,6 +10,7 @@ import (
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -50,8 +51,14 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, contacts, true)
+	contactList := model.ContactList(contacts)
+	response, err := easyjson.Marshal(contactList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // AddContact добавляет новый контакт
@@ -88,7 +95,13 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 
 	// Возвращаем добавленного пользователя
 	addedContact.Sanitize()
-	utils.SendJSONResponse(w, r, http.StatusOK, addedContact, true)
+	response, err := easyjson.Marshal(addedContact)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // DeleteContact удаляет контакт пользователя

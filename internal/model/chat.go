@@ -1,3 +1,4 @@
+//go:generate easyjson -all chat.go
 package model
 
 import (
@@ -37,6 +38,7 @@ const (
 	RoleMember UserRoleInChat = "member"
 )
 
+//easyjson:json
 type Chat struct {
 	ID                uuid.UUID    `json:"id" valid:"uuid"`
 	AvatarPath        *string      `json:"avatar_path,omitempty"`
@@ -47,6 +49,10 @@ type Chat struct {
 	SendNotifications bool         `json:"send_notifications" valid:"-"`
 }
 
+//easyjson:json
+type ChatList []Chat
+
+//easyjson:json
 type CreateChatRequest struct {
 	Type  string `json:"type" valid:"in(dialog|group|channel),required"`
 	Title string `json:"title" valid:"required~Title is required,length(1|100)"`
@@ -54,6 +60,7 @@ type CreateChatRequest struct {
 	Users []string `json:"usersToAdd"`
 }
 
+//easyjson:json
 type CreateChat struct {
 	Avatar *multipart.File `json:"-" valid:"-"`
 	Type   string          `json:"type" valid:"in(dialog|group|channel),required"`
@@ -62,27 +69,30 @@ type CreateChat struct {
 	Users []string `json:"usersToAdd"`
 }
 
+//easyjson:json
 type UpdateChat struct {
 	ID     uuid.UUID       `json:"id" valid:"required,uuid"`
 	Avatar *multipart.File `json:"-" valid:"-"`
 	Title  *string         `json:"title" valid:"length(1|100)"`
 }
 
+//easyjson:json
 type UpdateChatResp struct {
 	Avatar string `json:"updated_avatar" valid:"-"`
 	Title  string `json:"title" valid:"length(1|100)"`
 }
 
+//easyjson:json
 type ChatInfo struct {
 	Role     string       `json:"role" example:"owner" valid:"in(owner|member)"`
 	Users    []UserInChat `json:"users" valid:"-"`
 	Messages []Message    `json:"messages" valid:"-"`
 }
 
+//easyjson:json
 type UsersRequest struct {
 	Users []string `json:"users" valid:"-"`
 }
-
 type UserInChat struct {
 	ID         uuid.UUID `json:"id" valid:"uuid"`
 	Username   string    `json:"username,omitempty" valid:"required,length(3|50)"`
@@ -91,11 +101,13 @@ type UserInChat struct {
 	Role       *string   `json:"role" valid:"in(owner|member)"`
 }
 
+//easyjson:json
 type AddedUsersIntoChat struct {
 	AddedUsers    []string `json:"added_users,omitempty" valid:"required"`
 	NotAddedUsers []string `json:"not_added_users,omitempty" valid:"required"`
 }
 
+//easyjson:json
 type DeletedUsersFromChat struct {
 	DeletedUsers []string `json:"deleted_users,omitempty" valid:"required"`
 }

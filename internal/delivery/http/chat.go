@@ -14,6 +14,7 @@ import (
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -61,8 +62,14 @@ func (c *chatController) GetChats(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, chats, true)
+	chatList := model.ChatList(chats)
+	response, err := easyjson.Marshal(chatList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // CreateChat создает новый чат
@@ -103,7 +110,14 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusCreated, chatInfo, true)
+	response, err := easyjson.Marshal(chatInfo)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusCreated, response, true)
 }
 
 // GetChat возвращает информацию о чате
@@ -137,8 +151,13 @@ func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
+	response, err := easyjson.Marshal(chatInfo)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // @Router /chat/{chat_id}/notifications/{send} [post]
@@ -165,6 +184,7 @@ func (c *chatController) SendNotifications(w http.ResponseWriter, r *http.Reques
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
+
 	utils.SendJSONResponse(w, r, http.StatusOK, send, true)
 }
 
@@ -203,7 +223,7 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	var payload model.UpdateChat
 	payload.ID = chatID
 	if data := r.FormValue("chat_data"); data != "" {
-		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		if err := easyjson.Unmarshal([]byte(data), &payload); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
 			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
 			return
@@ -237,8 +257,13 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		Avatar: updatedAvatar,
 		Title:  chatInfo.Title,
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, chatInfoResp, true)
+	response, err := easyjson.Marshal(chatInfoResp)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // DeleteChat удаляет чат
@@ -312,8 +337,13 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+	response, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // JoinChannel подписывает пользователя на канал
@@ -390,8 +420,13 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+	response, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // LeaveChat позволяет текущему пользователю выйти из чата

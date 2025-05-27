@@ -1,7 +1,7 @@
 package http
 
 import (
-	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
@@ -13,6 +13,7 @@ import (
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -67,8 +68,14 @@ func (c *messageController) GetMessageHistory(w http.ResponseWriter, r *http.Req
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, messages, true)
+	messageList := model.MessageList(messages)
+	resp, err := easyjson.Marshal(messageList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 // @Summary Получить страницу сообщений в чате
@@ -129,8 +136,14 @@ func (c *messageController) GetPaginatedMessageHistory(w http.ResponseWriter, r 
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, messages, true)
+	messageList := model.MessageList(messages)
+	resp, err := easyjson.Marshal(messageList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 // @Summary Отправить сообщение в чат
@@ -172,7 +185,7 @@ func (c *messageController) SendMessage(w http.ResponseWriter, r *http.Request) 
 	var input model.MessageInput
 	// Читаем текст и стикер
 	if data := r.FormValue("text"); data != "" {
-		if err := json.Unmarshal([]byte(data), &input); err != nil {
+		if err := easyjson.Unmarshal([]byte(data), &input); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
 			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
 			return
@@ -261,7 +274,14 @@ func (c *messageController) UpdateMessage(w http.ResponseWriter, r *http.Request
 	userID := utils.GetUserIDFromCtx(r.Context())
 
 	var input model.MessageInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		logger.Error("Failed to read request body", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
+		return
+	}
+
+	if err := easyjson.Unmarshal(body, &input); err != nil {
 		logger.Error("Failed to decode message input", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return

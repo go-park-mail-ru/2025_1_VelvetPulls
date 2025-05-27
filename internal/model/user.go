@@ -1,3 +1,4 @@
+//go:generate easyjson -all user.go
 package model
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+//easyjson:json
 type User struct {
 	ID         uuid.UUID  `json:"id"`
 	AvatarPath *string    `json:"avatar_path,omitempty"`

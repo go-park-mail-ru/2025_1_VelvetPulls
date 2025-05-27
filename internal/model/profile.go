@@ -1,3 +1,4 @@
+//go:generate easyjson -all profile.go
 package model
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+//easyjson:json
 type GetUserProfile struct {
 	ID         uuid.UUID  `json:"id"`
 	AvatarPath *string    `json:"avatar_path,omitempty"`
@@ -18,6 +20,7 @@ type GetUserProfile struct {
 	BirthDate  *time.Time `json:"birth_date,omitempty"`
 }
 
+//easyjson:json
 type UpdateUserProfile struct {
 	ID        uuid.UUID       `json:"id"`
 	Avatar    *multipart.File `json:"-" valid:"-"`

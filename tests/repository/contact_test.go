@@ -65,7 +65,7 @@ func TestAddContactByUsername_Success(t *testing.T) {
 		WithArgs(userID, contactID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.AddContactByUsername(ctx, userID, username)
+	_, err = repo.AddContactByUsername(ctx, userID, username)
 	require.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -86,7 +86,7 @@ func TestAddContactByUsername_Self(t *testing.T) {
 		WithArgs(username).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(userID))
 
-	err = repo.AddContactByUsername(ctx, userID, username)
+	_, err = repo.AddContactByUsername(ctx, userID, username)
 	assert.ErrorIs(t, err, repository.ErrSelfContact)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -107,7 +107,7 @@ func TestAddContactByUsername_NotFound(t *testing.T) {
 		WithArgs(username).
 		WillReturnError(sql.ErrNoRows)
 
-	err = repo.AddContactByUsername(ctx, userID, username)
+	_, err = repo.AddContactByUsername(ctx, userID, username)
 	assert.ErrorIs(t, err, repository.ErrUserNotFound)
 }
 

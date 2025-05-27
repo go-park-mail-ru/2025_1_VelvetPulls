@@ -1,3 +1,4 @@
+//go:generate easyjson -all message.go
 package model
 
 import (
@@ -20,6 +21,7 @@ const (
 	DelUserFromChat MsgType = "delUserFromChat"
 )
 
+//easyjson:json
 type Message struct {
 	ID              uuid.UUID  `json:"id,omitempty"`
 	ParentMessageID *uuid.UUID `json:"parent_message_id,omitempty"`
@@ -43,6 +45,9 @@ type Message struct {
 
 	Sticker string `json:"sticker" valid:"optional,length(0|255)"`
 }
+
+//easyjson:json
+type MessageList []Message
 
 func (m *Message) Validate() error {
 	// Проверка, что хотя бы одно содержимое предоставлено:
@@ -72,6 +77,7 @@ type LastMessage struct {
 	Username string    `json:"user,omitempty"`
 }
 
+//easyjson:json
 type MessageInput struct {
 	Message string `json:"message" valid:"required,length(1|1000)"`
 }

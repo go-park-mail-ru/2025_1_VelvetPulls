@@ -16,6 +16,7 @@ import (
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -184,8 +185,13 @@ func (c *filesController) GetStickerPack(w http.ResponseWriter, r *http.Request)
 		utils.SendJSONResponse(w, r, status, err.Error(), false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
+	resp, err := easyjson.Marshal(response)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 // GetStickerPacks godoc
@@ -207,6 +213,11 @@ func (c *filesController) GetStickerPacks(w http.ResponseWriter, r *http.Request
 		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Failed to get sticker packs", false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, packs, true)
+	resp, err := easyjson.Marshal(packs)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }

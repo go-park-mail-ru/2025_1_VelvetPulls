@@ -29,10 +29,9 @@ func TestRegister_Success(t *testing.T) {
 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	registerData := model.RegisterCredentials{
-		Username:        "testuser123",
-		Password:        "Password123!",
-		ConfirmPassword: "Password123!",
-		Phone:           "1234567890",
+		Username: "testuser123",
+		Password: "Password123!",
+		Name:     "1234567890",
 	}
 	sessionID := "test-session-id"
 
@@ -41,10 +40,9 @@ func TestRegister_Success(t *testing.T) {
 		RegisterUser(
 			gomock.Any(),
 			&authpb.RegisterUserRequest{
-				Username:        registerData.Username,
-				Password:        registerData.Password,
-				ConfirmPassword: registerData.ConfirmPassword,
-				Phone:           registerData.Phone,
+				Username: registerData.Username,
+				Password: registerData.Password,
+				Name:     registerData.Name,
 			},
 		).
 		Return(&authpb.RegisterUserResponse{

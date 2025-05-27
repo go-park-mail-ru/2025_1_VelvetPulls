@@ -31,7 +31,7 @@ func TestGetSelfProfile_Success(t *testing.T) {
 	userID := uuid.New()
 	expectedProfile := &model.GetUserProfile{
 		Username: "testuser",
-		Phone:    "1234567890",
+		Name:     "1234567890",
 	}
 
 	// Настройка gRPC моков
@@ -86,7 +86,7 @@ func TestGetProfile_Success(t *testing.T) {
 	username := "testuser"
 	expectedProfile := &model.GetUserProfile{
 		Username: username,
-		Phone:    "1234567890",
+		Name:     "1234567890",
 	}
 
 	// Настройка gRPC моков
@@ -139,12 +139,10 @@ func TestUpdateSelfProfile_Success(t *testing.T) {
 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 	userID := uuid.New()
-	firstName := "NewFirstName"
-	lastName := "NewLastName"
+	Name := "NewFirstName"
 	updateData := model.UpdateUserProfile{
-		ID:        userID,
-		FirstName: &firstName,
-		LastName:  &lastName,
+		ID:   userID,
+		Name: &Name,
 	}
 
 	// Настройка gRPC моков
@@ -160,8 +158,7 @@ func TestUpdateSelfProfile_Success(t *testing.T) {
 		UpdateUserProfile(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, profile *model.UpdateUserProfile) error {
 			assert.Equal(t, userID, profile.ID)
-			assert.Equal(t, *updateData.FirstName, *profile.FirstName)
-			assert.Equal(t, *updateData.LastName, *profile.LastName)
+			assert.Equal(t, *updateData.Name, *profile.Name)
 			return nil
 		})
 

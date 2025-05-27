@@ -9,6 +9,7 @@ import (
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -62,11 +63,17 @@ func (c *authController) Auth(w http.ResponseWriter, r *http.Request) {
 		Username: resp.GetUsername(),
 		Name:     resp.GetName(),
 	}
+	response, err := easyjson.Marshal(user)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
 	if avatar := resp.GetAvatar(); avatar != "" {
 		user.AvatarPath = &avatar
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, user, true)
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 func (c *authController) Register(w http.ResponseWriter, r *http.Request) {

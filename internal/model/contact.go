@@ -1,3 +1,4 @@
+//go:generate easyjson -all contact.go
 package model
 
 import (
@@ -5,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+//easyjson:json
 type Contact struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name,omitempty"`
@@ -12,6 +14,10 @@ type Contact struct {
 	AvatarURL *string   `json:"avatar_path,omitempty"`
 }
 
+//easyjson:json
+type ContactList []Contact
+
+//easyjson:json
 type RequestContact struct {
 	Username string `json:"username"`
 }
