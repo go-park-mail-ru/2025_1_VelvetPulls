@@ -34,6 +34,7 @@ var errToCode = map[error]int{
 	usecase.ErrAddParticipantToDialog:  http.StatusInternalServerError, // 500
 	usecase.ErrAddOwnerToGroup:         http.StatusInternalServerError, // 500
 	usecase.ErrOnlyOwnerCanDelete:      http.StatusForbidden,           // 403
+	usecase.ErrNotChannel:              http.StatusForbidden,           // 403
 	usecase.ErrOnlyOwnerCanAddUsers:    http.StatusForbidden,           // 403
 	usecase.ErrOnlyOwnerCanDeleteUsers: http.StatusForbidden,           // 403
 
@@ -46,16 +47,18 @@ var errToCode = map[error]int{
 	usecase.ErrMessagePublishFailed:    http.StatusInternalServerError, // 500
 
 	// Repository level
-	repository.ErrSessionNotFound:     http.StatusNotFound,            // 404
-	repository.ErrSelfContact:         http.StatusBadRequest,          // 400
-	repository.ErrUserNotFound:        http.StatusNotFound,            // 404
-	repository.ErrChatNotFound:        http.StatusNotFound,            // 404
-	repository.ErrRecordAlreadyExists: http.StatusConflict,            // 409
-	repository.ErrUpdateFailed:        http.StatusInternalServerError, // 500
-	repository.ErrInvalidUUID:         http.StatusBadRequest,          // 400
-	repository.ErrEmptyField:          http.StatusBadRequest,          // 400
-	repository.ErrDatabaseOperation:   http.StatusInternalServerError, // 500
-	repository.ErrDatabaseScan:        http.StatusInternalServerError, // 500
+	repository.ErrSessionNotFound:      http.StatusNotFound,            // 404
+	repository.ErrSelfContact:          http.StatusBadRequest,          // 400
+	repository.ErrContactAlreadyExists: http.StatusConflict,            // 409
+	repository.ErrUserNotFound:         http.StatusNotFound,            // 404
+	repository.ErrChatNotFound:         http.StatusNotFound,            // 404
+	repository.ErrRecordAlreadyExists:  http.StatusConflict,            // 409
+	repository.ErrUpdateFailed:         http.StatusInternalServerError, // 500
+	repository.ErrInvalidUUID:          http.StatusBadRequest,          // 400
+	repository.ErrEmptyField:           http.StatusBadRequest,          // 400
+	repository.ErrDatabaseOperation:    http.StatusInternalServerError, // 500
+	repository.ErrDatabaseScan:         http.StatusInternalServerError, // 500
+	repository.ErrSetNotifications:     http.StatusInternalServerError, // 500
 
 	// Utils level
 	utils.ErrNotImage:      http.StatusBadRequest,          // 400

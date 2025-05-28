@@ -1,3 +1,4 @@
+//go:generate easyjson -all auth.go
 package model
 
 import (
@@ -10,16 +11,17 @@ type Validator interface {
 	Validate() error
 }
 
+//easyjson:json
 type LoginCredentials struct {
 	Username string `json:"username" valid:"required,length(3|20),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 	Password string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 }
 
+//easyjson:json
 type RegisterCredentials struct {
-	Username        string `json:"username" valid:"required,length(3|20),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
-	Password        string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
-	ConfirmPassword string `json:"confirm_password" valid:"required,length(8|32)"`
-	Phone           string `json:"phone" valid:"required,numeric,length(10|15)"`
+	Name     string `json:"name" valid:"required,length(1|30)"`
+	Username string `json:"username" valid:"required,length(3|20),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
+	Password string `json:"password" valid:"required,length(8|32),matches(^[a-zA-Z0-9!@#$%^&*()_\\-+=]+$)"`
 }
 
 func (lc *LoginCredentials) Validate() error {
@@ -38,9 +40,6 @@ func (rc *RegisterCredentials) Validate() error {
 			return errors.Join(ErrValidation, errors.New(errs.Error()))
 		}
 		return errors.Join(ErrValidation, err)
-	}
-	if rc.Password != rc.ConfirmPassword {
-		return errors.Join(ErrValidation, errors.New("passwords do not match"))
 	}
 	return nil
 }

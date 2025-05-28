@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/services/search_service/internal/server"
@@ -17,6 +18,10 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
+
+	dbConn.SetMaxOpenConns(11)
+	dbConn.SetMaxIdleConns(5)
+	dbConn.SetConnMaxLifetime(30 * time.Minute)
 
 	if err := dbConn.Ping(); err != nil {
 		log.Fatal("Failed to ping database:", err)

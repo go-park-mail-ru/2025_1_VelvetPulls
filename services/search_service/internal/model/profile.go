@@ -1,16 +1,18 @@
 package model
 
 import (
+	"time"
+
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
+	"github.com/google/uuid"
 )
 
 type UserProfile struct {
-	AvatarPath *string `json:"avatar_path,omitempty"`
-	FirstName  *string `json:"first_name,omitempty"`
-	LastName   *string `json:"last_name,omitempty"`
-	Username   string  `json:"username"`
-	Phone      string  `json:"phone"`
-	Email      *string `json:"email,omitempty"`
+	ID         uuid.UUID  `json:"id"`
+	AvatarPath *string    `json:"avatar_path,omitempty"`
+	Name       *string    `json:"name,omitempty"`
+	Username   string     `json:"username"`
+	BirthDate  *time.Time `json:"birth_date,omitempty"`
 }
 
 type RequestUserProfile struct {
@@ -19,19 +21,10 @@ type RequestUserProfile struct {
 
 func (g *UserProfile) Sanitize() {
 	g.Username = utils.SanitizeString(g.Username)
-	g.Phone = utils.SanitizeString(g.Phone)
 
-	if g.FirstName != nil {
-		s := utils.SanitizeString(*g.FirstName)
-		g.FirstName = &s
-	}
-	if g.LastName != nil {
-		s := utils.SanitizeString(*g.LastName)
-		g.LastName = &s
-	}
-	if g.Email != nil {
-		s := utils.SanitizeString(*g.Email)
-		g.Email = &s
+	if g.Name != nil {
+		s := utils.SanitizeString(*g.Name)
+		g.Name = &s
 	}
 }
 

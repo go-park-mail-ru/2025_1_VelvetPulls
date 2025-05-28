@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
@@ -12,6 +11,7 @@ import (
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -53,8 +53,13 @@ func (c *userController) GetSelfProfile(w http.ResponseWriter, r *http.Request) 
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, profile, true)
+	resp, err := easyjson.Marshal(profile)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 // GetProfile возвращает профиль пользователя по ID
@@ -81,8 +86,13 @@ func (c *userController) GetProfile(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, profile, true)
+	resp, err := easyjson.Marshal(profile)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 // UpdateSelfProfile обновляет профиль текущего пользователя
@@ -113,7 +123,7 @@ func (c *userController) UpdateSelfProfile(w http.ResponseWriter, r *http.Reques
 	var payload model.UpdateUserProfile
 	payload.ID = userID
 	if data := r.FormValue("profile_data"); data != "" {
-		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		if err := easyjson.Unmarshal([]byte(data), &payload); err != nil {
 			logger.Error("Invalid profile data format", zap.Error(err))
 			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid profile data format", false)
 			return

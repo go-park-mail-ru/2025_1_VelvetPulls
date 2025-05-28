@@ -1,3 +1,4 @@
+//go:generate easyjson -all contact.go
 package model
 
 import (
@@ -5,28 +6,25 @@ import (
 	"github.com/google/uuid"
 )
 
+//easyjson:json
 type Contact struct {
 	ID        uuid.UUID `json:"id"`
-	FirstName *string   `json:"first_name,omitempty"`
-	LastName  *string   `json:"last_name,omitempty"`
+	Name      string    `json:"name,omitempty"`
 	Username  string    `json:"username"`
 	AvatarURL *string   `json:"avatar_path,omitempty"`
 }
 
+//easyjson:json
+type ContactList []Contact
+
+//easyjson:json
 type RequestContact struct {
 	Username string `json:"username"`
 }
 
 func (c *Contact) Sanitize() {
 	c.Username = utils.SanitizeString(c.Username)
-	if c.FirstName != nil {
-		s := utils.SanitizeString(*c.FirstName)
-		c.FirstName = &s
-	}
-	if c.LastName != nil {
-		s := utils.SanitizeString(*c.LastName)
-		c.LastName = &s
-	}
+	c.Name = utils.SanitizeString(c.Name)
 	if c.AvatarURL != nil {
 		s := utils.SanitizeString(*c.AvatarURL)
 		c.AvatarURL = &s

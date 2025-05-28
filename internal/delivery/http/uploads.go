@@ -32,6 +32,6 @@ func (d *uploadsController) GetImage(w http.ResponseWriter, r *http.Request) {
 
 	folder := vars["folder"]
 	name := vars["name"]
-	imagePath := "./uploads/" + folder + "/" + name
+	imagePath := "/uploads/" + folder + "/" + name
 	http.ServeFile(w, r, imagePath)
 }

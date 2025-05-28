@@ -5,7 +5,7 @@ package http_test
 // 	defer ctrl.Finish()
 
 // 	mockMessageUC := mocks.NewMockIMessageUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	// Use fixed UUIDs for predictable comparisons
 // 	userID := uuid.MustParse("5caed5b9-1315-4113-b1d1-ea34b3d771e5")
@@ -33,16 +33,17 @@ package http_test
 // 		},
 // 	}
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+// 	// Настраиваем ожидания для gRPC клиента
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 // 	mockMessageUC.EXPECT().
 // 		GetChatMessages(gomock.Any(), userID, chatID).
 // 		Return(expectedMessages, nil)
 
 // 	router := mux.NewRouter()
-// 	delivery.NewMessageController(router, mockMessageUC, mockSessionUC)
+// 	delivery.NewMessageController(router, mockMessageUC, mockSessionClient)
 
 // 	req := httptest.NewRequest(http.MethodGet, "/chat/"+chatID.String()+"/messages", nil)
 // 	req.AddCookie(&http.Cookie{
@@ -85,16 +86,17 @@ package http_test
 // 	defer ctrl.Finish()
 
 // 	mockMessageUC := mocks.NewMockIMessageUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	userID := uuid.New()
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+// 	// Настраиваем ожидания для gRPC клиента
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 // 	router := mux.NewRouter()
-// 	delivery.NewMessageController(router, mockMessageUC, mockSessionUC)
+// 	delivery.NewMessageController(router, mockMessageUC, mockSessionClient)
 
 // 	req := httptest.NewRequest(http.MethodGet, "/chat/invalid/messages", nil)
 // 	req.AddCookie(&http.Cookie{
@@ -114,7 +116,7 @@ package http_test
 // 	defer ctrl.Finish()
 
 // 	mockMessageUC := mocks.NewMockIMessageUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	userID := uuid.New()
 // 	chatID := uuid.New()
@@ -122,16 +124,17 @@ package http_test
 // 		Message: "Test message",
 // 	}
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+// 	// Настраиваем ожидания для gRPC клиента
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 // 	mockMessageUC.EXPECT().
 // 		SendMessage(gomock.Any(), &messageInput, userID, chatID).
 // 		Return(nil)
 
 // 	router := mux.NewRouter()
-// 	delivery.NewMessageController(router, mockMessageUC, mockSessionUC)
+// 	delivery.NewMessageController(router, mockMessageUC, mockSessionClient)
 
 // 	body, err := json.Marshal(messageInput)
 // 	assert.NoError(t, err)
@@ -153,7 +156,7 @@ package http_test
 // 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 // 	assert.NoError(t, err)
 // 	assert.True(t, resp.Status)
-// 	assert.Equal(t, "message send successful", resp.Data)
+// 	assert.Equal(t, "Message sent successfully", resp.Data)
 // }
 
 // func TestSendMessage_InvalidBody(t *testing.T) {
@@ -161,17 +164,18 @@ package http_test
 // 	defer ctrl.Finish()
 
 // 	mockMessageUC := mocks.NewMockIMessageUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	userID := uuid.New()
 // 	chatID := uuid.New()
 
-// 	mockSessionUC.EXPECT().
-// 		CheckLogin(gomock.Any(), "valid-token").
-// 		Return(userID.String(), nil)
+// 	// Настраиваем ожидания для gRPC клиента
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(gomock.Any(), &authpb.CheckLoginRequest{SessionId: "valid-token"}, gomock.Any()).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
 // 	router := mux.NewRouter()
-// 	delivery.NewMessageController(router, mockMessageUC, mockSessionUC)
+// 	delivery.NewMessageController(router, mockMessageUC, mockSessionClient)
 
 // 	req := httptest.NewRequest(http.MethodPost, "/chat/"+chatID.String()+"/messages", bytes.NewBufferString("invalid json"))
 // 	req.Header.Set("Content-Type", "application/json")
@@ -192,7 +196,7 @@ package http_test
 // 	defer ctrl.Finish()
 
 // 	mockMessageUC := mocks.NewMockIMessageUsecase(ctrl)
-// 	mockSessionUC := mocks.NewMockISessionUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	chatID := uuid.New()
 // 	messageInput := model.MessageInput{
@@ -200,7 +204,7 @@ package http_test
 // 	}
 
 // 	router := mux.NewRouter()
-// 	delivery.NewMessageController(router, mockMessageUC, mockSessionUC)
+// 	delivery.NewMessageController(router, mockMessageUC, mockSessionClient)
 
 // 	body, err := json.Marshal(messageInput)
 // 	assert.NoError(t, err)

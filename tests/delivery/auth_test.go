@@ -4,29 +4,33 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
-// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
+// 	mockAuthClient := mocks.NewMockAuthServiceClient(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	registerData := model.RegisterCredentials{
-// 		Username:        "testuser123",
-// 		Password:        "Password123!",
-// 		ConfirmPassword: "Password123!",
-// 		Phone:           "1234567890",
+// 		Username: "testuser123",
+// 		Password: "Password123!",
+// 		Name:     "1234567890",
 // 	}
 // 	sessionID := "test-session-id"
 
-// 	// Настройка моков
+// 	// Настройка gRPC моков
 // 	mockAuthClient.EXPECT().
-// 		RegisterUser(gomock.Any(), gomock.Any()).
-// 		Return(&proto.RegisterUserResponse{
+// 		RegisterUser(
+// 			gomock.Any(),
+// 			&authpb.RegisterUserRequest{
+// 				Username: registerData.Username,
+// 				Password: registerData.Password,
+// 				Name:     registerData.Name,
+// 			},
+// 		).
+// 		Return(&authpb.RegisterUserResponse{
 // 			SessionId: sessionID,
 // 		}, nil)
 
-// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
 // 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
-// 	// Создание запроса
 // 	body, err := json.Marshal(registerData)
 // 	assert.NoError(t, err)
 
@@ -34,11 +38,9 @@ package http_test
 // 	req.Header.Set("Content-Type", "application/json")
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
-// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 // 	var resp utils.JSONResponse
@@ -57,8 +59,8 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
-// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
+// 	mockAuthClient := mocks.NewMockAuthServiceClient(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	loginData := model.LoginCredentials{
 // 		Username: "testuser123",
@@ -66,18 +68,22 @@ package http_test
 // 	}
 // 	sessionID := "test-session-id"
 
-// 	// Настройка моков
+// 	// Настройка gRPC моков
 // 	mockAuthClient.EXPECT().
-// 		LoginUser(gomock.Any(), gomock.Any()).
-// 		Return(&proto.LoginUserResponse{
+// 		LoginUser(
+// 			gomock.Any(),
+// 			&authpb.LoginUserRequest{
+// 				Username: loginData.Username,
+// 				Password: loginData.Password,
+// 			},
+// 		).
+// 		Return(&authpb.LoginUserResponse{
 // 			SessionId: sessionID,
 // 		}, nil)
 
-// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
 // 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
-// 	// Создание запроса
 // 	body, err := json.Marshal(loginData)
 // 	assert.NoError(t, err)
 
@@ -85,11 +91,9 @@ package http_test
 // 	req.Header.Set("Content-Type", "application/json")
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
-// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusOK, rr.Code)
 
 // 	var resp utils.JSONResponse
@@ -108,21 +112,24 @@ package http_test
 // 	ctrl := gomock.NewController(t)
 // 	defer ctrl.Finish()
 
-// 	mockAuthClient := NewMockAuthServiceClient(ctrl) // Мокируем gRPC клиент
-// 	mockSessionClient := NewMockSessionServiceClient(ctrl)
+// 	mockAuthClient := mocks.NewMockAuthServiceClient(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
 // 	sessionID := "test-session-id"
 
-// 	// Настройка моков
+// 	// Настройка gRPC моков
 // 	mockAuthClient.EXPECT().
-// 		LogoutUser(gomock.Any(), gomock.Any()).
-// 		Return(&proto.LogoutUserResponse{}, nil)
+// 		LogoutUser(
+// 			gomock.Any(),
+// 			&authpb.LogoutUserRequest{
+// 				SessionId: sessionID,
+// 			},
+// 		).
+// 		Return(&emptypb.Empty{}, nil)
 
-// 	// Создание маршрутов и контроллеров
 // 	router := mux.NewRouter()
 // 	delivery.NewAuthController(router, mockAuthClient, mockSessionClient)
 
-// 	// Создание запроса
 // 	req := httptest.NewRequest(http.MethodDelete, "/logout", nil)
 // 	req.AddCookie(&http.Cookie{
 // 		Name:  "token",
@@ -130,11 +137,9 @@ package http_test
 // 	})
 // 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-// 	// Обработка запроса
 // 	rr := httptest.NewRecorder()
 // 	router.ServeHTTP(rr, req)
 
-// 	// Проверка результатов
 // 	assert.Equal(t, http.StatusOK, rr.Code)
 
 // 	var resp utils.JSONResponse

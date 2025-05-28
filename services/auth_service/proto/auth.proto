@@ -17,10 +17,9 @@ service SessionService {
 }
 
 message RegisterUserRequest {
-  string username        = 1;
-  string password        = 2;
-  string confirm_password = 3;
-  string phone           = 4;
+  string username         = 1;
+  string password         = 2;
+  string name             = 3;
 }
 
 message RegisterUserResponse {
@@ -45,5 +44,8 @@ message CheckLoginRequest {
 }
 
 message CheckLoginResponse {
-  string user_id = 1;
+  string user_id  = 1;
+  string username = 2;
+  string name     = 3;
+  string avatar   = 4; 
 }

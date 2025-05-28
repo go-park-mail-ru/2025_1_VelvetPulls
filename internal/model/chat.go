@@ -1,3 +1,4 @@
+//go:generate easyjson -all chat.go
 package model
 
 import (
@@ -37,57 +38,76 @@ const (
 	RoleMember UserRoleInChat = "member"
 )
 
+//easyjson:json
 type Chat struct {
-	ID          uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath  *string      `json:"avatar_path,omitempty"`
-	Type        string       `json:"type" valid:"in(dialog|group|channel),required"`
-	Title       string       `json:"title" valid:"required~Title is required,length(1|100)"`
-	CreatedAt   string       `json:"created_at"`
-	UpdatedAt   string       `json:"updated_at"`
-	LastMessage *LastMessage `json:"last_message,omitempty"`
+	ID                uuid.UUID    `json:"id" valid:"uuid"`
+	AvatarPath        *string      `json:"avatar_path,omitempty"`
+	Type              string       `json:"type" valid:"in(dialog|group|channel),required"`
+	Title             string       `json:"title" valid:"required~Title is required,length(1|100)"`
+	LastMessage       *LastMessage `json:"last_message,omitempty"`
+	CountUsers        int          `json:"count_users" valid:"range(0|5000)"`
+	SendNotifications bool         `json:"send_notifications" valid:"-"`
 }
 
+//easyjson:json
+type ChatList []Chat
+
+//easyjson:json
 type CreateChatRequest struct {
-	Type       string `json:"type" valid:"in(dialog|group|channel),required"`
-	Title      string `json:"title" valid:"required~Title is required,length(1|100)"`
-	DialogUser string `json:"dialog_user,omitempty" valid:"-"`
+	Type  string `json:"type" valid:"in(dialog|group|channel),required"`
+	Title string `json:"title" valid:"required~Title is required,length(1|100)"`
+	//DialogUser string `json:"dialog_user,omitempty" valid:"-"`
+	Users []string `json:"usersToAdd"`
 }
 
+//easyjson:json
 type CreateChat struct {
-	Avatar     *multipart.File `json:"-" valid:"-"`
-	Type       string          `json:"type" valid:"in(dialog|group|channel),required"`
-	Title      string          `json:"title" valid:"required~Title is required,length(1|100)"`
-	DialogUser string          `json:"-" valid:"-"`
+	Avatar *multipart.File `json:"-" valid:"-"`
+	Type   string          `json:"type" valid:"in(dialog|group|channel),required"`
+	Title  string          `json:"title" valid:"required~Title is required,length(1|100)"`
+	//DialogUser string          `json:"-" valid:"-"`
+	Users []string `json:"usersToAdd"`
 }
 
+//easyjson:json
 type UpdateChat struct {
 	ID     uuid.UUID       `json:"id" valid:"required,uuid"`
 	Avatar *multipart.File `json:"-" valid:"-"`
 	Title  *string         `json:"title" valid:"length(1|100)"`
 }
 
-type ChatInfo struct {
-	ID         uuid.UUID    `json:"id" valid:"uuid"`
-	AvatarPath *string      `json:"avatar_path,omitempty"`
-	Type       string       `json:"type" valid:"in(dialog|group|channel)"`
-	Title      string       `json:"title" valid:"length(1|100)"`
-	CountUsers int          `json:"count_users" valid:"range(0|5000)"`
-	Users      []UserInChat `json:"users"`
+//easyjson:json
+type UpdateChatResp struct {
+	Avatar string `json:"updated_avatar" valid:"-"`
+	Title  string `json:"title" valid:"length(1|100)"`
 }
 
+//easyjson:json
+type ChatInfo struct {
+	Role     string       `json:"role" example:"owner" valid:"in(owner|member)"`
+	Users    []UserInChat `json:"users" valid:"-"`
+	Messages []Message    `json:"messages" valid:"-"`
+}
+
+//easyjson:json
+type UsersRequest struct {
+	Users []string `json:"users" valid:"-"`
+}
 type UserInChat struct {
 	ID         uuid.UUID `json:"id" valid:"uuid"`
 	Username   string    `json:"username,omitempty" valid:"required,length(3|50)"`
 	Name       *string   `json:"name,omitempty" valid:"length(0|100)"`
 	AvatarPath *string   `json:"avatar_path,omitempty"`
-	Role       *string   `json:"role" valid:"length(0|20)"`
+	Role       *string   `json:"role" valid:"in(owner|member)"`
 }
 
+//easyjson:json
 type AddedUsersIntoChat struct {
 	AddedUsers    []string `json:"added_users,omitempty" valid:"required"`
 	NotAddedUsers []string `json:"not_added_users,omitempty" valid:"required"`
 }
 
+//easyjson:json
 type DeletedUsersFromChat struct {
 	DeletedUsers []string `json:"deleted_users,omitempty" valid:"required"`
 }
@@ -100,6 +120,13 @@ func (c *Chat) Validate() error {
 }
 
 func (c *CreateChat) Validate() error {
+	if _, err := govalidator.ValidateStruct(c); err != nil {
+		return errors.Join(ErrValidation, errors.New("invalid create chat data: "+err.Error()))
+	}
+	return nil
+}
+
+func (c *CreateChatRequest) Validate() error {
 	if _, err := govalidator.ValidateStruct(c); err != nil {
 		return errors.Join(ErrValidation, errors.New("invalid create chat data: "+err.Error()))
 	}
@@ -147,25 +174,22 @@ func (c *Chat) Sanitize() {
 
 func (c *CreateChatRequest) Sanitize() {
 	c.Title = utils.SanitizeString(c.Title)
-	c.DialogUser = utils.SanitizeString(c.DialogUser)
+	for _, user := range c.Users {
+		utils.SanitizeString(user)
+	}
 }
 
 func (c *CreateChat) Sanitize() {
 	c.Title = utils.SanitizeString(c.Title)
-	c.DialogUser = utils.SanitizeString(c.DialogUser)
+	for _, user := range c.Users {
+		utils.SanitizeString(user)
+	}
 }
 
 func (u *UpdateChat) Sanitize() {
 	if u.Title != nil {
 		s := utils.SanitizeString(*u.Title)
 		u.Title = &s
-	}
-}
-
-func (c *ChatInfo) Sanitize() {
-	c.Title = utils.SanitizeString(c.Title)
-	for i := range c.Users {
-		c.Users[i].Sanitize()
 	}
 }
 

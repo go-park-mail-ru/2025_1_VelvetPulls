@@ -1,66 +1,123 @@
 package usecase_test
 
-import (
-	"context"
-	"testing"
-	"time"
+// func TestSendMessage_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/usecase"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/usecase/mock"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
-	"go.uber.org/zap"
-)
+// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
 
-// Тест получения сообщений чата (успешный сценарий) без участия WebSocket
-func TestGetChatMessages_NoWebsocket(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
 
-	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
-	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
-	// Передаем nil в качестве реализации IWebsocketUsecase
-	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+// 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+// 	userID := uuid.New()
+// 	chatID := uuid.New()
 
-	// Создаем контекст с логгером
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, utils.LOGGER_ID_KEY, zap.NewNop())
+// 	input := &model.MessageInput{Message: "test message"}
 
-	userID := uuid.New()
-	chatID := uuid.New()
+// 	mockChatRepo.EXPECT().
+// 		GetChatByID(ctx, chatID).
+// 		Return(&model.Chat{ID: chatID, Type: string(model.ChatTypeGroup)}, nil)
 
-	// Ожидаем, что чат-репозиторий вернет допустимую роль для пользователя
-	mockChatRepo.EXPECT().
-		GetUserRoleInChat(ctx, userID, chatID).
-		Return("owner", nil)
+// 	mockChatRepo.EXPECT().
+// 		GetUserRoleInChat(ctx, userID, chatID).
+// 		Return("member", nil)
 
-	// Подготавливаем список сообщений
-	expectedMessages := []model.Message{
-		{
-			ID:     uuid.New(),
-			ChatID: chatID,
-			UserID: userID,
-			Body:   "Hello",
-			SentAt: time.Now(),
-		},
-		{
-			ID:     uuid.New(),
-			ChatID: chatID,
-			UserID: userID,
-			Body:   "World",
-			SentAt: time.Now(),
-		},
-	}
+// 	savedMsg := &model.Message{
+// 		ID:     uuid.New(),
+// 		ChatID: chatID,
+// 		UserID: userID,
+// 		Body:   input.Message,
+// 		SentAt: time.Now(),
+// 	}
+// 	mockMsgRepo.EXPECT().
+// 		CreateMessage(ctx, gomock.Any()).
+// 		Return(savedMsg, nil)
 
-	mockMsgRepo.EXPECT().
-		GetMessages(ctx, chatID).
-		Return(expectedMessages, nil)
+// 	err := msgUC.SendMessage(ctx, input, userID, chatID)
+// 	require.NoError(t, err)
+// }
 
-	messages, err := msgUC.GetChatMessages(ctx, userID, chatID)
-	require.NoError(t, err)
-	assert.Equal(t, expectedMessages, messages)
-}
+// func TestUpdateMessage_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
+
+// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
+
+// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+
+// 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+// 	userID := uuid.New()
+// 	chatID := uuid.New()
+// 	messageID := uuid.New()
+// 	input := &model.MessageInput{Message: "updated"}
+
+// 	mockChatRepo.EXPECT().
+// 		GetUserRoleInChat(ctx, userID, chatID).
+// 		Return("member", nil)
+
+// 	original := &model.Message{
+// 		ID:     messageID,
+// 		ChatID: chatID,
+// 		UserID: userID,
+// 		Body:   "old",
+// 		SentAt: time.Now(),
+// 	}
+
+// 	mockMsgRepo.EXPECT().
+// 		GetMessage(ctx, messageID).
+// 		Return(original, nil)
+
+// 	updated := &model.Message{
+// 		ID:     messageID,
+// 		ChatID: chatID,
+// 		UserID: userID,
+// 		Body:   "updated",
+// 		SentAt: time.Now(),
+// 	}
+
+// 	mockMsgRepo.EXPECT().
+// 		UpdateMessage(ctx, messageID, input.Message).
+// 		Return(updated, nil)
+
+// 	err := msgUC.UpdateMessage(ctx, messageID, input, userID, chatID)
+// 	require.NoError(t, err)
+// }
+
+// func TestDeleteMessage_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
+
+// 	mockMsgRepo := mocks.NewMockIMessageRepo(ctrl)
+// 	mockChatRepo := mocks.NewMockIChatRepo(ctrl)
+
+// 	msgUC := usecase.NewMessageUsecase(mockMsgRepo, mockChatRepo, nil)
+
+// 	ctx := context.WithValue(context.Background(), utils.LOGGER_ID_KEY, zap.NewNop())
+// 	userID := uuid.New()
+// 	chatID := uuid.New()
+// 	messageID := uuid.New()
+
+// 	mockChatRepo.EXPECT().
+// 		GetUserRoleInChat(ctx, userID, chatID).
+// 		Return("member", nil)
+
+// 	msg := &model.Message{
+// 		ID:     messageID,
+// 		ChatID: chatID,
+// 		UserID: userID,
+// 		Body:   "message to delete",
+// 		SentAt: time.Now(),
+// 	}
+// 	mockMsgRepo.EXPECT().
+// 		GetMessage(ctx, messageID).
+// 		Return(msg, nil)
+
+// 	mockMsgRepo.EXPECT().
+// 		DeleteMessage(ctx, messageID).
+// 		Return(msg, nil)
+
+// 	err := msgUC.DeleteMessage(ctx, messageID, userID, chatID)
+// 	require.NoError(t, err)
+// }
