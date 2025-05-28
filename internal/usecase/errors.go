@@ -20,6 +20,7 @@ var (
 	ErrAddOwnerToGroup         = errors.New("failed to add owner to group")
 	ErrOnlyOwnerCanDelete      = errors.New("only chat owner can delete chat")
 	ErrOnlyOwnerCanAddUsers    = errors.New("only chat owner can add users")
+	ErrNotChannel              = errors.New("chat type is not channel")
 	ErrOnlyOwnerCanDeleteUsers = errors.New("only chat owner can delete users")
 
 	ErrMessageValidationFailed = errors.New("message validation failed")
@@ -28,5 +29,7 @@ var (
 	ErrMessageAccessDenied     = errors.New("user is not the author of the message")
 	ErrMessageUpdateFailed     = errors.New("failed to update message")
 	ErrMessageDeleteFailed     = errors.New("failed to delete message")
-	ErrMessagePublishFailed    = errors.New("failed to publish message event")
+
+	ErrMessagePublishFailed = errors.New("failed to publish message event")
+	ErrChatPublishFailed    = errors.New("failed to publish chat event")
 )

@@ -6,6 +6,6 @@ type MessageEvent struct {
 }
 
 type ChatEvent struct {
-	Action string   `json:"action"`
-	Chat   ChatInfo `json:"payload"`
+	Action string `json:"action"`
+	Chat   Chat   `json:"payload"`
 }

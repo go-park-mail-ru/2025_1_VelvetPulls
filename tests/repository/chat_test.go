@@ -30,14 +30,12 @@ func TestGetChatByID(t *testing.T) {
 		AvatarPath: &avatarPath,
 		Type:       "group",
 		Title:      "Test Chat",
-		CreatedAt:  "2023-01-01T00:00:00Z",
-		UpdatedAt:  "2023-01-01T00:00:00Z",
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "avatar_path", "type", "title", "created_at", "updated_at"}).
-		AddRow(expectedChat.ID, expectedChat.AvatarPath, expectedChat.Type, expectedChat.Title, expectedChat.CreatedAt, expectedChat.UpdatedAt)
+	rows := sqlmock.NewRows([]string{"id", "avatar_path", "type", "title"}).
+		AddRow(expectedChat.ID, expectedChat.AvatarPath, expectedChat.Type, expectedChat.Title)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title FROM chat WHERE id = $1")).
 		WithArgs(chatID).
 		WillReturnRows(rows)
 
@@ -66,48 +64,35 @@ func TestGetChats(t *testing.T) {
 		AvatarPath: nil,
 		Type:       "group",
 		Title:      "Chat 1",
-		CreatedAt:  "2023-01-02T00:00:00Z",
-		UpdatedAt:  "2023-01-02T00:00:00Z",
 	}
 	chat2 := model.Chat{
 		ID:         uuid.New(),
 		AvatarPath: nil,
 		Type:       "dialog",
 		Title:      "Chat 2",
-		CreatedAt:  "2023-01-03T00:00:00Z",
-		UpdatedAt:  "2023-01-03T00:00:00Z",
 	}
 
 	rows := sqlmock.NewRows([]string{
-		"c.id", "c.avatar_path", "c.type", "c.title", "c.created_at", "c.updated_at",
-		"m.id", "m.user_id", "m.body", "m.sent_at",
+		"c.id", "c.avatar_path", "c.type", "c.title", "uc.send_notifications",
+		"m.id", "m.user_id", "m.body", "m.sent_at", "count_users",
 	}).
-		AddRow(chat1.ID, chat1.AvatarPath, chat1.Type, chat1.Title, chat1.CreatedAt, chat1.UpdatedAt,
-			nil, nil, nil, nil).
-		AddRow(chat2.ID, chat2.AvatarPath, chat2.Type, chat2.Title, chat2.CreatedAt, chat2.UpdatedAt,
-			nil, nil, nil, nil)
+		AddRow(chat1.ID, chat1.AvatarPath, chat1.Type, chat1.Title, true,
+			nil, nil, nil, nil, 2).
+		AddRow(chat2.ID, chat2.AvatarPath, chat2.Type, chat2.Title, false,
+			nil, nil, nil, nil, 1)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT c.id, c.avatar_path, c.type, c.title, c.created_at, c.updated_at,
-			   m.id, m.user_id, m.body, m.sent_at
-		FROM chat c
-		JOIN user_chat uc ON c.id = uc.chat_id
-		LEFT JOIN LATERAL (
-			SELECT m.id, m.user_id, m.body, m.sent_at
-			FROM message m
-			WHERE m.chat_id = c.id
-			ORDER BY m.sent_at DESC
-			LIMIT 1
-		) m ON true
-		WHERE uc.user_id = $1
-		ORDER BY m.sent_at DESC NULLS LAST
-	`)).WithArgs(userID).WillReturnRows(rows)
+	mock.ExpectQuery("(?s)SELECT c\\.id.*FROM chat c.*WHERE uc\\.user_id = \\$1.*ORDER BY m\\.sent_at DESC NULLS LAST").
+		WithArgs(userID).
+		WillReturnRows(rows)
 
 	ctx := context.Background()
 	chats, lastChatID, err := repo.GetChats(ctx, userID)
 	require.NoError(t, err)
 	require.Len(t, chats, 2)
-	assert.Equal(t, chat2.ID, lastChatID)
+	assert.Equal(t, chat2.ID, lastChatID) // предполагается, что он будет последним, если сортировка работает
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
 }
 
 func TestCreateChat_NoAvatar(t *testing.T) {
@@ -118,30 +103,28 @@ func TestCreateChat_NoAvatar(t *testing.T) {
 	repo := repository.NewChatRepo(db)
 	ctx := context.Background()
 
-	createChat := &model.CreateChat{
+	createChat := &model.CreateChatRequest{
 		Type:  "group",
 		Title: "New Group",
 	}
 
 	query := regexp.QuoteMeta(`
-        INSERT INTO chat
-        (avatar_path, type, title, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())
+        INSERT INTO chat (type, title, created_at, updated_at)
+        VALUES ($1, $2, NOW(), NOW())
         RETURNING id
     `)
+
 	chatID := uuid.New()
 	mock.ExpectQuery(query).
-		WithArgs(nil, createChat.Type, createChat.Title).
+		WithArgs(createChat.Type, createChat.Title).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(chatID))
 
 	logger := zap.NewNop()
 	ctx = context.WithValue(ctx, utils.LOGGER_ID_KEY, logger)
 
-	retID, avatarPath, err := repo.CreateChat(ctx, createChat)
+	retID, err := repo.CreateChat(ctx, createChat)
 	require.NoError(t, err)
 	assert.Equal(t, chatID, retID)
-
-	assert.Equal(t, "", avatarPath)
 
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
@@ -256,25 +239,28 @@ func TestGetUsersFromChat(t *testing.T) {
 	chatID := uuid.New()
 
 	// Подготавливаем один ряд для одного пользователя.
-	// Столбцы: u.id, u.username, u.first_name, u.avatar_path, uc.user_role.
+	// Столбцы: u.id, u.username, u.name, u.avatar_path, uc.user_role.
 	username := "testuser"
-	firstName := "John"
+	name := "John"
 	avatarPath := "avatar.png"
 	role := "member"
-	rows := sqlmock.NewRows([]string{"id", "username", "first_name", "avatar_path", "user_role"}).
-		AddRow(uuid.New(), username, firstName, avatarPath, role)
 
-	query := regexp.QuoteMeta(`SELECT u.id, u.username, u.first_name, u.avatar_path, uc.user_role 
+	rows := sqlmock.NewRows([]string{"id", "username", "name", "avatar_path", "user_role"}).
+		AddRow(uuid.New(), username, name, avatarPath, role)
+
+	query := regexp.QuoteMeta(`SELECT u.id, u.username, u.name, u.avatar_path, uc.user_role 
 	FROM public.user u JOIN user_chat uc ON u.id = uc.user_id WHERE uc.chat_id = $1`)
+
 	mock.ExpectQuery(query).
 		WithArgs(chatID).
 		WillReturnRows(rows)
 
 	users, err := repo.GetUsersFromChat(ctx, chatID)
 	require.NoError(t, err)
-	assert.Len(t, users, 1)
+	require.Len(t, users, 1)
+
 	assert.Equal(t, username, users[0].Username)
-	assert.Equal(t, firstName, *users[0].Name)
+	assert.Equal(t, name, *users[0].Name)
 	assert.Equal(t, avatarPath, *users[0].AvatarPath)
 	assert.Equal(t, role, *users[0].Role)
 
@@ -290,7 +276,7 @@ func TestGetChatByID_NotFound(t *testing.T) {
 	repo := repository.NewChatRepo(db)
 	chatID := uuid.New()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title, created_at, updated_at FROM chat WHERE id = $1")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, avatar_path, type, title FROM chat WHERE id = $1")).
 		WithArgs(chatID).
 		WillReturnError(sql.ErrNoRows)
 

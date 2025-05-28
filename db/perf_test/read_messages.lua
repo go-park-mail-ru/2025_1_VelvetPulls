@@ -22,16 +22,3 @@ function request()
     local path = "/api/chat/" .. chat_id .. "/messages"
     return wrk.format("GET", path, wrk.headers)
 end
-
--- Функция для обработки ответа
-function response(status, headers, body)
-    -- Выводим код состояния ответа
-    print("Response status: " .. status)
-
-    -- Выводим первые 500 символов тела ответа (если оно есть)
-    if body then
-        print("Response body (first 500 characters): " .. string.sub(body, 1, 500))
-    else
-        print("No body in response")
-    end
-end

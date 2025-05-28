@@ -14,11 +14,13 @@ import (
 )
 
 type IAuthRepo interface {
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	CreateUser(ctx context.Context, user *model.User) (uuid.UUID, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByPhone(ctx context.Context, phone string) (*model.User, error)
 }
+
 type authRepo struct {
 	db *sql.DB
 }
@@ -34,15 +36,17 @@ func (r *authRepo) CreateUser(ctx context.Context, user *model.User) (uuid.UUID,
 		logger.Warn("User data is nil")
 		return uuid.Nil, ErrEmptyField
 	}
-	if user.Username == "" || user.Phone == "" || user.Password == "" {
-		logger.Warn("Missing required fields", zap.String("username", user.Username), zap.String("phone", user.Phone))
+	if user.Username == "" || user.Password == "" {
+		logger.Warn("Missing required fields", zap.String("username", user.Username))
 		return uuid.Nil, ErrEmptyField
 	}
 
-	query := `INSERT INTO public.user (username, phone, password) VALUES ($1, $2, $3) RETURNING id`
+	// Убираем поле birth_date из запроса
+	query := `INSERT INTO public.user (username, password, name) 
+              VALUES ($1, $2, $3) RETURNING id`
 	var userID uuid.UUID
 
-	err := r.db.QueryRowContext(ctx, query, user.Username, user.Phone, user.Password).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, query, user.Username, user.Password, user.Name).Scan(&userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
 			logger.Warn("User already exists", zap.Error(err))
@@ -64,12 +68,13 @@ func (r *authRepo) getUserByField(ctx context.Context, field, value string) (*mo
 	}
 
 	var user model.User
-	query := fmt.Sprintf(`SELECT id, avatar_path, first_name, last_name, username, phone, email, password, created_at, updated_at FROM public.user WHERE %s = $1`, field)
+	query := fmt.Sprintf(`SELECT id, avatar_path, name, username, password
+                          FROM public.user WHERE %s = $1`, field)
 	logger.Info("Executing query to get user by field")
 	row := r.db.QueryRowContext(ctx, query, value)
 
 	err := row.Scan(
-		&user.ID, &user.AvatarPath, &user.FirstName, &user.LastName, &user.Username, &user.Phone, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt,
+		&user.ID, &user.AvatarPath, &user.Name, &user.Username, &user.Password,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -93,4 +98,8 @@ func (r *authRepo) GetUserByEmail(ctx context.Context, email string) (*model.Use
 
 func (r *authRepo) GetUserByPhone(ctx context.Context, phone string) (*model.User, error) {
 	return r.getUserByField(ctx, "phone", phone)
+}
+
+func (r *authRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	return r.getUserByField(ctx, "id", id.String())
 }

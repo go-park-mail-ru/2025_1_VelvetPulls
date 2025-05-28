@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	apperrors "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/app_errors"
@@ -13,6 +14,7 @@ import (
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -33,8 +35,10 @@ func NewChatController(r *mux.Router, chatUsecase usecase.IChatUsecase, sessionC
 	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.UpdateChat))).Methods(http.MethodPut)
 	r.Handle("/chat/{chat_id}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.DeleteChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.AddUsersToChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/join", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.JoinChannel))).Methods(http.MethodPost)
 	r.Handle("/chat/{chat_id}/users", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.RemoveUsersFromChat))).Methods(http.MethodDelete)
 	r.Handle("/chat/{chat_id}/leave", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.LeaveChat))).Methods(http.MethodPost)
+	r.Handle("/chat/{chat_id}/notifications/{send}", middleware.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SendNotifications))).Methods(http.MethodPost)
 }
 
 // GetChats возвращает список чатов пользователя
@@ -58,8 +62,14 @@ func (c *chatController) GetChats(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, chats, true)
+	chatList := model.ChatList(chats)
+	response, err := easyjson.Marshal(chatList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // CreateChat создает новый чат
@@ -79,40 +89,17 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("CreateChat", zap.String("userID", userID.String()))
 
-	if err := r.ParseMultipartForm(config.MAX_FILE_SIZE); err != nil {
-		logger.Error("Failed to parse multipart form", zap.Error(err))
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Request too large or malformed", false)
-		return
-	}
-
 	var req model.CreateChatRequest
-	if data := r.FormValue("chat_data"); data != "" {
-		if err := json.Unmarshal([]byte(data), &req); err != nil {
-			logger.Error("Invalid chat data format", zap.Error(err))
-			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
-			return
-		}
-	}
-
-	avatar, _, err := r.FormFile("avatar")
-	if err != nil && err != http.ErrMissingFile {
-		logger.Error("Invalid avatar file", zap.Error(err))
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid avatar file", false)
+	if err := utils.ParseJSONRequest(r, &req); err != nil {
+		logger.Error("Invalid request body", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-	defer func() {
-		if avatar != nil {
-			_ = avatar.Close()
-		}
-	}()
 
-	chatData := model.CreateChat{
-		Type:       req.Type,
-		Title:      req.Title,
-		DialogUser: req.DialogUser,
-	}
-	if avatar != nil {
-		chatData.Avatar = &avatar
+	chatData := model.CreateChatRequest{
+		Type:  req.Type,
+		Title: req.Title,
+		Users: req.Users,
 	}
 
 	chatInfo, err := c.chatUsecase.CreateChat(r.Context(), userID, &chatData)
@@ -123,7 +110,14 @@ func (c *chatController) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusCreated, chatInfo, true)
+	response, err := easyjson.Marshal(chatInfo)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusCreated, response, true)
 }
 
 // GetChat возвращает информацию о чате
@@ -157,8 +151,41 @@ func (c *chatController) GetChat(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
+	response, err := easyjson.Marshal(chatInfo)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
+}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
+// @Router /chat/{chat_id}/notifications/{send} [post]
+func (c *chatController) SendNotifications(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+	userID := utils.GetUserIDFromCtx(r.Context())
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	send, parseErr := strconv.ParseBool(mux.Vars(r)["send"])
+	if parseErr != nil {
+		logger.Error("Invalid send notification status format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid send bool", false)
+		return
+	}
+	err := c.chatUsecase.SendNotifications(r.Context(), userID, chatID, send)
+	if err != nil {
+		logger.Error("Failed to set send notifications for chat", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, send, true)
 }
 
 // UpdateChat обновляет информацию о чате
@@ -196,7 +223,7 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	var payload model.UpdateChat
 	payload.ID = chatID
 	if data := r.FormValue("chat_data"); data != "" {
-		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		if err := easyjson.Unmarshal([]byte(data), &payload); err != nil {
 			logger.Error("Invalid chat data format", zap.Error(err))
 			utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat data format", false)
 			return
@@ -222,7 +249,21 @@ func (c *chatController) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, chatInfo, true)
+	var updatedAvatar string
+	if chatInfo.AvatarPath != nil {
+		updatedAvatar = *chatInfo.AvatarPath
+	}
+	chatInfoResp := model.UpdateChatResp{
+		Avatar: updatedAvatar,
+		Title:  chatInfo.Title,
+	}
+	response, err := easyjson.Marshal(chatInfoResp)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // DeleteChat удаляет чат
@@ -279,13 +320,13 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var usernames []string
-	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
+	var users model.UsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-
+	usernames := users.Users
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("AddUsersToChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 
@@ -296,8 +337,48 @@ func (c *chatController) AddUsersToChat(w http.ResponseWriter, r *http.Request) 
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
+	response, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
+}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+// JoinChannel подписывает пользователя на канал
+// @Summary Подписаться на канал
+// @Description Подписывает текущего пользователя на канал (доступно для всех пользователей)
+// @Tags Chat
+// @Accept json
+// @Produce json
+// @Param chat_id path string true "ID канала"
+// @Success 200 {object} utils.JSONResponse
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 403 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /chat/{chat_id}/join [post]
+func (c *chatController) JoinChannel(w http.ResponseWriter, r *http.Request) {
+	logger := utils.GetLoggerFromCtx(r.Context())
+	chatID, parseErr := uuid.Parse(mux.Vars(r)["chat_id"])
+	if parseErr != nil {
+		logger.Error("Invalid chat ID format", zap.Error(parseErr))
+		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid chat ID", false)
+		return
+	}
+
+	userID := utils.GetUserIDFromCtx(r.Context())
+	logger.Info("JoinChannel", zap.String("chatID", chatID.String()), zap.String("userID", userID.String()))
+
+	err := c.chatUsecase.SubscribeToChannel(r.Context(), userID, chatID)
+	if err != nil {
+		logger.Error("Failed to subscribe to channel", zap.Error(err))
+		code, msg := apperrors.GetErrAndCodeToSend(err)
+		utils.SendJSONResponse(w, r, code, msg, false)
+		return
+	}
+
+	utils.SendJSONResponse(w, r, http.StatusOK, "Successfully subscribed to channel", true)
 }
 
 // RemoveUsersFromChat удаляет пользователей из чата
@@ -322,13 +403,13 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var usernames []string
-	if err := json.NewDecoder(r.Body).Decode(&usernames); err != nil {
+	var users model.UsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
 		logger.Error("Invalid request body", zap.Error(err))
 		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Invalid request body", false)
 		return
 	}
-
+	usernames := users.Users
 	userID := utils.GetUserIDFromCtx(r.Context())
 	logger.Info("RemoveUsersFromChat", zap.String("chatID", chatID.String()), zap.Any("usernames", usernames))
 
@@ -339,8 +420,13 @@ func (c *chatController) RemoveUsersFromChat(w http.ResponseWriter, r *http.Requ
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, result, true)
+	response, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // LeaveChat позволяет текущему пользователю выйти из чата

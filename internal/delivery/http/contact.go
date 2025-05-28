@@ -10,6 +10,7 @@ import (
 	utils "github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
 	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -50,8 +51,14 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, contacts, true)
+	contactList := model.ContactList(contacts)
+	response, err := easyjson.Marshal(contactList)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // AddContact добавляет новый контакт
@@ -61,7 +68,7 @@ func (c *contactController) GetContacts(w http.ResponseWriter, r *http.Request) 
 // @Accept json
 // @Produce json
 // @Param contact body model.RequestContact true "Данные контакта"
-// @Success 200 {object} utils.JSONResponse
+// @Success 200 {object} model.Contact
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /contacts [post]
@@ -78,14 +85,23 @@ func (c *contactController) AddContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username); err != nil {
+	addedContact, err := c.contactUsecase.AddUserContact(r.Context(), userID, contact.Username)
+	if err != nil {
 		logger.Error("Failed to add contact", zap.Error(err))
 		code, errToSend := apperrors.GetErrAndCodeToSend(err)
 		utils.SendJSONResponse(w, r, code, errToSend, false)
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, "Contact added successfully", true)
+	// Возвращаем добавленного пользователя
+	addedContact.Sanitize()
+	response, err := easyjson.Marshal(addedContact)
+	if err != nil {
+		logger.Error("Marshaling error", zap.Error(err))
+		utils.SendJSONResponse(w, r, http.StatusInternalServerError, "Internal error", false)
+		return
+	}
+	utils.SendJSONResponse(w, r, http.StatusOK, response, true)
 }
 
 // DeleteContact удаляет контакт пользователя

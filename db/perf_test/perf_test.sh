@@ -2,20 +2,22 @@
 
 HOST="localhost:8080"
 
-# Случайный username и телефон
+# Случайный username
 RAND_NUM=$RANDOM
 USERNAME="wrkuser_$RAND_NUM"
 PASSWORD="password123"
-PHONE="7900$(printf "%07d" $((RANDOM % 10000000)))"
 
-echo "Регистрируем пользователя: $USERNAME с телефоном: $PHONE"
+echo "Регистрируем пользователя: $USERNAME"
 
 # Шаг 1: Регистрация пользователя
-REGISTER_RESPONSE=$(curl -s -i -X POST http://$HOST/api/register \
+REGISTER_RESPONSE=$(curl -s -i -L -X POST http://$HOST/api/register \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\",\"confirm_password\":\"$PASSWORD\",\"phone\":\"$PHONE\"}")
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\",\"name\":\"$USERNAME\"}")
 
-SESSION_ID=$(echo "$REGISTER_RESPONSE" | grep -Fi Set-Cookie | sed -n 's/.*token=\([^;]*\);.*/\1/p')
+echo "$REGISTER_RESPONSE" | grep -i Set-Cookie
+
+# Извлекаем session_id из Set-Cookie
+SESSION_ID=$(echo "$REGISTER_RESPONSE" | grep -i "Set-Cookie" | grep -o "token=[^;]*" | cut -d= -f2)
 
 if [ -z "$SESSION_ID" ]; then
   echo "Ошибка: не удалось получить session_id"
@@ -24,15 +26,22 @@ fi
 
 echo "Получен session_id: $SESSION_ID"
 
-# Шаг 2: Создание чата
+# Шаг 2: Создание чата (без multipart)
+CHAT_PAYLOAD='{
+  "type": "group",
+  "title": "Project Team",
+  "users": []
+}'
+
 CHAT_RESPONSE=$(curl -s -X POST http://$HOST/api/chat \
   -H "Cookie: token=$SESSION_ID" \
-  -H "Content-Type: multipart/form-data; boundary=------------------------abcd1234" \
-  --data-binary $'--------------------------abcd1234\r\nContent-Disposition: form-data; name="chat_data"\r\n\r\n{"type":"group","title":"wrk_chat"}\r\n--------------------------abcd1234--\r\n')
+  -H "Content-Type: application/json" \
+  -d "$CHAT_PAYLOAD")
 
 echo "Ответ от сервера на создание чата:"
 echo "$CHAT_RESPONSE"
-CHAT_ID=$(echo "$CHAT_RESPONSE" | grep -o '"id":"[0-9a-f\-]\+"' | head -n1 | cut -d: -f2 | tr -d '"')
+
+CHAT_ID=$(echo "$CHAT_RESPONSE" | grep -o '"id":"[0-9a-f-]\+"' | head -n1 | cut -d: -f2 | tr -d '"')
 
 if [ -z "$CHAT_ID" ]; then
   echo "Ошибка: не удалось получить chat_id"
@@ -40,9 +49,6 @@ if [ -z "$CHAT_ID" ]; then
 fi
 
 echo "Создан чат с chat_id: $CHAT_ID"
-
-echo "CHAT_ID=$CHAT_ID"
-echo "SESSION_ID=$SESSION_ID"
 
 # Шаг 3: Запуск wrk
 SESSION_ID=$SESSION_ID CHAT_ID=$CHAT_ID wrk -t2 -c10 -d50s -s ./db/perf_test/send_messages.lua -v http://$HOST

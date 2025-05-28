@@ -30,8 +30,6 @@ func NewSearchController(r *mux.Router, searchClient chatpb.ChatServiceClient, s
 
 	// Контакты
 	r.Handle("/search/contacts", mw.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SearchContacts))).Methods(http.MethodGet)
-
-	r.Handle("/search/users", mw.AuthMiddleware(sessionClient)(http.HandlerFunc(controller.SearchUsers))).Methods(http.MethodGet)
 }
 
 func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
@@ -39,12 +37,10 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 	userID := utils.GetUserIDFromCtx(r.Context()).String()
 
 	query := r.URL.Query().Get("query")
-	types := r.URL.Query()["type"]
 
 	resp, err := c.searchClient.SearchUserChats(r.Context(), &chatpb.SearchUserChatsRequest{
 		UserId: userID,
 		Query:  query,
-		Types:  types,
 	})
 	if err != nil {
 		logger.Error("gRPC SearchChats error", zap.Error(err))
@@ -52,8 +48,7 @@ func (c *searchController) SearchChats(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, r, code, msg, false)
 		return
 	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, resp.Chats, true)
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
 
 func (c *searchController) SearchMessages(w http.ResponseWriter, r *http.Request) {
@@ -101,27 +96,5 @@ func (c *searchController) SearchContacts(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	utils.SendJSONResponse(w, r, http.StatusOK, resp.Contacts, true)
-}
-
-func (c *searchController) SearchUsers(w http.ResponseWriter, r *http.Request) {
-	logger := utils.GetLoggerFromCtx(r.Context())
-
-	query := r.URL.Query().Get("query")
-	if len(query) < 3 {
-		utils.SendJSONResponse(w, r, http.StatusBadRequest, "Search query too short", false)
-		return
-	}
-
-	resp, err := c.searchClient.SearchUsers(r.Context(), &chatpb.SearchUsersRequest{
-		Query: query,
-	})
-	if err != nil {
-		logger.Error("gRPC SearchUsers error", zap.Error(err))
-		code, msg := apperrors.UnpackGrpcError(err)
-		utils.SendJSONResponse(w, r, code, msg, false)
-		return
-	}
-
-	utils.SendJSONResponse(w, r, http.StatusOK, resp.Users, true)
+	utils.SendJSONResponse(w, r, http.StatusOK, resp, true)
 }
