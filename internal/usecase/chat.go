@@ -348,7 +348,10 @@ func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) 
 			Chat:   model.Chat{ID: chatID},
 		}
 		data, _ := json.Marshal(event)
-		uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data)
+		if err := uc.nc.Publish(fmt.Sprintf("chat.%s.events", chatID.String()), data); err != nil {
+			logger.Error("LeaveChat: failed to publish event", zap.Error(err))
+			return err
+		}
 
 		logger.Info("LeaveChat: success")
 		metrics.IncBusinessOp("leave_chat")

@@ -287,14 +287,6 @@ func (r *filesRepository) GetStickerPack(ctx context.Context, packID string) (mo
 	}, nil
 }
 
-// простая функция для проверки окончания строки
-func endsWith(s, suffix string) bool {
-	if len(s) < len(suffix) {
-		return false
-	}
-	return s[len(s)-len(suffix):] == suffix
-}
-
 func checkAccess(info minio.ObjectInfo, userID string) error {
 	usersMeta := info.UserMetadata["X-Amz-Meta-Users"]
 	if usersMeta == "" {

@@ -130,7 +130,6 @@ func (r *ChatRepo) SearchGlobalChannels(ctx context.Context, query string) ([]mo
 	if query != "" {
 		baseQuery += fmt.Sprintf(` AND c.title ILIKE $%d`, paramCount)
 		args = append(args, "%"+query+"%")
-		paramCount++
 	}
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
