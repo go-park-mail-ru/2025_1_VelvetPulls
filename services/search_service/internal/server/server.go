@@ -69,13 +69,11 @@ func (s *Server) Run(port string) error {
 	// Инициализация репозиториев
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
-	userRepo := repository.NewUserRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Инициализация usecases
 	chatUC := usecase.NewChatUsecase(*chatRepo)
 	contactUC := usecase.NewContactUsecase(*contactRepo)
-	userUC := usecase.NewUserUsecase(*userRepo)
 	messageUC := usecase.NewMessageUsecase(*messageRepo)
 
 	// Настройка gRPC сервера
@@ -90,7 +88,7 @@ func (s *Server) Run(port string) error {
 	)
 
 	// Регистрация обработчиков
-	handler := grpcDelivery.NewChatHandler(*chatUC, *contactUC, *userUC, *messageUC)
+	handler := grpcDelivery.NewChatHandler(*chatUC, *contactUC, *messageUC)
 	search.RegisterChatServiceServer(grpcServer, handler)
 
 	// Запуск сервера

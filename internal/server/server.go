@@ -6,8 +6,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config"
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/config/metrics"
 	httpDelivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
+	"github.com/minio/minio-go/v7"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/repository"
@@ -38,14 +40,15 @@ type IServer interface {
 }
 
 type Server struct {
-	dbConn     *sql.DB
-	authConn   *grpc.ClientConn
-	searchConn *grpc.ClientConn
-	nc         *nats.Conn
+	dbConn      *sql.DB
+	minioClient *minio.Client
+	authConn    *grpc.ClientConn
+	searchConn  *grpc.ClientConn
+	nc          *nats.Conn
 }
 
-func NewServer(dbConn *sql.DB, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
-	return &Server{dbConn: dbConn, authConn: authConn, searchConn: searchConn, nc: nc}
+func NewServer(dbConn *sql.DB, minioClient *minio.Client, authConn *grpc.ClientConn, searchConn *grpc.ClientConn, nc *nats.Conn) IServer {
+	return &Server{dbConn: dbConn, minioClient: minioClient, authConn: authConn, searchConn: searchConn, nc: nc}
 }
 
 func (s *Server) Run(address string) error {
@@ -74,18 +77,21 @@ func (s *Server) Run(address string) error {
 	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
 
 	// Repository
+	filesRepo := repository.NewFilesRepo(s.minioClient, s.dbConn, config.Minio.Bucket)
 	userRepo := repository.NewUserRepo(s.dbConn)
 	chatRepo := repository.NewChatRepo(s.dbConn)
 	contactRepo := repository.NewContactRepo(s.dbConn)
 	messageRepo := repository.NewMessageRepo(s.dbConn)
 
 	// Usecase
-	messageUsecase := usecase.NewMessageUsecase(messageRepo, chatRepo, s.nc)
-	chatUsecase := usecase.NewChatUsecase(chatRepo, s.nc)
+	filesUsecase := usecase.NewFilesUsecase(filesRepo)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo, filesUsecase, chatRepo, s.nc)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, messageRepo, s.nc)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	contactUsecase := usecase.NewContactUsecase(contactRepo)
 
 	// Controllers
+	httpDelivery.NewFilesController(apiRouter, sessionClient, filesUsecase)
 	httpDelivery.NewAuthController(apiRouter, authClient, sessionClient)
 	httpDelivery.NewChatController(apiRouter, chatUsecase, sessionClient)
 	httpDelivery.NewUserController(apiRouter, userUsecase, sessionClient)

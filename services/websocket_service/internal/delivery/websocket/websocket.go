@@ -75,7 +75,11 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 		conn.Close()
 		return
 	}
-	defer subUser.Unsubscribe()
+	defer func() {
+		if err := subUser.Unsubscribe(); err != nil {
+			logger.Error("Failed to unsubscribe user subscription", zap.Error(err))
+		}
+	}()
 
 	// Подписка на все события чата через wildcard
 	subChat, err := c.nc.Subscribe("chat.*.*", func(msg *nats.Msg) {
@@ -107,7 +111,11 @@ func (c *WebsocketController) WebsocketConnection(w http.ResponseWriter, r *http
 		conn.Close()
 		return
 	}
-	defer subChat.Unsubscribe()
+	defer func() {
+		if err := subChat.Unsubscribe(); err != nil {
+			logger.Error("Failed to unsubscribe chat subscription", zap.Error(err))
+		}
+	}()
 
 	done := make(chan struct{})
 	go func() {

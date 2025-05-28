@@ -17,12 +17,21 @@ func NewContactUsecase(repo repository.ContactRepo) *ContactUsecase {
 	return &ContactUsecase{repo: repo}
 }
 
-func (uc *ContactUsecase) SearchContacts(ctx context.Context, userIDStr string, query string) ([]model.Contact, error) {
+func (uc *ContactUsecase) SearchContacts(ctx context.Context, userIDStr string, query string) ([]model.UserProfile, []model.Contact, error) {
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return nil, model.ErrValidation
+		return nil, nil, model.ErrValidation
 	}
 
 	metrics.IncBusinessOp("search_contacts")
-	return uc.repo.SearchContacts(ctx, userID, query)
+	users, err := uc.repo.SearchUsers(ctx, query)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	contacts, err := uc.repo.SearchContacts(ctx, userID, query)
+	if err != nil {
+		return nil, nil, err
+	}
+	return users, contacts, nil
 }

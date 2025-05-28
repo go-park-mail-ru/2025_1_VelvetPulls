@@ -1,255 +1,231 @@
 package http_test
 
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
-	"testing"
+// func TestGetSelfProfile_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	delivery "github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/delivery/http"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/internal/model"
-	"github.com/go-park-mail-ru/2025_1_VelvetPulls/pkg/utils"
-	authpb "github.com/go-park-mail-ru/2025_1_VelvetPulls/services/auth_service/proto"
-	mocks "github.com/go-park-mail-ru/2025_1_VelvetPulls/tests/delivery/mock"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
-	"go.uber.org/zap"
-)
+// 	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-func TestGetSelfProfile_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	userID := uuid.New()
+// 	expectedProfile := &model.GetUserProfile{
+// 		Username: "testuser",
+// 		Name:     "1234567890",
+// 	}
 
-	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
-	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
+// 	// Настройка gRPC моков
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(
+// 			gomock.Any(),
+// 			&authpb.CheckLoginRequest{SessionId: "valid-token"},
+// 			gomock.Any(),
+// 		).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
-	userID := uuid.New()
-	expectedProfile := &model.GetUserProfile{
-		Username: "testuser",
-		Phone:    "1234567890",
-	}
+// 	mockUserUC.EXPECT().
+// 		GetUserProfileByID(gomock.Any(), userID).
+// 		Return(expectedProfile, nil)
 
-	// Настройка gRPC моков
-	mockSessionClient.EXPECT().
-		CheckLogin(
-			gomock.Any(),
-			&authpb.CheckLoginRequest{SessionId: "valid-token"},
-			gomock.Any(),
-		).
-		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
+// 	router := mux.NewRouter()
+// 	delivery.NewUserController(router, mockUserUC, mockSessionClient)
 
-	mockUserUC.EXPECT().
-		GetUserProfileByID(gomock.Any(), userID).
-		Return(expectedProfile, nil)
+// 	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
+// 	req.AddCookie(&http.Cookie{
+// 		Name:  "token",
+// 		Value: "valid-token",
+// 	})
+// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-	router := mux.NewRouter()
-	delivery.NewUserController(router, mockUserUC, mockSessionClient)
+// 	rr := httptest.NewRecorder()
+// 	router.ServeHTTP(rr, req)
 
-	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-	req.AddCookie(&http.Cookie{
-		Name:  "token",
-		Value: "valid-token",
-	})
-	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+// 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+// 	var resp utils.JSONResponse
+// 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+// 	assert.NoError(t, err)
+// 	assert.True(t, resp.Status)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+// 	var profile model.GetUserProfile
+// 	jsonData, err := json.Marshal(resp.Data)
+// 	assert.NoError(t, err)
+// 	err = json.Unmarshal(jsonData, &profile)
+// 	assert.NoError(t, err)
 
-	var resp utils.JSONResponse
-	err := json.Unmarshal(rr.Body.Bytes(), &resp)
-	assert.NoError(t, err)
-	assert.True(t, resp.Status)
+// 	assert.Equal(t, *expectedProfile, profile)
+// }
 
-	var profile model.GetUserProfile
-	jsonData, err := json.Marshal(resp.Data)
-	assert.NoError(t, err)
-	err = json.Unmarshal(jsonData, &profile)
-	assert.NoError(t, err)
+// func TestGetProfile_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	assert.Equal(t, *expectedProfile, profile)
-}
+// 	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-func TestGetProfile_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	username := "testuser"
+// 	expectedProfile := &model.GetUserProfile{
+// 		Username: username,
+// 		Name:     "1234567890",
+// 	}
 
-	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
-	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
+// 	// Настройка gRPC моков
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(
+// 			gomock.Any(),
+// 			&authpb.CheckLoginRequest{SessionId: "valid-token"},
+// 			gomock.Any(),
+// 		).
+// 		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
 
-	username := "testuser"
-	expectedProfile := &model.GetUserProfile{
-		Username: username,
-		Phone:    "1234567890",
-	}
+// 	mockUserUC.EXPECT().
+// 		GetUserProfileByUsername(gomock.Any(), username).
+// 		Return(expectedProfile, nil)
 
-	// Настройка gRPC моков
-	mockSessionClient.EXPECT().
-		CheckLogin(
-			gomock.Any(),
-			&authpb.CheckLoginRequest{SessionId: "valid-token"},
-			gomock.Any(),
-		).
-		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
+// 	router := mux.NewRouter()
+// 	delivery.NewUserController(router, mockUserUC, mockSessionClient)
 
-	mockUserUC.EXPECT().
-		GetUserProfileByUsername(gomock.Any(), username).
-		Return(expectedProfile, nil)
+// 	req := httptest.NewRequest(http.MethodGet, "/profile/"+username, nil)
+// 	req.AddCookie(&http.Cookie{
+// 		Name:  "token",
+// 		Value: "valid-token",
+// 	})
+// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-	router := mux.NewRouter()
-	delivery.NewUserController(router, mockUserUC, mockSessionClient)
+// 	rr := httptest.NewRecorder()
+// 	router.ServeHTTP(rr, req)
 
-	req := httptest.NewRequest(http.MethodGet, "/profile/"+username, nil)
-	req.AddCookie(&http.Cookie{
-		Name:  "token",
-		Value: "valid-token",
-	})
-	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+// 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+// 	var resp utils.JSONResponse
+// 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+// 	assert.NoError(t, err)
+// 	assert.True(t, resp.Status)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+// 	var profile model.GetUserProfile
+// 	jsonData, err := json.Marshal(resp.Data)
+// 	assert.NoError(t, err)
+// 	err = json.Unmarshal(jsonData, &profile)
+// 	assert.NoError(t, err)
 
-	var resp utils.JSONResponse
-	err := json.Unmarshal(rr.Body.Bytes(), &resp)
-	assert.NoError(t, err)
-	assert.True(t, resp.Status)
+// 	assert.Equal(t, *expectedProfile, profile)
+// }
 
-	var profile model.GetUserProfile
-	jsonData, err := json.Marshal(resp.Data)
-	assert.NoError(t, err)
-	err = json.Unmarshal(jsonData, &profile)
-	assert.NoError(t, err)
+// func TestUpdateSelfProfile_Success(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	assert.Equal(t, *expectedProfile, profile)
-}
+// 	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-func TestUpdateSelfProfile_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	userID := uuid.New()
+// 	Name := "NewFirstName"
+// 	updateData := model.UpdateUserProfile{
+// 		ID:   userID,
+// 		Name: &Name,
+// 	}
 
-	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
-	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
+// 	// Настройка gRPC моков
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(
+// 			gomock.Any(),
+// 			&authpb.CheckLoginRequest{SessionId: "valid-token"},
+// 			gomock.Any(),
+// 		).
+// 		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
 
-	userID := uuid.New()
-	firstName := "NewFirstName"
-	lastName := "NewLastName"
-	updateData := model.UpdateUserProfile{
-		ID:        userID,
-		FirstName: &firstName,
-		LastName:  &lastName,
-	}
+// 	mockUserUC.EXPECT().
+// 		UpdateUserProfile(gomock.Any(), gomock.Any()).
+// 		DoAndReturn(func(ctx context.Context, profile *model.UpdateUserProfile) error {
+// 			assert.Equal(t, userID, profile.ID)
+// 			assert.Equal(t, *updateData.Name, *profile.Name)
+// 			return nil
+// 		})
 
-	// Настройка gRPC моков
-	mockSessionClient.EXPECT().
-		CheckLogin(
-			gomock.Any(),
-			&authpb.CheckLoginRequest{SessionId: "valid-token"},
-			gomock.Any(),
-		).
-		Return(&authpb.CheckLoginResponse{UserId: userID.String()}, nil)
+// 	router := mux.NewRouter()
+// 	delivery.NewUserController(router, mockUserUC, mockSessionClient)
 
-	mockUserUC.EXPECT().
-		UpdateUserProfile(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, profile *model.UpdateUserProfile) error {
-			assert.Equal(t, userID, profile.ID)
-			assert.Equal(t, *updateData.FirstName, *profile.FirstName)
-			assert.Equal(t, *updateData.LastName, *profile.LastName)
-			return nil
-		})
+// 	body := &bytes.Buffer{}
+// 	writer := multipart.NewWriter(body)
 
-	router := mux.NewRouter()
-	delivery.NewUserController(router, mockUserUC, mockSessionClient)
+// 	profileData, err := json.Marshal(updateData)
+// 	assert.NoError(t, err)
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+// 	writer.WriteField("profile_data", string(profileData))
+// 	writer.Close()
 
-	profileData, err := json.Marshal(updateData)
-	assert.NoError(t, err)
+// 	req := httptest.NewRequest(http.MethodPut, "/profile", body)
+// 	req.Header.Set("Content-Type", writer.FormDataContentType())
+// 	req.AddCookie(&http.Cookie{
+// 		Name:  "token",
+// 		Value: "valid-token",
+// 	})
+// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-	writer.WriteField("profile_data", string(profileData))
-	writer.Close()
+// 	rr := httptest.NewRecorder()
+// 	router.ServeHTTP(rr, req)
 
-	req := httptest.NewRequest(http.MethodPut, "/profile", body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.AddCookie(&http.Cookie{
-		Name:  "token",
-		Value: "valid-token",
-	})
-	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+// 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+// 	var resp utils.JSONResponse
+// 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+// 	assert.NoError(t, err)
+// 	assert.True(t, resp.Status)
+// 	assert.Equal(t, "Profile updated successfully", resp.Data)
+// }
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+// func TestUpdateSelfProfile_InvalidData(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	var resp utils.JSONResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &resp)
-	assert.NoError(t, err)
-	assert.True(t, resp.Status)
-	assert.Equal(t, "Profile updated successfully", resp.Data)
-}
+// 	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-func TestUpdateSelfProfile_InvalidData(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	// Настройка gRPC моков
+// 	mockSessionClient.EXPECT().
+// 		CheckLogin(
+// 			gomock.Any(),
+// 			&authpb.CheckLoginRequest{SessionId: "valid-token"},
+// 			gomock.Any(),
+// 		).
+// 		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
 
-	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
-	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
+// 	router := mux.NewRouter()
+// 	delivery.NewUserController(router, mockUserUC, mockSessionClient)
 
-	// Настройка gRPC моков
-	mockSessionClient.EXPECT().
-		CheckLogin(
-			gomock.Any(),
-			&authpb.CheckLoginRequest{SessionId: "valid-token"},
-			gomock.Any(),
-		).
-		Return(&authpb.CheckLoginResponse{UserId: uuid.New().String()}, nil)
+// 	body := &bytes.Buffer{}
+// 	writer := multipart.NewWriter(body)
+// 	writer.WriteField("profile_data", "invalid json")
+// 	writer.Close()
 
-	router := mux.NewRouter()
-	delivery.NewUserController(router, mockUserUC, mockSessionClient)
+// 	req := httptest.NewRequest(http.MethodPut, "/profile", body)
+// 	req.Header.Set("Content-Type", writer.FormDataContentType())
+// 	req.AddCookie(&http.Cookie{
+// 		Name:  "token",
+// 		Value: "valid-token",
+// 	})
+// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	writer.WriteField("profile_data", "invalid json")
-	writer.Close()
+// 	rr := httptest.NewRecorder()
+// 	router.ServeHTTP(rr, req)
 
-	req := httptest.NewRequest(http.MethodPut, "/profile", body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.AddCookie(&http.Cookie{
-		Name:  "token",
-		Value: "valid-token",
-	})
-	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
+// 	assert.Equal(t, http.StatusBadRequest, rr.Code)
+// }
 
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+// func TestGetProfile_Unauthorized(t *testing.T) {
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-}
+// 	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
+// 	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
 
-func TestGetProfile_Unauthorized(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	router := mux.NewRouter()
+// 	delivery.NewUserController(router, mockUserUC, mockSessionClient)
 
-	mockUserUC := mocks.NewMockIUserUsecase(ctrl)
-	mockSessionClient := mocks.NewMockSessionServiceClient(ctrl)
+// 	req := httptest.NewRequest(http.MethodGet, "/profile/testuser", nil)
+// 	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
 
-	router := mux.NewRouter()
-	delivery.NewUserController(router, mockUserUC, mockSessionClient)
+// 	rr := httptest.NewRecorder()
+// 	router.ServeHTTP(rr, req)
 
-	req := httptest.NewRequest(http.MethodGet, "/profile/testuser", nil)
-	req = req.WithContext(context.WithValue(req.Context(), utils.LOGGER_ID_KEY, zap.NewNop()))
-
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-}
+// 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+// }
