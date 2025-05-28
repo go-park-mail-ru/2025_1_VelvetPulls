@@ -47,6 +47,6 @@ jobs:
             username: ${{ secrets.SSH_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             script: |
-              cd /backend/2025_1_VelvetPulls/
+              cd /home/ubuntu/backend/2025_1_VelvetPulls/
               git pull
               make run
