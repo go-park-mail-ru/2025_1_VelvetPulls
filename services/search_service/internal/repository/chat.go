@@ -48,7 +48,6 @@ func (r *ChatRepo) SearchUserChats(ctx context.Context, userID uuid.UUID, query 
 	if query != "" {
 		baseQuery += fmt.Sprintf(` AND c.title ILIKE $%d`, paramCount)
 		args = append(args, "%"+query+"%")
-		paramCount++
 	}
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
