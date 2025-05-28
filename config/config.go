@@ -10,7 +10,7 @@ var (
 	PORT           = ":8080"
 	UPLOAD_DIR     = "./uploads/"
 	LOG_DIR        = "./logs/"
-	MAX_FILE_SIZE  = int64(2 << 20) // 2 MB (2,097,152 байт)
+	MAX_FILE_SIZE  = int64(2 << 20) // 2 MB (2,097,152 байт )
 	CookieDuration = 3 * time.Hour
 )
 
