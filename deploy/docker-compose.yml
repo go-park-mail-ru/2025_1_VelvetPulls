@@ -42,9 +42,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../../frontend/.ssl/certificate.crt:/etc/nginx/ssl/certificate.crt:ro
-      - ../../frontend/.ssl/certificate.key:/etc/nginx/ssl/certificate.key:ro
-      - ../../frontend/dist:/usr/share/nginx/html:ro
+      - ../../frontend/.ssl/:/etc/nginx/ssl/
+      - ../../frontend/dist:/usr/share/nginx/html
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - app
