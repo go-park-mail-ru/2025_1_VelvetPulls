@@ -14,7 +14,7 @@ all: run
 # Запуск приложения через Docker Compose
 .PHONY: run
 run:
-	@docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up -d
+	@docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up -d --build
 
 # Остановка контейнеров
 .PHONY: stop
