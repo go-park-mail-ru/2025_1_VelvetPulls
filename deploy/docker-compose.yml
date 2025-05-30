@@ -39,7 +39,7 @@ services:
     image: nginx:latest
     container_name: nginx
     ports:
-      - "8081:80"
+      - "80:80"
       - "443:443"
     volumes:
       - ../../frontend/.ssl/certificate.crt:/etc/nginx/ssl/certificate.crt:ro
