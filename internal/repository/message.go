@@ -18,8 +18,8 @@ const (
 	photoPayloadType       = "photo"
 )
 
-type IMessageRepo interface {
-	GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error)
+type IMessageMapper interface {
+	findByChatId(ctx context.Context, chatID uuid.UUID) ([]model.Message, error)
 	GetMessagesBefore(ctx context.Context, chatID, beforeMessageID uuid.UUID) ([]model.Message, error)
 	GetMessagesAfter(ctx context.Context, chatID, afterMessageID uuid.UUID) ([]model.Message, error)
 	GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error)
@@ -28,15 +28,15 @@ type IMessageRepo interface {
 	DeleteMessage(ctx context.Context, messageID uuid.UUID) (*model.Message, error)
 }
 
-type messageRepo struct {
+type messageMapper struct {
 	db *sql.DB
 }
 
-func NewMessageRepo(db *sql.DB) IMessageRepo {
-	return &messageRepo{db: db}
+func NewMessageMapper(db *sql.DB) IMessageMapper {
+	return &messageMapper{db: db}
 }
 
-func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]model.Message, error) {
+func (r *messageMapper) findByChatId(ctx context.Context, chatID uuid.UUID) ([]model.Message, error) {
 	query := `
 		SELECT 
 			m.id,
@@ -151,7 +151,7 @@ func (r *messageRepo) GetMessages(ctx context.Context, chatID uuid.UUID) ([]mode
 	return messages, nil
 }
 
-func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID, beforeMessageID uuid.UUID) ([]model.Message, error) {
+func (r *messageMapper) GetMessagesBefore(ctx context.Context, chatID, beforeMessageID uuid.UUID) ([]model.Message, error) {
 	query := `
 		WITH ref_message AS (
 			SELECT sent_at, id FROM message WHERE id = $2
@@ -271,7 +271,7 @@ func (r *messageRepo) GetMessagesBefore(ctx context.Context, chatID, beforeMessa
 	return messages, nil
 }
 
-func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID, afterMessageID uuid.UUID) ([]model.Message, error) {
+func (r *messageMapper) GetMessagesAfter(ctx context.Context, chatID, afterMessageID uuid.UUID) ([]model.Message, error) {
 	query := `
 		WITH ref_message AS (
 			SELECT sent_at, id FROM message WHERE id = $2
@@ -391,7 +391,7 @@ func (r *messageRepo) GetMessagesAfter(ctx context.Context, chatID, afterMessage
 	return messages, nil
 }
 
-func (r *messageRepo) GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error) {
+func (r *messageMapper) GetMessage(ctx context.Context, id uuid.UUID) (*model.Message, error) {
 	query := `
 		SELECT 
 			m.id,
@@ -493,7 +493,7 @@ func (r *messageRepo) GetMessage(ctx context.Context, id uuid.UUID) (*model.Mess
 	return &msg, nil
 }
 
-func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error) {
+func (r *messageMapper) CreateMessage(ctx context.Context, message *model.Message) (*model.Message, error) {
 	messageType := defaultMessageType
 	if message.Sticker != "" {
 		messageType = stickerMessageType
@@ -556,7 +556,7 @@ func (r *messageRepo) CreateMessage(ctx context.Context, message *model.Message)
 	return messageOut, nil
 }
 
-func (r *messageRepo) UpdateMessage(ctx context.Context, messageID uuid.UUID, newBody string) (*model.Message, error) {
+func (r *messageMapper) UpdateMessage(ctx context.Context, messageID uuid.UUID, newBody string) (*model.Message, error) {
 	query := `
 		UPDATE message
 		SET body = $1, is_redacted = true
@@ -573,7 +573,7 @@ func (r *messageRepo) UpdateMessage(ctx context.Context, messageID uuid.UUID, ne
 	return r.GetMessage(ctx, updatedID)
 }
 
-func (r *messageRepo) DeleteMessage(ctx context.Context, messageID uuid.UUID) (*model.Message, error) {
+func (r *messageMapper) DeleteMessage(ctx context.Context, messageID uuid.UUID) (*model.Message, error) {
 	query := `
 		DELETE FROM message
 		WHERE id = $1

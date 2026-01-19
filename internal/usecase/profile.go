@@ -11,21 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
-type IUserUsecase interface {
+type IUserModule interface {
 	GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error)
 	GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile *model.UpdateUserProfile) error
 }
 
-type UserUsecase struct {
-	userRepo repository.IUserRepo
+type UserModule struct {
+	userMapper repository.IUserMapper
 }
 
-func NewUserUsecase(userRepo repository.IUserRepo) IUserUsecase {
-	return &UserUsecase{userRepo: userRepo}
+func NewUserModule(userMapper repository.IUserMapper) IUserModule {
+	return &UserModule{userMapper: userMapper}
 }
 
-func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *model.GetUserProfile {
+func (uc *UserModule) fetchProfile(ctx context.Context, user *model.User) *model.GetUserProfile {
 	profile := &model.GetUserProfile{
 		ID:         user.ID,
 		AvatarPath: user.AvatarPath,
@@ -37,11 +37,11 @@ func (uc *UserUsecase) fetchProfile(ctx context.Context, user *model.User) *mode
 	return profile
 }
 
-func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
+func (uc *UserModule) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetUserProfileByID start", zap.String("userID", id.String()))
 
-	user, err := uc.userRepo.GetUserByID(ctx, id)
+	user, err := uc.userMapper.GetUserByID(ctx, id)
 	if err != nil {
 		logger.Error("GetUserByID failed", zap.Error(err))
 		return nil, err
@@ -51,11 +51,11 @@ func (uc *UserUsecase) GetUserProfileByID(ctx context.Context, id uuid.UUID) (*m
 	return profile, nil
 }
 
-func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error) {
+func (uc *UserModule) GetUserProfileByUsername(ctx context.Context, username string) (*model.GetUserProfile, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetUserProfileByUsername start", zap.String("username", username))
 
-	user, err := uc.userRepo.GetUserByUsername(ctx, username)
+	user, err := uc.userMapper.GetUserByUsername(ctx, username)
 	if err != nil {
 		logger.Error("GetUserByUsername failed", zap.Error(err))
 		return nil, err
@@ -65,7 +65,7 @@ func (uc *UserUsecase) GetUserProfileByUsername(ctx context.Context, username st
 	return profile, nil
 }
 
-func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateUserProfile) error {
+func (uc *UserModule) UpdateUserProfile(ctx context.Context, req *model.UpdateUserProfile) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	if req == nil {
 		logger.Error("UpdateUserProfile received nil request")
@@ -91,7 +91,7 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateU
 		}
 	}
 
-	newURL, oldURL, err := uc.userRepo.UpdateUser(ctx, req)
+	newURL, oldURL, err := uc.userMapper.UpdateUser(ctx, req)
 	if err != nil {
 		logger.Error("UpdateUser failed", zap.Error(err))
 		return err
@@ -112,7 +112,7 @@ func (uc *UserUsecase) UpdateUserProfile(ctx context.Context, req *model.UpdateU
 
 // --- Private Helpers ---
 
-func (uc *UserUsecase) handleAvatarCleanup(oldURL string) {
+func (uc *UserModule) handleAvatarCleanup(oldURL string) {
 	if oldURL != "" {
 		go func(url string) {
 			if err := utils.RemovePhoto(url); err != nil {

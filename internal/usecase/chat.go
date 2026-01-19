@@ -14,16 +14,16 @@ import (
 	"go.uber.org/zap"
 )
 
-type ChatUsecase struct {
-	userRepo    repository.IUserRepo
-	chatRepo    repository.IChatRepo
-	messageRepo repository.IMessageRepo
+type ChatModule struct {
+	userMapper    repository.IUserMapper
+	chatMapper    repository.IChatMapper
+	messageMapper repository.IMessageMapper
 	nc          *nats.Conn
 }
 
-type IChatUsecase interface {
+type IChatModule interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error)
-	GetChatInfo(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.ChatInfo, error)
+	GetChatParticipants(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.ChatInfo, error)
 	CreateChat(ctx context.Context, userID uuid.UUID, chat *model.CreateChatRequest) (*model.Chat, error)
 	UpdateChat(ctx context.Context, userID uuid.UUID, chat *model.UpdateChat) (*model.Chat, error)
 	GetChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (*model.Chat, error)
@@ -35,15 +35,15 @@ type IChatUsecase interface {
 	LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error
 }
 
-func NewChatUsecase(chatRepo repository.IChatRepo, userRepo repository.IUserRepo, messageRepo repository.IMessageRepo, nc *nats.Conn) IChatUsecase {
-	return &ChatUsecase{userRepo: userRepo, chatRepo: chatRepo, messageRepo: messageRepo, nc: nc}
+func NewChatModule(chatMapper repository.IChatMapper, userMapper repository.IUserMapper, messageMapper repository.IMessageMapper, nc *nats.Conn) IChatModule {
+	return &ChatModule{userMapper: userMapper, chatMapper: chatMapper, messageMapper: messageMapper, nc: nc}
 }
 
-func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
+func (uc *ChatModule) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChats", zap.String("userID", userID.String()))
 
-	chats, _, err := uc.chatRepo.GetChats(ctx, userID)
+	chats, _, err := uc.chatMapper.GetChats(ctx, userID)
 	if err != nil {
 		logger.Error("repo.GetChats failed", zap.Error(err))
 		return nil, err
@@ -60,11 +60,11 @@ func (uc *ChatUsecase) GetChats(ctx context.Context, userID uuid.UUID) ([]model.
 	return chats, nil
 }
 
-func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID) (*model.ChatInfo, error) {
+func (uc *ChatModule) GetChatParticipants(ctx context.Context, userID, chatID uuid.UUID) (*model.ChatInfo, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChat", zap.String("chatID", chatID.String()))
 
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	chat, err := uc.chatMapper.findByID(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +75,13 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 		}
 	}
 
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		logger.Error("GetChatInfo: failed to get user role", zap.Error(err))
 		return nil, err
 	}
 
-	users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
+	users, err := uc.userMapper.FindUsersInChat(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 		uc.decorateDialogInfo(chat, userID, users)
 	}
 
-	messages, err := uc.messageRepo.GetMessages(ctx, chatID)
+	messages, err := uc.messageMapper.GetMessages(ctx, chatID)
 	if err != nil {
 		logger.Error("GetChatInfo: failed to get messages", zap.Error(err))
 		return nil, err
@@ -104,11 +104,11 @@ func (uc *ChatUsecase) GetChatInfo(ctx context.Context, userID, chatID uuid.UUID
 	}, nil
 }
 
-func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*model.Chat, error) {
+func (uc *ChatModule) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChat", zap.String("chatID", chatID.String()))
 
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*
 		}
 	}
 
-	users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
+	users, err := uc.chatMapper.GetUsersFromChat(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*
 	if model.ChatType(chat.Type) == model.ChatTypeDialog {
 		uc.decorateDialogInfo(chat, userID, users)
 	}
-	sendNotifications, err := uc.chatRepo.GetSendNotifications(ctx, userID, chatID)
+	sendNotifications, err := uc.chatMapper.GetSendNotifications(ctx, userID, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,17 +143,17 @@ func (uc *ChatUsecase) GetChat(ctx context.Context, userID, chatID uuid.UUID) (*
 	}, nil
 }
 
-func (uc *ChatUsecase) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
+func (uc *ChatModule) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendNotifications", zap.String("chatID", chatID.String()))
-	err := uc.chatRepo.SendNotifications(ctx, userID, chatID, send)
+	err := uc.chatMapper.SendNotifications(ctx, userID, chatID, send)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.Chat, error) {
+func (uc *ChatModule) CreateChat(ctx context.Context, userID uuid.UUID, req *model.CreateChatRequest) (*model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("CreateChat start", zap.String("type", req.Type))
 
@@ -167,7 +167,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 		}
 	}
 
-	chatID, err := uc.chatRepo.CreateChat(ctx, req)
+	chatID, err := uc.chatMapper.CreateChat(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, userID uuid.UUID, req *mo
 	return info, err
 }
 
-func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *model.UpdateChat) (*model.Chat, error) {
+func (uc *ChatModule) UpdateChat(ctx context.Context, userID uuid.UUID, req *model.UpdateChat) (*model.Chat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("UpdateChat", zap.String("chatID", req.ID.String()))
 
@@ -208,7 +208,7 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 		return nil, utils.ErrNotImage
 	}
 
-	chat, err := uc.chatRepo.GetChatByID(ctx, req.ID)
+	chat, err := uc.chatMapper.GetChatByID(ctx, req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 		return nil, err
 	}
 
-	newURL, oldURL, err := uc.chatRepo.UpdateChat(ctx, req)
+	newURL, oldURL, err := uc.chatMapper.UpdateChat(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -246,14 +246,14 @@ func (uc *ChatUsecase) UpdateChat(ctx context.Context, userID uuid.UUID, req *mo
 	return info, err
 }
 
-func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID) error {
+func (uc *ChatModule) DeleteChat(ctx context.Context, userID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("DeleteChat", zap.String("chatID", chatID.String()))
 
 	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
 		return err
 	}
-	if err := uc.chatRepo.DeleteChat(ctx, chatID); err != nil {
+	if err := uc.chatMapper.DeleteChat(ctx, chatID); err != nil {
 		return err
 	}
 
@@ -270,14 +270,14 @@ func (uc *ChatUsecase) DeleteChat(ctx context.Context, userID, chatID uuid.UUID)
 	return nil
 }
 
-func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
+func (uc *ChatModule) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.AddedUsersIntoChat, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("AddUsersIntoChat", zap.String("chatID", chatID.String()))
 
 	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
 		return nil, err
 	}
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -291,25 +291,25 @@ func (uc *ChatUsecase) AddUsersIntoChat(ctx context.Context, userID uuid.UUID, u
 	return &model.AddedUsersIntoChat{AddedUsers: added, NotAddedUsers: notAdded}, nil
 }
 
-func (uc *ChatUsecase) SubscribeToChannel(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+func (uc *ChatModule) SubscribeToChannel(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) error {
+	chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 	if err != nil {
 		return err
 	}
 	if model.ChatType(chat.Type) != model.ChatTypeChannel {
 		return ErrNotChannel
 	}
-	if err := uc.chatRepo.AddUserToChatByID(ctx, userID, string(model.RoleMember), chatID); err != nil {
+	if err := uc.chatMapper.AddUserToChatByID(ctx, userID, string(model.RoleMember), chatID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
+func (uc *ChatModule) DeleteUserFromChat(ctx context.Context, userID uuid.UUID, usernames []string, chatID uuid.UUID) (*model.DeletedUsersFromChat, error) {
 	if err := uc.ensureOwner(ctx, userID, chatID); err != nil {
 		return nil, err
 	}
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+	chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -322,11 +322,11 @@ func (uc *ChatUsecase) DeleteUserFromChat(ctx context.Context, userID uuid.UUID,
 	return &model.DeletedUsersFromChat{DeletedUsers: deleted}, nil
 }
 
-func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error {
+func (uc *ChatModule) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("LeaveChat", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+	role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		logger.Error("LeaveChat: failed to get user role", zap.Error(err))
 		return err
@@ -338,7 +338,7 @@ func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) 
 		return ErrPermissionDenied
 
 	case model.RoleMember:
-		if err := uc.chatRepo.RemoveUserFromChatByID(ctx, userID, chatID); err != nil {
+		if err := uc.chatMapper.RemoveUserFromChatByID(ctx, userID, chatID); err != nil {
 			logger.Error("LeaveChat: failed to remove user from chat", zap.Error(err))
 			return err
 		}
@@ -365,8 +365,8 @@ func (uc *ChatUsecase) LeaveChat(ctx context.Context, userID, chatID uuid.UUID) 
 
 // --- Private Helpers ---
 
-func (uc *ChatUsecase) decorateDialog(ctx context.Context, chat *model.Chat, me uuid.UUID) {
-	users, err := uc.chatRepo.GetUsersFromChat(ctx, chat.ID)
+func (uc *ChatModule) decorateDialog(ctx context.Context, chat *model.Chat, me uuid.UUID) {
+	users, err := uc.chatMapper.GetUsersFromChat(ctx, chat.ID)
 	if err != nil {
 		zap.L().Warn("decorateDialog: GetUsersFromChat failed", zap.Error(err))
 		return
@@ -387,7 +387,7 @@ func (uc *ChatUsecase) decorateDialog(ctx context.Context, chat *model.Chat, me 
 	}
 }
 
-func (uc *ChatUsecase) decorateDialogInfo(chat *model.Chat, me uuid.UUID, users []model.UserInChat) {
+func (uc *ChatModule) decorateDialogInfo(chat *model.Chat, me uuid.UUID, users []model.UserInChat) {
 
 	if len(users) == 1 {
 		chat.Title = users[0].Username
@@ -404,8 +404,8 @@ func (uc *ChatUsecase) decorateDialogInfo(chat *model.Chat, me uuid.UUID, users 
 	}
 }
 
-func (uc *ChatUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+func (uc *ChatModule) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		return err
 	}
@@ -415,8 +415,8 @@ func (uc *ChatUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUI
 	return nil
 }
 
-func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID) error {
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+func (uc *ChatModule) ensureOwner(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		return err
 	}
@@ -426,10 +426,10 @@ func (uc *ChatUsecase) ensureOwner(ctx context.Context, userID, chatID uuid.UUID
 	return nil
 }
 
-func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, users []string) (*model.Chat, bool) {
+func (uc *ChatModule) findExistingDialog(ctx context.Context, me uuid.UUID, users []string) (*model.Chat, bool) {
 	var otherUsername string
 	for _, username := range users {
-		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		user, err := uc.userMapper.GetUserByUsername(ctx, username)
 		if err != nil {
 			return nil, false
 		}
@@ -437,7 +437,7 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, use
 			otherUsername = username
 		}
 	}
-	chats, _, err := uc.chatRepo.GetChats(ctx, me)
+	chats, _, err := uc.chatMapper.GetChats(ctx, me)
 	if err != nil {
 		zap.L().Warn("findExistingDialog: GetChats failed", zap.Error(err))
 		return nil, false
@@ -447,7 +447,7 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, use
 			continue
 		}
 
-		users, err := uc.chatRepo.GetUsersFromChat(ctx, c.ID)
+		users, err := uc.chatMapper.GetUsersFromChat(ctx, c.ID)
 		if err != nil {
 			continue
 		}
@@ -472,20 +472,20 @@ func (uc *ChatUsecase) findExistingDialog(ctx context.Context, me uuid.UUID, use
 	return nil, false
 }
 
-func (uc *ChatUsecase) addDialogUsers(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
-	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
+func (uc *ChatModule) addDialogUsers(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
+	err := uc.chatMapper.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
 	}
 	var otherUsername string
 	for _, username := range users {
-		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		user, err := uc.userMapper.GetUserByUsername(ctx, username)
 		if err != nil {
 			return err
 		}
 		if user.ID != me {
 			otherUsername = username
-			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleOwner), chatID)
+			err = uc.chatMapper.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleOwner), chatID)
 			if err != nil {
 				return err
 			}
@@ -495,21 +495,21 @@ func (uc *ChatUsecase) addDialogUsers(ctx context.Context, me uuid.UUID, users [
 	return nil
 }
 
-func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
-	err := uc.chatRepo.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
+func (uc *ChatModule) addGroupOwner(ctx context.Context, me uuid.UUID, users []string, chatID uuid.UUID) error {
+	err := uc.chatMapper.AddUserToChatByID(ctx, me, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
 	}
 
 	var otherUsername string
 	for _, username := range users {
-		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		user, err := uc.userMapper.GetUserByUsername(ctx, username)
 		if err != nil {
 			return err
 		}
 		if user.ID != me {
 			otherUsername = username
-			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
+			err = uc.chatMapper.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
 			if err != nil {
 				return err
 			}
@@ -518,20 +518,20 @@ func (uc *ChatUsecase) addGroupOwner(ctx context.Context, me uuid.UUID, users []
 	return nil
 }
 
-func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, users []string, chatID uuid.UUID) error {
-	err := uc.chatRepo.AddUserToChatByID(ctx, ownerID, string(model.RoleOwner), chatID)
+func (uc *ChatModule) addChannelOwner(ctx context.Context, ownerID uuid.UUID, users []string, chatID uuid.UUID) error {
+	err := uc.chatMapper.AddUserToChatByID(ctx, ownerID, string(model.RoleOwner), chatID)
 	if err != nil {
 		return err
 	}
 	var otherUsername string
 	for _, username := range users {
-		user, err := uc.userRepo.GetUserByUsername(ctx, username)
+		user, err := uc.userMapper.GetUserByUsername(ctx, username)
 		if err != nil {
 			return err
 		}
 		if user.ID != ownerID {
 			otherUsername = username
-			err = uc.chatRepo.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
+			err = uc.chatMapper.AddUserToChatByUsername(ctx, otherUsername, string(model.RoleMember), chatID)
 			if err != nil {
 				return err
 			}
@@ -540,7 +540,7 @@ func (uc *ChatUsecase) addChannelOwner(ctx context.Context, ownerID uuid.UUID, u
 	return nil
 }
 
-func (uc *ChatUsecase) modifyMembers(ctx context.Context, chatID uuid.UUID, names []string, add bool) ([]string, []string) {
+func (uc *ChatModule) modifyMembers(ctx context.Context, chatID uuid.UUID, names []string, add bool) ([]string, []string) {
 	var (
 		success []string
 		failed  []string
@@ -548,9 +548,9 @@ func (uc *ChatUsecase) modifyMembers(ctx context.Context, chatID uuid.UUID, name
 	for _, name := range names {
 		var err error
 		if add {
-			err = uc.chatRepo.AddUserToChatByUsername(ctx, name, string(model.RoleMember), chatID)
+			err = uc.chatMapper.AddUserToChatByUsername(ctx, name, string(model.RoleMember), chatID)
 		} else {
-			err = uc.chatRepo.RemoveUserFromChatByUsername(ctx, name, chatID)
+			err = uc.chatMapper.RemoveUserFromChatByUsername(ctx, name, chatID)
 		}
 		if err != nil {
 			failed = append(failed, name)
@@ -562,7 +562,7 @@ func (uc *ChatUsecase) modifyMembers(ctx context.Context, chatID uuid.UUID, name
 }
 
 // handleAvatarCleanup removes only old avatar
-func (uc *ChatUsecase) handleAvatarCleanup(oldURL string) {
+func (uc *ChatModule) handleAvatarCleanup(oldURL string) {
 	if oldURL != "" {
 		go func(url string) {
 			if err := utils.RemovePhoto(url); err != nil {

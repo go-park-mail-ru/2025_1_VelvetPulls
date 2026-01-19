@@ -14,21 +14,22 @@ import (
 	"go.uber.org/zap"
 )
 
-type IUserRepo interface {
+type IUserMapper interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	UpdateUser(ctx context.Context, user *model.UpdateUserProfile) (string, string, error)
+	FindUsersInChat(ctx context.Context, chatId uuid.UUID) ([]model.UserInChat, error)
 }
 
-type userRepo struct {
+type userMapper struct {
 	db *sql.DB
 }
 
-func NewUserRepo(db *sql.DB) IUserRepo {
-	return &userRepo{db: db}
+func NewUserMapper(db *sql.DB) IUserMapper {
+	return &userMapper{db: db}
 }
 
-func (r *userRepo) getUserByField(ctx context.Context, field string, value interface{}) (*model.User, error) {
+func (r *userMapper) getUserByField(ctx context.Context, field string, value interface{}) (*model.User, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	if value == "" || value == uuid.Nil {
 		logger.Warn("empty lookup value", zap.String("field", field))
@@ -57,11 +58,11 @@ func (r *userRepo) getUserByField(ctx context.Context, field string, value inter
 	return &u, nil
 }
 
-func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+func (r *userMapper) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
 	return r.getUserByField(ctx, "username", username)
 }
 
-func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+func (r *userMapper) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	if id == uuid.Nil {
 		utils.GetLoggerFromCtx(ctx).Warn("invalid uuid provided")
 		return nil, ErrInvalidUUID
@@ -69,7 +70,7 @@ func (r *userRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, 
 	return r.getUserByField(ctx, "id", id.String())
 }
 
-func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (string, string, error) {
+func (r *userMapper) UpdateUser(ctx context.Context, profile *model.UpdateUserProfile) (string, string, error) {
 	if profile == nil {
 		utils.GetLoggerFromCtx(ctx).Warn("empty profile data")
 		return "", "", ErrEmptyField
@@ -182,4 +183,26 @@ func (r *userRepo) UpdateUser(ctx context.Context, profile *model.UpdateUserProf
 	}
 
 	return newAvatar, oldAvatar, nil
+}
+
+func (r *userMapper) FindUsersInChat(ctx context.Context, chatID uuid.UUID) ([]model.UserInChat, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT u.id, u.username, u.name, u.avatar_path, uc.user_role
+		FROM public.user u
+		JOIN user_chat uc ON u.id = uc.user_id
+		WHERE uc.chat_id = $1`, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []model.UserInChat
+	for rows.Next() {
+		var user model.UserInChat
+		if err := rows.Scan(&user.ID, &user.Username, &user.Name, &user.AvatarPath, &user.Role); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }

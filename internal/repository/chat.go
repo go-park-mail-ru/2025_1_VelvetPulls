@@ -14,9 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type IChatRepo interface {
+type IChatMapper interface {
 	GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error)
-	GetChatByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error)
+	findByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error)
 	CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error)
 	UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error)
 	DeleteChat(ctx context.Context, chatID uuid.UUID) error
@@ -25,21 +25,20 @@ type IChatRepo interface {
 	AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error
 	AddUserToChatByUsername(ctx context.Context, username string, userRole string, chatID uuid.UUID) error
 	GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error)
-	GetUsersFromChat(ctx context.Context, chatId uuid.UUID) ([]model.UserInChat, error)
 	RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error
 	RemoveUserFromChatByID(ctx context.Context, userID, chatID uuid.UUID) error
 }
 
-type chatRepository struct {
+type chatMapper struct {
 	db *sql.DB
 }
 
-func NewChatRepo(db *sql.DB) IChatRepo {
-	return &chatRepository{db: db}
+func NewChatMapper(db *sql.DB) IChatMapper {
+	return &chatMapper{db: db}
 }
 
 // --- Chat methods ---
-func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
+func (r *chatMapper) GetChats(ctx context.Context, userID uuid.UUID) ([]model.Chat, uuid.UUID, error) {
 	query := `
 		SELECT 
 			c.id, c.avatar_path, c.type, c.title, uc.send_notifications,
@@ -110,7 +109,7 @@ func (r *chatRepository) GetChats(ctx context.Context, userID uuid.UUID) ([]mode
 	return chats, lastChatID, nil
 }
 
-func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error) {
+func (r *chatMapper) findByID(ctx context.Context, chatID uuid.UUID) (*model.Chat, error) {
 	query := `SELECT id, avatar_path, type, title FROM chat WHERE id = $1`
 	var chat model.Chat
 	err := r.db.QueryRowContext(ctx, query, chatID).Scan(&chat.ID, &chat.AvatarPath, &chat.Type, &chat.Title)
@@ -123,7 +122,7 @@ func (r *chatRepository) GetChatByID(ctx context.Context, chatID uuid.UUID) (*mo
 	return &chat, nil
 }
 
-func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error) {
+func (r *chatMapper) CreateChat(ctx context.Context, create *model.CreateChatRequest) (uuid.UUID, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	var (
 		//avatarPath string
@@ -156,7 +155,7 @@ func (r *chatRepository) CreateChat(ctx context.Context, create *model.CreateCha
 	return chatID, nil
 }
 
-func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error) {
+func (r *chatMapper) UpdateChat(ctx context.Context, update *model.UpdateChat) (string, string, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	if update == nil || update.ID == uuid.Nil {
 		return "", "", ErrInvalidUUID
@@ -236,12 +235,12 @@ func (r *chatRepository) UpdateChat(ctx context.Context, update *model.UpdateCha
 	return avatarNewPath, avatarOldPath, nil
 }
 
-func (r *chatRepository) DeleteChat(ctx context.Context, chatID uuid.UUID) error {
+func (r *chatMapper) DeleteChat(ctx context.Context, chatID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM chat WHERE id = $1`, chatID)
 	return err
 }
 
-func (r *chatRepository) GetSendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (bool, error) {
+func (r *chatMapper) GetSendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (bool, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	var sendNotifications bool
 	query := `SELECT send_notifications FROM user_chat
@@ -255,7 +254,7 @@ func (r *chatRepository) GetSendNotifications(ctx context.Context, userID uuid.U
 	return sendNotifications, nil
 }
 
-func (r *chatRepository) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
+func (r *chatMapper) SendNotifications(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, send bool) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	query := `UPDATE user_chat SET
 		send_notifications = $1
@@ -269,7 +268,7 @@ func (r *chatRepository) SendNotifications(ctx context.Context, userID uuid.UUID
 	return nil
 }
 
-func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
+func (r *chatMapper) AddUserToChatByID(ctx context.Context, userID uuid.UUID, userRole string, chatID uuid.UUID) error {
 	query := `
 		INSERT INTO user_chat (user_id, chat_id, user_role, joined_at)
 		VALUES ($1, $2, $3, NOW())
@@ -281,7 +280,7 @@ func (r *chatRepository) AddUserToChatByID(ctx context.Context, userID uuid.UUID
 	return nil
 }
 
-func (r *chatRepository) AddUserToChatByUsername(ctx context.Context, username, userRole string, chatID uuid.UUID) error {
+func (r *chatMapper) AddUserToChatByUsername(ctx context.Context, username, userRole string, chatID uuid.UUID) error {
 	const getUserIDQuery = `SELECT id FROM public.user WHERE username = $1`
 	var userID uuid.UUID
 	if err := r.db.QueryRowContext(ctx, getUserIDQuery, username).Scan(&userID); err != nil {
@@ -293,7 +292,7 @@ func (r *chatRepository) AddUserToChatByUsername(ctx context.Context, username, 
 	return r.AddUserToChatByID(ctx, userID, userRole, chatID)
 }
 
-func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error) {
+func (r *chatMapper) GetUserRoleInChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) (string, error) {
 	var role string
 	err := r.db.QueryRowContext(ctx, `SELECT user_role FROM user_chat WHERE user_id = $1 AND chat_id = $2`, userID, chatID).Scan(&role)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -302,29 +301,7 @@ func (r *chatRepository) GetUserRoleInChat(ctx context.Context, userID uuid.UUID
 	return role, err
 }
 
-func (r *chatRepository) GetUsersFromChat(ctx context.Context, chatID uuid.UUID) ([]model.UserInChat, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT u.id, u.username, u.name, u.avatar_path, uc.user_role
-		FROM public.user u
-		JOIN user_chat uc ON u.id = uc.user_id
-		WHERE uc.chat_id = $1`, chatID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []model.UserInChat
-	for rows.Next() {
-		var user model.UserInChat
-		if err := rows.Scan(&user.ID, &user.Username, &user.Name, &user.AvatarPath, &user.Role); err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	return users, nil
-}
-
-func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error {
+func (r *chatMapper) RemoveUserFromChatByUsername(ctx context.Context, username string, chatID uuid.UUID) error {
 	var userID uuid.UUID
 	if err := r.db.QueryRowContext(ctx, `SELECT id FROM public.user WHERE username = $1`, username).Scan(&userID); err != nil {
 		return err
@@ -333,7 +310,7 @@ func (r *chatRepository) RemoveUserFromChatByUsername(ctx context.Context, usern
 	return err
 }
 
-func (r *chatRepository) RemoveUserFromChatByID(ctx context.Context, userID, chatID uuid.UUID) error {
+func (r *chatMapper) RemoveUserFromChatByID(ctx context.Context, userID, chatID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM user_chat WHERE user_id = $1 AND chat_id = $2`, userID, chatID)
 	return err
 }

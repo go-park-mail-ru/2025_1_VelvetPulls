@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type IMessageUsecase interface {
-	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
+type IMessageModule interface {
+	GetMessagesByChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error)
 	GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
 	GetMessagesAfter(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error)
 	SendMessage(ctx context.Context, input *model.Message, userID uuid.UUID, chatID uuid.UUID) error
@@ -24,18 +24,18 @@ type IMessageUsecase interface {
 	DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error
 }
 
-type MessageUsecase struct {
-	messageRepo  repository.IMessageRepo
-	filesUsecase IFilesUsecase
-	chatRepo     repository.IChatRepo
+type MessageModule struct {
+	messageMapper  repository.IMessageMapper
+	filesModule IFilesModule
+	chatMapper    repository.IChatMapper
 	nc           *nats.Conn
 }
 
-func NewMessageUsecase(msgRepo repository.IMessageRepo, filesUsecase IFilesUsecase, chatRepo repository.IChatRepo, nc *nats.Conn) IMessageUsecase {
-	return &MessageUsecase{messageRepo: msgRepo, filesUsecase: filesUsecase, chatRepo: chatRepo, nc: nc}
+func NewMessageModule(msgMapper repository.IMessageMapper, filesModule IFilesModule, chatMapper repository.IChatMapper, nc *nats.Conn) IMessageModule {
+	return &MessageModule{messageMapper: msgMapper, filesModule: filesModule, chatMapper: chatMapper, nc: nc}
 }
 
-func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
+func (uc *MessageModule) GetMessagesByChat(ctx context.Context, userID uuid.UUID, chatID uuid.UUID) ([]model.Message, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetChatMessages start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
@@ -44,7 +44,7 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 		return nil, err
 	}
 
-	msgs, err := uc.messageRepo.GetMessages(ctx, chatID)
+	msgs, err := uc.messageMapper.findByChatId(ctx, chatID)
 	if err != nil {
 		logger.Error("GetMessages failed", zap.Error(err))
 		return nil, err
@@ -53,7 +53,7 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID,
 	return msgs, nil
 }
 
-func (uc *MessageUsecase) GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
+func (uc *MessageModule) GetMessagesBefore(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetMessagesAfter start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()), zap.String("messageID", messageID.String()))
 
@@ -62,7 +62,7 @@ func (uc *MessageUsecase) GetMessagesBefore(ctx context.Context, userID, chatID,
 		return nil, err
 	}
 
-	messages, err := uc.messageRepo.GetMessagesBefore(ctx, chatID, messageID)
+	messages, err := uc.messageMapper.GetMessagesBefore(ctx, chatID, messageID)
 	if err != nil {
 		logger.Error("GetMessagesAfterID failed", zap.Error(err))
 		return nil, err
@@ -72,7 +72,7 @@ func (uc *MessageUsecase) GetMessagesBefore(ctx context.Context, userID, chatID,
 	return messages, nil
 }
 
-func (uc *MessageUsecase) GetMessagesAfter(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
+func (uc *MessageModule) GetMessagesAfter(ctx context.Context, userID, chatID, messageID uuid.UUID) ([]model.Message, error) {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("GetMessagesAfter start",
 		zap.String("userID", userID.String()),
@@ -85,7 +85,7 @@ func (uc *MessageUsecase) GetMessagesAfter(ctx context.Context, userID, chatID, 
 		return nil, err
 	}
 
-	messages, err := uc.messageRepo.GetMessagesAfter(ctx, chatID, messageID)
+	messages, err := uc.messageMapper.GetMessagesAfter(ctx, chatID, messageID)
 	if err != nil {
 		logger.Error("GetMessagesAfterID failed", zap.Error(err))
 		return nil, err
@@ -95,7 +95,7 @@ func (uc *MessageUsecase) GetMessagesAfter(ctx context.Context, userID, chatID, 
 	return messages, nil
 }
 
-func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, userID uuid.UUID, chatID uuid.UUID) error {
+func (uc *MessageModule) SendMessage(ctx context.Context, msg *model.Message, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("SendMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
@@ -112,14 +112,14 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, u
 	// Если есть файлы/фото и сообщение не только стикер
 	if len(msg.Files) > 0 || len(msg.Photos) > 0 || msg.Sticker == "" {
 		var userIDs []string
-		chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+		chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 		if err != nil {
 			logger.Error("Не удалось получить тип чата", zap.Error(err))
 			return err
 		}
 
 		if model.ChatType(chat.Type) == model.ChatTypeDialog || model.ChatType(chat.Type) == model.ChatTypeGroup {
-			users, err := uc.chatRepo.GetUsersFromChat(ctx, chatID)
+			users, err := uc.chatMapper.GetUsersFromChat(ctx, chatID)
 			if err != nil {
 				logger.Error("Не удалось получить пользователей чата", zap.Error(err))
 				return err
@@ -132,7 +132,7 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, u
 		// Сохраняем файлы
 		for i := range msg.Files {
 			log.Println(msg.FilesDTO)
-			savedFile, err := uc.filesUsecase.SaveFile(ctx, msg.Files[i], msg.FilesHeaders[i], userIDs)
+			savedFile, err := uc.filesModule.SaveFile(ctx, msg.Files[i], msg.FilesHeaders[i], userIDs)
 			if err != nil {
 				logger.Error("Не удалось сохранить файл", zap.Error(err))
 				return err
@@ -148,7 +148,7 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, u
 		}
 
 		for i := range msg.Photos {
-			savedPhoto, err := uc.filesUsecase.SavePhoto(ctx, msg.Photos[i], msg.PhotosHeaders[i], userIDs)
+			savedPhoto, err := uc.filesModule.SavePhoto(ctx, msg.Photos[i], msg.PhotosHeaders[i], userIDs)
 			if err != nil {
 				logger.Error("Не удалось сохранить фото", zap.Error(err))
 				return err
@@ -161,7 +161,7 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, u
 			})
 		}
 	}
-	savedMsg, err := uc.messageRepo.CreateMessage(ctx, msg)
+	savedMsg, err := uc.messageMapper.CreateMessage(ctx, msg)
 	if err != nil {
 		log.Println(savedMsg, err)
 		logger.Error("CreateMessage failed", zap.Error(err))
@@ -182,7 +182,7 @@ func (uc *MessageUsecase) SendMessage(ctx context.Context, msg *model.Message, u
 	return nil
 }
 
-func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
+func (uc *MessageModule) UpdateMessage(ctx context.Context, messageID uuid.UUID, input *model.MessageInput, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("UpdateMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
@@ -196,7 +196,7 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 		return fmt.Errorf("%w: %v", ErrMessageValidationFailed, err)
 	}
 
-	message, err := uc.messageRepo.GetMessage(ctx, messageID)
+	message, err := uc.messageMapper.GetMessage(ctx, messageID)
 	if err != nil {
 		logger.Error("GetMessage failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageNotFound, err)
@@ -207,7 +207,7 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 		return ErrMessageAccessDenied
 	}
 
-	updated, err := uc.messageRepo.UpdateMessage(ctx, messageID, input.Message)
+	updated, err := uc.messageMapper.UpdateMessage(ctx, messageID, input.Message)
 	if err != nil {
 		logger.Error("UpdateMessage failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageUpdateFailed, err)
@@ -226,7 +226,7 @@ func (uc *MessageUsecase) UpdateMessage(ctx context.Context, messageID uuid.UUID
 	return nil
 }
 
-func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error {
+func (uc *MessageModule) DeleteMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, chatID uuid.UUID) error {
 	logger := utils.GetLoggerFromCtx(ctx)
 	logger.Info("DeleteMessage start", zap.String("userID", userID.String()), zap.String("chatID", chatID.String()))
 
@@ -235,7 +235,7 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 		return err
 	}
 
-	message, err := uc.messageRepo.GetMessage(ctx, messageID)
+	message, err := uc.messageMapper.GetMessage(ctx, messageID)
 	if err != nil {
 		logger.Error("GetMessage failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageNotFound, err)
@@ -246,7 +246,7 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 		return ErrMessageAccessDenied
 	}
 
-	deleted, err := uc.messageRepo.DeleteMessage(ctx, messageID)
+	deleted, err := uc.messageMapper.DeleteMessage(ctx, messageID)
 	if err != nil {
 		logger.Error("DeleteMessage failed", zap.Error(err))
 		return fmt.Errorf("%w: %v", ErrMessageDeleteFailed, err)
@@ -266,8 +266,8 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, messageID uuid.UUID
 }
 
 // ensureMember проверяет, что пользователь является участником чата
-func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
-	role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+func (uc *MessageModule) ensureMember(ctx context.Context, userID, chatID uuid.UUID) error {
+	role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 	if err != nil {
 		return err
 	}
@@ -278,13 +278,13 @@ func (uc *MessageUsecase) ensureMember(ctx context.Context, userID, chatID uuid.
 }
 
 // ensureCanSend проверяет, что пользователь может отправлять сообщения
-func (uc *MessageUsecase) ensureCanSend(ctx context.Context, userID, chatID uuid.UUID) error {
-	chat, err := uc.chatRepo.GetChatByID(ctx, chatID)
+func (uc *MessageModule) ensureCanSend(ctx context.Context, userID, chatID uuid.UUID) error {
+	chat, err := uc.chatMapper.GetChatByID(ctx, chatID)
 	if err != nil {
 		return err
 	}
 	if chat.Type == string(model.ChatTypeChannel) {
-		role, err := uc.chatRepo.GetUserRoleInChat(ctx, userID, chatID)
+		role, err := uc.chatMapper.GetUserRoleInChat(ctx, userID, chatID)
 		if err != nil {
 			return err
 		}
